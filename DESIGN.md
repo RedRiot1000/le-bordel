@@ -131,6 +131,57 @@ sont 1ers ex æquo et tous les perdants sont derniers ex æquo.
 - Technique : physique partagée serveur/navigateur (`public/games/patate/physics.js`), serveur à 30 Hz qui fait foi,
   **prédiction** de sa propre voiture côté navigateur (zéro retard au volant) + autres voitures lissées avec 0,1 s de retard.
 
+## 7 ter. Sumo 🤼 (validé)
+
+**Principe** : mêmes petites voitures que Patate chaude (même conduite, dérapages, nitro, chocs), mais on ne doit
+**pas tomber dans le vide**. Une voiture qui sort du sol tombe (elle rétrécit en tournant ~1 s) → éliminée.
+
+### À chaque manche, tirés au hasard
+- **La version** : 🔴 *Arène* ou 🏝️ *Îles* (50/50).
+- **Le mode** : nombre de joueurs **impair → toujours FFA** (chacun pour soi).
+  Nombre **pair → FFA ou équipes au hasard** (50/50). Équipes = **toujours 2 équipes** (2 contre 2, 3 contre 3),
+  tirées au hasard à chaque manche, voitures **rouges / bleues** (+ un liseré de la couleur du joueur).
+  On peut pousser ses coéquipiers (la physique ne fait pas de différence) — attention aux accidents !
+
+### Version 🔴 Arène (qui rétrécit)
+- Une grande plateforme ronde, toute la map tient à l'écran (comme Patate).
+- Après 10 s de jeu, le bord **rétrécit petit à petit** (bord rouge clignotant), jusqu'à une petite arène au bout d'environ 1 min.
+- Le but : **pousser les autres dehors**. Dernière voiture (ou dernière équipe) sur la plateforme = gagnant.
+
+### Version 🏝️ Îles
+- Une **grande map** générée au hasard : 4 à 6 **grandes plateformes** entourées de vide, reliées par des **couloirs**
+  (assez larges pour 2 voitures). Tomber = éliminé.
+- **Caméra qui suit ta voiture** + **mini-carte** en coin (îles, couloirs, joueurs, zone sûre).
+- **Zone sûre** : une île est tirée **au hasard parmi toutes les îles** (même si des joueurs y sont déjà) et s'allume.
+  - **Chrono de 15 s.** Dès que **tous les survivants sauf un** sont sur l'île, **le dernier explose** tout de suite
+    (règle active seulement après 3 s de chrono, pour ne pas exploser quelqu'un sans lui laisser une chance).
+  - Si le chrono arrive à 0 : **tous ceux qui sont dehors explosent**.
+  - Pause de 5 s, puis une nouvelle île s'allume, et ainsi de suite.
+- On peut aussi pousser les autres dans le vide pendant la course (dans les couloirs, c'est le chaos 😈).
+
+### Fin de manche et points
+- **FFA** : comme Patate → 1 point par joueur éliminé avant toi (le gagnant a n−1).
+  **Bonus +1** par voiture que tu as **éjectée** (le dernier à l'avoir touchée dans les 3 s avant sa chute).
+  Un fil d'info annonce « 💥 Bob a éjecté Michel ! ».
+- **Équipes** : l'équipe gagnante = celle qui a encore au moins une voiture. Chaque membre gagne **3 points**
+  (+1 s'il est encore en vie), plus les bonus d'éjection.
+- Plusieurs manches, puis classement → points de soirée (comme les autres jeux).
+
+### Réglages
+- **Mode « Un jeu »** (hôte) : version (au hasard / Arène / Îles), mode (auto / FFA / équipes si pair),
+  vitesse de rétrécissement de l'arène, durée du chrono des îles, nitro oui/non.
+- **Mode Playlist** (vote) : difficulté (Facile = arène lente + chrono 20 s · Normal · Difficile = arène rapide + chrono 10 s),
+  manches **3** / 5 / 7, nitro oui/non. La version et le mode restent tirés au hasard à chaque manche.
+
+### Bots
+- Arène : ils foncent sur le plus proche en évitant le bord, et fuient quand ils sont près du vide.
+- Îles : ils calculent le chemin d'île en île par les couloirs pour rejoindre la zone sûre, et poussent en passant.
+
+### Technique (pour moi)
+- Réutilise `physics.js` (même conduite) + un test « est-ce qu'il y a du sol sous la voiture ? ».
+- Chocs un peu plus « costauds » qu'à Patate si besoin, pour que pousser soit satisfaisant (à régler en jouant).
+- Caméra + mini-carte côté navigateur ; prédiction de sa voiture comme Patate (zéro retard).
+
 ## 8. Feuille de route
 
 | Phase | Contenu | Objectif |

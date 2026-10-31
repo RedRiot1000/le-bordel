@@ -146,11 +146,13 @@ P.INERTIA = 0.55 * (P.CAR_L * P.CAR_L + P.CAR_W * P.CAR_W) / 12;
     let impact = 0;
     const R = P.CR;
     for (const s of P.circles(c)) {
-      // Murs de l'arène.
-      if (s.x < R) impact = Math.max(impact, hitStatic(c, s.x - R, s.y, 1, 0, R - s.x));
-      if (s.x > env.w - R) impact = Math.max(impact, hitStatic(c, s.x + R, s.y, -1, 0, s.x - (env.w - R)));
-      if (s.y < R) impact = Math.max(impact, hitStatic(c, s.x, s.y - R, 0, 1, R - s.y));
-      if (s.y > env.h - R) impact = Math.max(impact, hitStatic(c, s.x, s.y + R, 0, -1, s.y - (env.h - R)));
+      // Murs de l'arène (pas de murs au Sumo : autour, c'est le vide !).
+      if (env.walls !== false) {
+        if (s.x < R) impact = Math.max(impact, hitStatic(c, s.x - R, s.y, 1, 0, R - s.x));
+        if (s.x > env.w - R) impact = Math.max(impact, hitStatic(c, s.x + R, s.y, -1, 0, s.x - (env.w - R)));
+        if (s.y < R) impact = Math.max(impact, hitStatic(c, s.x, s.y - R, 0, 1, R - s.y));
+        if (s.y > env.h - R) impact = Math.max(impact, hitStatic(c, s.x, s.y + R, 0, -1, s.y - (env.h - R)));
+      }
       // Obstacles rectangulaires.
       for (const o of env.obstacles) {
         const qx = Math.max(o.x, Math.min(s.x, o.x + o.w));

@@ -1,0 +1,31 @@
+/* SUMO — styles (le reste vient de patate.css : arène, nitro, fin de manche) */
+.sm-tag { font-size: 14px; color: var(--muted); white-space: nowrap; }
+
+#sm-canvas {
+  display: block; width: 100%; height: auto;
+  border-radius: var(--radius); border: 2px solid var(--border); box-shadow: var(--shadow);
+}
+.pt-arena-wrap.over #sm-canvas { display: none; }
+
+/* Bandeau de la zone sûre (au-dessus de l'arène) */
+.sm-zone {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 14px;
+  padding: 8px 20px; border-radius: 999px; font-size: 18px; font-weight: 700;
+  background: rgba(5, 30, 20, 0.85); border: 2px solid rgb(80, 255, 170); color: white;
+  pointer-events: none; white-space: nowrap;
+}
+.sm-zone .sm-zone-sec { font-size: 30px; font-weight: 900; color: rgb(80, 255, 170); min-width: 40px; text-align: center; }
+.sm-zone.urgent { border-color: var(--danger); animation: pulseTimer 0.5s ease-in-out infinite; }
+.sm-zone.urgent .sm-zone-sec { color: var(--danger); }
+.sm-zone.calm { border-color: var(--border); background: rgba(5, 8, 20, 0.8); font-weight: 600; }
+
+/* Fil d'info (éjections, chutes) */
+.sm-feed {
+  position: absolute; bottom: 14px; left: 14px; list-style: none; pointer-events: none;
+  display: flex; flex-direction: column; gap: 6px; max-width: 45%;
+}
+.sm-feed li {
+  background: rgba(5, 8, 20, 0.8); border: 1px solid var(--border); border-radius: 10px;
+  padding: 5px 12px; font-size: 14px; font-weight: 600; animation: fadeIn 0.3s ease;
+}
