@@ -32,7 +32,7 @@ function defaultSettings() {
       enabled: true,
       clue: 60,   // secondes par indice
       vote: 60,   // secondes pour voter
-      guess: 30,  // secondes pour la devinette de Mr White
+      guess: 60,  // secondes pour la devinette de Mr White
     },
     scoring: {
       civilWin: 2,
