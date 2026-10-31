@@ -41,6 +41,7 @@ const POINTS = [10, 7, 5, 3, 2, 1];          // points de soirée par place
 const COLORS = ["#7c5cff", "#ff5c9d", "#38e8c8", "#ffb547", "#4ade80", "#2e9dff"];
 const HOST_GRACE_MS = 15_000;                // délai avant de passer l'hôte à un autre
 const ROOM_EMPTY_MS = 10 * 60_000;           // salon vide supprimé après 10 min
+const BOT_NAMES = ["Bernard", "Ginette", "Michel", "Josiane", "Gérard", "Huguette", "Roger", "Monique"];
 
 const rooms = {};
 
@@ -62,6 +63,8 @@ function generatePlayerId() {
 }
 
 const findPlayer = (room, id) => room.players.find((p) => p.id === id);
+// Un vrai humain encore là ? (les bots ne comptent pas)
+const humansOnline = (room) => room.players.some((p) => p.connected && !p.bot);
 
 // Première couleur pas encore prise dans le salon.
 function freeColor(room) {
@@ -90,6 +93,7 @@ function publicHub(room) {
       color: p.color,
       connected: p.connected,
       score: p.score,
+      bot: !!p.bot,
       isHost: p.id === room.hostId,
     })),
   };
@@ -115,8 +119,9 @@ function startGame(room, gameId) {
 
   // Le "contexte" : tout ce que le mini-jeu a le droit d'utiliser.
   const ctx = {
-    players: () => room.players.map(({ id, pseudo, color, connected }) =>
-      ({ id, pseudo, color, connected })),
+    // bot = joueur géré par l'ordinateur : c'est le jeu qui le fait jouer.
+    players: () => room.players.map(({ id, pseudo, color, connected, bot }) =>
+      ({ id, pseudo, color, connected, bot: !!bot })),
     isHost: (id) => room.hostId === id,
     update: () => sendGame(room),
     sendTo: (playerId, type, payload) => {
@@ -176,7 +181,7 @@ function abortGame(room) {
 //  HÔTE ET NETTOYAGE
 // ===================================================================
 function transferHost(room) {
-  const next = room.players.find((p) => p.connected && p.id !== room.hostId);
+  const next = room.players.find((p) => p.connected && !p.bot && p.id !== room.hostId);
   if (!next) return;
   room.hostId = next.id;
   sendHub(room);
@@ -186,7 +191,7 @@ function transferHost(room) {
 function scheduleCleanup(room) {
   clearTimeout(room.cleanupTimer);
   room.cleanupTimer = setTimeout(() => {
-    if (room.players.some((p) => p.connected)) return;
+    if (humansOnline(room)) return;
     room.game?.destroy();
     clearTimeout(room.hostTimer);
     delete rooms[room.code];
@@ -200,7 +205,7 @@ function removePlayer(room, playerId) {
   const sock = p.socketId && io.sockets.sockets.get(p.socketId);
   if (sock) { sock.leave(room.code); sock.data = {}; }
   room.players = room.players.filter((x) => x.id !== playerId);
-  if (room.players.length === 0) {
+  if (!room.players.some((x) => !x.bot)) {   // plus aucun humain : on ferme
     room.game?.destroy();
     delete rooms[room.code];
     return;
@@ -328,7 +333,23 @@ io.on("connection", (socket) => {
     sendHub(room);
   });
 
-  // --- L'hôte expulse un joueur (hors jeu en cours) ---
+  // --- L'hôte ajoute un bot (pour tester seul ou compléter une partie) ---
+  socket.on("addBot", (_, callback) => {
+    const room = roomOf();
+    if (!room || !amHost()) return callback?.({ error: "Seul l'hôte peut ajouter des bots." });
+    if (room.phase === "game") return callback?.({ error: "Attends la fin du jeu en cours." });
+    if (room.players.length >= MAX_PLAYERS) return callback?.({ error: `Salon plein (${MAX_PLAYERS} max).` });
+    const used = new Set(room.players.map((p) => p.pseudo));
+    const name = BOT_NAMES.find((n) => !used.has("🤖 " + n)) || "Bot";
+    room.players.push({
+      id: generatePlayerId(), pseudo: "🤖 " + name, color: freeColor(room),
+      connected: true, score: 0, bot: true,
+    });
+    callback?.({ ok: true });
+    sendHub(room);
+  });
+
+  // --- L'hôte expulse un joueur ou retire un bot (hors jeu en cours) ---
   socket.on("kickPlayer", ({ playerId } = {}) => {
     const room = roomOf();
     if (!room || !amHost() || room.phase === "game" || playerId === room.hostId) return;
@@ -373,7 +394,7 @@ function handleDisconnect(room, playerId) {
     }, HOST_GRACE_MS);
   }
   room.game?.onDisconnect(playerId);
-  if (!room.players.some((x) => x.connected)) scheduleCleanup(room);
+  if (!humansOnline(room)) scheduleCleanup(room);
   sendHub(room);
 }
 

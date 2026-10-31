@@ -70,6 +70,8 @@ Pour les jeux d'action : **Phaser 3** côté navigateur, et c'est le **serveur q
 5. Fin du jeu → écran **podium + score de soirée** → retour au menu.
 6. **Reconnexion** : si quelqu'un rafraîchit la page ou coupe, il revient à sa place (même pseudo, mêmes points).
 7. Si l'hôte part, le rôle passe au joueur suivant.
+8. **Bots** 🤖 : l'hôte peut ajouter des bots (bouton dans le salon) pour tester seul ou compléter une partie.
+   Chaque jeu les fait jouer lui-même (Imposter : indices bidons + votes au hasard ; Patate : le porteur chasse, les autres fuient).
 
 ## 6. Barème de soirée (proposition)
 

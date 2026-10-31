@@ -86,6 +86,7 @@ export function createGame(ctx) {
 
   const now = () => Date.now();
   const aliveIds = () => Object.keys(g.bodies).filter((id) => g.bodies[id].alive);
+  let botIds = new Set();   // ids des bots de la manche en cours
 
   // =================================================================
   //  ÉTAT PUBLIC (envoyé 30 fois par seconde pendant le jeu)
@@ -120,6 +121,7 @@ export function createGame(ctx) {
   // =================================================================
   function startRound() {
     const players = ctx.players().filter((p) => p.connected);
+    botIds = new Set(players.filter((p) => p.bot).map((p) => p.id));
     g.roundNum++;
     g.obstacles = g.settings.obstacles ? pick(LAYOUTS) : [];
     g.bodies = {};
@@ -225,8 +227,53 @@ export function createGame(ctx) {
     }
   }
 
+  // =================================================================
+  //  BOTS : le porteur fonce sur le plus proche, les autres fuient.
+  //  Ils "réfléchissent" 6 fois par seconde (pas plus, sinon ils sont
+  //  trop forts) et visent un peu à côté pour rester battables.
+  // =================================================================
+  function botsThink(alive) {
+    const holder = g.bodies[g.holderId];
+    for (const id of alive) {
+      if (!botIds.has(id)) continue;
+      const b = g.bodies[id];
+      b.brain = (b.brain || 0) - 1;
+      if (b.brain > 0) continue;
+      b.brain = 5;   // une décision tous les 5 calculs (~6 fois/s)
+
+      let tx = 0, ty = 0;
+      if (id === g.holderId) {
+        // Chasse : vers le joueur le plus proche.
+        let best = null, bestD = Infinity;
+        for (const o of alive) {
+          if (o === id) continue;
+          const d = Math.hypot(g.bodies[o].x - b.x, g.bodies[o].y - b.y);
+          if (d < bestD) { bestD = d; best = g.bodies[o]; }
+        }
+        if (best) { tx = best.x - b.x; ty = best.y - b.y; }
+        if (best && bestD < 140 && Math.random() < 0.15) actions.dash(id);
+      } else if (holder) {
+        const d = Math.hypot(b.x - holder.x, b.y - holder.y);
+        if (d < 300) {
+          // Fuite : à l'opposé du porteur, en évitant de se coincer dans un coin.
+          tx = (b.x - holder.x) / d + (W / 2 - b.x) / W;
+          ty = (b.y - holder.y) / d + (H / 2 - b.y) / H;
+          if (d < 90 && Math.random() < 0.2) actions.dash(id);
+        } else if (Math.random() < 0.3) {
+          tx = Math.random() - 0.5; ty = Math.random() - 0.5;   // flâne un peu
+        }
+      }
+      // Un peu de hasard dans la direction.
+      tx += (Math.random() - 0.5) * 0.6 * Math.hypot(tx, ty);
+      ty += (Math.random() - 0.5) * 0.6 * Math.hypot(tx, ty);
+      const dz = 0.2 * Math.hypot(tx, ty);
+      b.input = { r: tx > dz, l: tx < -dz, d: ty > dz, u: ty < -dz };
+    }
+  }
+
   function step(dt) {
     const alive = aliveIds();
+    botsThink(alive);
 
     // 1. Déplacements selon les touches.
     for (const id of alive) {

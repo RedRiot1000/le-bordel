@@ -45,6 +45,12 @@ function defaultSettings() {
 }
 
 const THEMES = ["theme-violet", "theme-ocean", "theme-sunset", "theme-forest", "theme-candy"];
+
+// Indices bidons des bots (ils ne comprennent pas les mots, c'est pour tester).
+const BOT_CLUES = [
+  "Hmm…", "Classique", "Ça dépend", "Souvent", "Rond", "Coloré", "Utile", "Bof",
+  "Évident", "Mystère", "Partout", "Grand", "Petit", "Doux", "Bizarre", "Chez moi",
+];
 const IMPOSTOR_ROLES = ["undercover", "mrwhite"];
 
 function shuffle(arr) {
@@ -71,9 +77,12 @@ export function createGame(ctx) {
     round: null,
     timer: null,
     timerCtx: null,
+    botTimers: [],          // actions programmées des bots
+    botPending: new Set(),  // pour ne pas programmer deux fois la même action
   };
 
   const findPlayer = (id) => ctx.players().find((p) => p.id === id);
+  const isBot = (id) => !!findPlayer(id)?.bot;
   const addScore = (id, pts) => { g.scores[id] = (g.scores[id] || 0) + pts; };
 
   // =================================================================
@@ -112,6 +121,47 @@ export function createGame(ctx) {
   function broadcast() {
     armTimer();     // (ré)arme le minuteur selon la phase courante
     ctx.update();
+    botsThink();    // les bots réagissent à la nouvelle situation
+  }
+
+  // =================================================================
+  //  BOTS : ils jouent après un petit délai, comme s'ils réfléchissaient
+  // =================================================================
+  function botLater(key, fn) {
+    if (g.botPending.has(key)) return;
+    g.botPending.add(key);
+    g.botTimers.push(setTimeout(fn, 1200 + Math.random() * 1800));
+  }
+
+  function botsThink() {
+    const r = g.round;
+    if (!r) return;
+    if (g.phase === "clues" && isBot(r.currentPlayerId)) {
+      const pid = r.currentPlayerId;
+      botLater(`clue:${r.number}:${r.clues.length}`, () => {
+        if (g.phase !== "clues" || g.round?.currentPlayerId !== pid) return;
+        const used = new Set(g.round.clues.map((c) => c.text.toLowerCase()));
+        const free = BOT_CLUES.filter((c) => !used.has(c.toLowerCase()));
+        const text = free.length ? free[Math.floor(Math.random() * free.length)] : "Bip " + g.round.clues.length;
+        actions.clue(pid, { text });
+      });
+    }
+    if (g.phase === "vote") {
+      for (const pid of r.alive.filter((id) => isBot(id) && !r.votes[id])) {
+        botLater(`vote:${r.number}:${r.voteSession}:${pid}`, () => {
+          const rr = g.round;
+          if (g.phase !== "vote" || !rr.alive.includes(pid) || rr.votes[pid]) return;
+          const targets = rr.alive.filter((id) => id !== pid);
+          actions.vote(pid, { targetId: targets[Math.floor(Math.random() * targets.length)] });
+        });
+      }
+    }
+    if (g.phase === "mrwhite_guess" && isBot(r.guesserId)) {
+      const pid = r.guesserId;
+      botLater(`guess:${r.number}:${pid}`, () => {
+        if (g.phase === "mrwhite_guess" && g.round.guesserId === pid) actions.guess(pid, { guess: "???" });
+      });
+    }
   }
 
   // =================================================================
@@ -534,6 +584,9 @@ export function createGame(ctx) {
     // On peut rejoindre seulement entre les manches.
     canJoin: () => g.phase === "setup" || g.phase === "gameOver",
 
-    destroy() { clearTimeout(g.timer); },
+    destroy() {
+      clearTimeout(g.timer);
+      g.botTimers.forEach(clearTimeout);
+    },
   };
 }

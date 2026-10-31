@@ -28,8 +28,10 @@ let lastGameState = null;
 const $ = (id) => document.getElementById(id);
 
 function showScreen(name) {
+  const target = $("screen-" + name);
+  if (target.classList.contains("active")) return;   // déjà affiché : pas de nouvelle animation
   document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
-  $("screen-" + name).classList.add("active");
+  target.classList.add("active");
 }
 
 const isHost = () => hub && hub.hostId === store.playerId;
@@ -145,6 +147,10 @@ function renderBar() {
 // ===================================================================
 //  SALON : joueurs + menu des jeux
 // ===================================================================
+$("btn-add-bot").addEventListener("click", () => {
+  socket.emit("addBot", {}, (res) => { if (res?.error) toast(res.error); });
+});
+
 $("btn-copy").addEventListener("click", async () => {
   const link = `${location.origin}${location.pathname}?code=${hub.code}`;
   try {
@@ -168,29 +174,37 @@ function renderLobby() {
       ${avatar(p, "avatar")}
       <span class="name">${escapeHtml(p.pseudo)}${p.id === store.playerId ? " (toi)" : ""}</span>
       ${p.isHost ? '<span class="badge-host">HÔTE</span>' : ""}
+      ${p.bot ? '<span class="badge-bot">BOT</span>' : ""}
       ${!p.connected ? '<span class="tag">hors ligne</span>' : ""}
       <span class="pts">${p.score} pts</span>
-      ${isHost() && !p.isHost ? `<button class="kick-btn" data-id="${p.id}" title="Expulser">✕</button>` : ""}
+      ${isHost() && !p.isHost ? `<button class="kick-btn" data-id="${p.id}" title="${p.bot ? "Retirer le bot" : "Expulser"}">✕</button>` : ""}
     </li>`).join("");
   list.querySelectorAll(".kick-btn").forEach((b) => {
     b.onclick = () => {
       const p = playerOf(b.dataset.id);
-      if (confirm(`Expulser ${p?.pseudo} du salon ?`)) socket.emit("kickPlayer", { playerId: b.dataset.id });
+      if (p?.bot || confirm(`Expulser ${p?.pseudo} du salon ?`)) socket.emit("kickPlayer", { playerId: b.dataset.id });
     };
   });
 
-  // --- Menu des jeux ---
+  // --- Bouton "Ajouter un bot" (hôte) ---
   const n = hub.players.length;
   const host = isHost();
-  $("games-hint").textContent = host
-    ? "Clique sur un jeu pour le lancer."
-    : "L'hôte choisit le prochain jeu…";
+  $("btn-add-bot").classList.toggle("hidden", !host || n >= 6);
+
+  // --- Menu des jeux ---
+  const minNeeded = Math.min(...catalogue.games.map((g) => g.minPlayers));
+  const hint = $("games-hint");
+  hint.classList.toggle("warn", host && n < minNeeded);
+  hint.textContent = !host ? "L'hôte choisit le prochain jeu…"
+    : n < minNeeded ? `👉 Il faut au moins ${minNeeded} joueurs. Invite tes potes ou ajoute des bots 🤖 pour tester !`
+    : "Clique sur un jeu pour le lancer.";
 
   const tiles = catalogue.games.map((g) => {
     const ok = n >= g.minPlayers && n <= g.maxPlayers;
     const why = n < g.minPlayers ? ` · il manque ${g.minPlayers - n} joueur(s)` : "";
+    // L'hôte peut toujours cliquer : s'il manque du monde, un message l'explique.
     return `
-      <button class="game-tile" data-id="${g.id}" ${host && ok ? "" : "disabled"}>
+      <button class="game-tile ${ok ? "" : "locked"}" data-id="${g.id}" ${host ? "" : "disabled"}>
         <span class="gt-emoji">${g.emoji}</span>
         <span class="gt-name">${escapeHtml(g.name)}</span>
         <span class="gt-meta">${g.family} · ${g.minPlayers}-${g.maxPlayers} joueurs${why}</span>
