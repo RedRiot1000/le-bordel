@@ -19,7 +19,10 @@
 
   // Prédiction de MA voiture
   let pred = null;            // état de ma voiture calculé ici
+  let prevPred = null;        // état au calcul précédent (pour glisser entre les deux à l'écran)
   let pending = [];           // touches envoyées mais pas encore traitées par le serveur
+  const history = new Map();  // n° de touche -> ce que j'avais prédit juste après
+  let clockOff = null;        // écart entre l'horloge du serveur et la nôtre
   let seq = 0;
   let acc = 0;                // temps accumulé avant le prochain calcul
   const off = { x: 0, y: 0, a: 0 };   // petit décalage lissé quand le serveur nous recale
@@ -34,6 +37,14 @@
   const seenFx = new Set();
   let shake = 0;
   let boomKey = null;
+
+  // Diagnostic de fluidité (taper window.__pt dans la console du navigateur).
+  const dbg = { n: 0, fix: 0, sum: 0, max: 0, big: 0, frames: 0, slow: 0, drawMs: 0 };
+  window.__pt = () => ({
+    messages: dbg.n, recalages: dbg.fix, ecartMoyen: +(dbg.sum / Math.max(1, dbg.fix)).toFixed(2),
+    ecartMax: +dbg.max.toFixed(1), recalagesVisibles: dbg.big,
+    images: dbg.frames, imagesLentes: dbg.slow, dessinMoyenMs: +(dbg.drawMs / Math.max(1, dbg.frames)).toFixed(2),
+  });
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => api.escapeHtml(s);
@@ -101,7 +112,7 @@
   window.GAMES.patate = {
     mount(rootEl, hubApi) {
       api = hubApi; root = rootEl;
-      st = null; pred = null; pending = []; snaps.length = 0; particles = [];
+      st = null; pred = prevPred = null; pending = []; snaps.length = 0; particles = []; clockOff = null;
       mapId = null; boomKey = null; seenFx.clear(); pressed.clear();
       root.innerHTML = TEMPLATE;
       api.setTheme("theme-sunset");
@@ -133,9 +144,13 @@
       $("pt-play").classList.remove("hidden");
 
       if (st.map && st.map.id !== mapId) newMap();
-      if (prevRound !== st.roundNum) { pending = []; pred = null; }
+      if (prevRound !== st.roundNum) { pending = []; pred = prevPred = null; history.clear(); }
 
-      snaps.push({ t: performance.now(), cars: Object.fromEntries(st.cars.map((c) => [c.id, c])) });
+      // On date chaque position avec l'heure du SERVEUR (convertie en heure locale) :
+      // les petits retards du réseau ne font plus trembler les autres voitures.
+      const d = Date.now() - st.t;
+      clockOff = clockOff === null ? d : Math.min(d, clockOff + 1);
+      snaps.push({ t: st.t + clockOff, cars: Object.fromEntries(st.cars.map((c) => [c.id, c])) });
       if (snaps.length > 30) snaps.shift();
 
       handleEffects();
@@ -192,19 +207,56 @@
   }
   const myBonus = () => (st.holderId === me() ? P.HOLDER_BONUS : 1);
 
+  // Où dessiner MA voiture : entre le calcul précédent et le dernier,
+  // selon le temps écoulé (l'écran tourne à 60 i/s, la physique à 30).
+  function ownView() {
+    if (!prevPred) return pred;
+    const f = Math.min(1, acc / P.TICK);
+    return {
+      ...pred,
+      x: prevPred.x + (pred.x - prevPred.x) * f,
+      y: prevPred.y + (pred.y - prevPred.y) * f,
+      a: prevPred.a + angDiff(pred.a, prevPred.a) * f,
+    };
+  }
+
+  // Le serveur et moi avons-nous trouvé la même chose ?
+  // (le serveur arrondit ses nombres, d'où la petite tolérance)
+  function same(a, b) {
+    return Math.abs(a.x - b.x) < 0.05 && Math.abs(a.y - b.y) < 0.05 && Math.abs(angDiff(a.a, b.a)) < 0.002 &&
+           Math.abs(a.vx - b.vx) < 0.05 && Math.abs(a.vy - b.vy) < 0.05 && Math.abs(a.w - b.w) < 0.05;
+  }
+
   function reconcile() {
     const sc = st.cars.find((c) => c.id === me());
-    if (!sc || !sc.alive || !["play", "boom"].includes(st.phase)) { pred = null; pending = []; return; }
-    const before = pred && { x: pred.x, y: pred.y, a: pred.a };
-    pred = P.copyCar(sc);
+    if (!sc || !sc.alive || !["play", "boom"].includes(st.phase)) {
+      pred = prevPred = null; pending = []; history.clear(); return;
+    }
     pending = pending.filter((p) => p.s > sc.seq);
+    for (const s of history.keys()) if (s < sc.seq) history.delete(s);
+
+    // Ma prédiction pour ce numéro de touche était juste : on ne touche à rien.
+    const mine = history.get(sc.seq);
+    dbg.n++;
+    if (pred && mine && same(mine, sc)) return;
+
+    // Sinon (choc, explosion, réseau...) : on repart de la vérité du serveur
+    // et on rejoue les touches qu'il n'a pas encore reçues.
+    const before = pred && ownView();
+    const oldPred = pred;
+    pred = P.copyCar(sc);
     const e = env(), b = myBonus();
-    for (const p of pending) P.simulate(pred, p.k, e, b);
+    for (const p of pending) { P.simulate(pred, p.k, e, b); history.set(p.s, P.copyCar(pred)); }
+    if (prevPred && oldPred) {   // on décale aussi l'image précédente pour garder le glissé
+      prevPred.x += pred.x - oldPred.x; prevPred.y += pred.y - oldPred.y; prevPred.a += angDiff(pred.a, oldPred.a);
+    }
     if (before) {
-      const dx = before.x - pred.x, dy = before.y - pred.y;
-      if (Math.hypot(dx, dy) < 150) {   // petit écart : on le fait disparaître en douceur
-        off.x += dx; off.y += dy; off.a += angDiff(before.a, pred.a);
-      }
+      // L'écart est effacé en douceur à l'écran, pas d'un coup.
+      const after = ownView();
+      const dx = before.x - after.x, dy = before.y - after.y;
+      if (Math.hypot(dx, dy) < 150) { off.x += dx; off.y += dy; off.a += angDiff(before.a, after.a); }
+      const err = Math.hypot(dx, dy);
+      dbg.fix++; dbg.sum += err; dbg.max = Math.max(dbg.max, err); if (err > 2) dbg.big++;
     }
   }
 
@@ -219,14 +271,16 @@
       api.send("in", { s: seq, k });
       pending.push({ s: seq, k });
       if (pending.length > 90) pending.shift();
+      prevPred = P.copyCar(pred);
       P.simulate(pred, k, e, b);
+      history.set(seq, P.copyCar(pred));
       acc -= P.TICK;
     }
   }
 
   // Position affichée des autres voitures (entre deux messages reçus).
   function interpolated(id) {
-    const t = performance.now() - INTERP_DELAY;
+    const t = Date.now() - INTERP_DELAY;
     let a = null, b = null;
     for (let i = snaps.length - 1; i >= 0; i--) {
       if (snaps[i].t <= t) { a = snaps[i]; b = snaps[i + 1] || snaps[i]; break; }
@@ -479,11 +533,14 @@
     rafId = requestAnimationFrame(frame);
     const dt = Math.min(0.1, (ts - lastTs) / 1000);
     lastTs = ts;
+    dbg.frames++; if (dt > 0.025) dbg.slow++;
     if (!st || st.phase === "setup" || !g2d || !bg) return;
     driveLocal(dt);
     const decay = Math.pow(0.82, dt * 60);
     off.x *= decay; off.y *= decay; off.a *= decay;
+    const t0 = performance.now();
     draw(ts, dt);
+    dbg.drawMs += performance.now() - t0;
   }
 
   function draw(ts, dt) {
@@ -499,7 +556,10 @@
     const view = [];
     for (const c of st.cars) {
       let v;
-      if (c.id === me() && pred) v = { ...pred, id: c.id, alive: true, x: pred.x + off.x, y: pred.y + off.y, a: pred.a + off.a };
+      if (c.id === me() && pred) {
+        const o = ownView();
+        v = { ...o, id: c.id, alive: true, x: o.x + off.x, y: o.y + off.y, a: o.a + off.a };
+      }
       else v = interpolated(c.id) || c;
       view.push(v);
       if (v.alive) drawSkids(c.id, v);

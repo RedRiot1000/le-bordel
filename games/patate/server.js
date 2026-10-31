@@ -30,7 +30,6 @@ const PASS_COOLDOWN = 0.3;     // délai mini entre deux passes (s)
 const COUNTDOWN_MS = 3000;     // compte à rebours en début de manche
 const RESPAWN_MS = 2000;       // pause avant la bombe suivante
 const BOOM_MS = 1800;          // durée de l'explosion à l'écran
-const MAX_QUEUE = 4;           // touches en attente max par joueur (évite le retard qui s'accumule)
 
 // Durée de la mèche (en secondes, tirée au hasard dans l'intervalle).
 // ("test" = mèche éclair utilisée seulement par les tests automatiques.)
@@ -42,7 +41,6 @@ function defaultSettings() {
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-const r2 = (v) => Math.round(v * 100) / 100;
 const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 
 // ===================================================================
@@ -85,6 +83,7 @@ export function createGame(ctx) {
     }
     g.fx = g.fx.filter((f) => t - f.t < 600);
     return {
+      t,                                      // heure du serveur (pour lisser l'affichage)
       phase: g.phase,
       settings: g.settings,
       roundNum: g.roundNum,
@@ -93,11 +92,12 @@ export function createGame(ctx) {
         id: g.map.id, surface: g.map.surface, grip: g.map.grip, seed: g.map.seed,
         obstacles: g.map.obstacles, oils: g.map.oils, w: P.W, h: P.H,
       },
+      // Valeurs EXACTES (pas d'arrondi) : le navigateur refait les mêmes calculs
+      // à partir d'elles, le moindre arrondi finirait en petite saccade.
       cars: Object.entries(g.cars).map(([id, s]) => ({
         id, alive: s.alive, seq: s.seq,
-        x: r2(s.car.x), y: r2(s.car.y), a: Math.round(s.car.a * 1000) / 1000,
-        vx: r2(s.car.vx), vy: r2(s.car.vy), w: r2(s.car.w),
-        nitro: r2(s.car.nitro), slide: s.car.slide, st: s.car.st, boost: s.car.boost,
+        x: s.car.x, y: s.car.y, a: s.car.a, vx: s.car.vx, vy: s.car.vy, w: s.car.w,
+        nitro: s.car.nitro, slide: s.car.slide, st: s.car.st, boost: s.car.boost,
       })),
       holderId: g.holderId,
       heat,                                   // 0 -> 1 : la bombe clignote de plus en plus vite
@@ -124,7 +124,7 @@ export function createGame(ctx) {
 
     players.forEach((p, i) => {
       const s = g.map.spawns[i];
-      g.cars[p.id] = { car: P.newCar(s.x, s.y, s.a), alive: true, bot: !!p.bot, queue: [], lastK: 0, seq: 0, ai: {} };
+      g.cars[p.id] = { car: P.newCar(s.x, s.y, s.a), alive: true, bot: !!p.bot, seq: 0, lastInputAt: 0, ai: {} };
       g.scores[p.id] = g.scores[p.id] || 0;   // il apparaît au classement
     });
 
@@ -264,46 +264,39 @@ export function createGame(ctx) {
   }
 
   // =================================================================
-  //  UN CALCUL DE PHYSIQUE (1/30 s, découpé en petits pas)
+  //  FAIRE AVANCER UNE VOITURE de 1/30 s (en 3 petits pas), avec les
+  //  murs et les chocs contre les autres voitures.
+  //  Pour un humain, on l'appelle À CHAQUE TOUCHE REÇUE : le serveur fait
+  //  donc exactement le même calcul que son navigateur (aucune correction
+  //  sauf en cas de choc), d'où une conduite bien fluide.
   // =================================================================
-  function step() {
-    const alive = aliveIds();
-    const all = Object.keys(g.cars);
-
-    // 1. Quelles touches pour chaque voiture ?
-    const keys = {};
-    for (const id of alive) {
-      const s = g.cars[id];
-      if (s.bot) { keys[id] = botKeys(id, s, P.TICK); continue; }
-      // Un humain : on prend la prochaine touche reçue (ou la dernière connue).
-      if (s.queue.length > MAX_QUEUE) s.queue.splice(0, s.queue.length - 2);
-      const inp = s.queue.shift();
-      if (inp) { s.lastK = inp.k; s.seq = inp.s; }
-      keys[id] = s.lastK;
-    }
-
+  function advanceCar(id, k) {
+    const s = g.cars[id];
     const dt = P.TICK / P.SUB;
     const t = now();
+    const bonus = id === g.holderId ? P.HOLDER_BONUS : 1;
     for (let sub = 0; sub < P.SUB; sub++) {
-      // 2. Conduite + murs. Les épaves glissent encore un peu puis s'arrêtent.
-      for (const id of all) {
-        const s = g.cars[id];
-        P.drive(s.car, s.alive ? keys[id] : 0, dt, g.env, id === g.holderId ? P.HOLDER_BONUS : 1);
-        const hit = P.collideStatic(s.car, g.env);
-        if (hit > 180 && s.alive) addFx(s.car.x, s.car.y, hit, [id]);
+      P.drive(s.car, s.alive ? k : 0, dt, g.env, bonus);
+      const hit = P.collideStatic(s.car, g.env);
+      if (hit > 180 && s.alive) addFx(s.car.x, s.car.y, hit, [id]);
+      if (!s.alive) continue;
+      for (const oid in g.cars) {
+        if (oid === id) continue;
+        const o = g.cars[oid];
+        const res = P.collideCars(s.car, o.car, !o.alive);   // les épaves ne bougent pas
+        if (res.impact > 120) addFx(res.x, res.y, res.impact, [id, oid]);
+        if (res.touch && o.alive && g.phase === "play") tryPass(id, oid, t);
       }
-      // 3. Chocs entre voitures (les épaves sont des obstacles fixes).
-      for (let i = 0; i < all.length; i++) {
-        for (let j = i + 1; j < all.length; j++) {
-          let A = g.cars[all[i]], B = g.cars[all[j]];
-          if (!A.alive && !B.alive) continue;
-          let ida = all[i], idb = all[j];
-          if (!A.alive) { [A, B] = [B, A]; [ida, idb] = [idb, ida]; }
-          const res = P.collideCars(A.car, B.car, !B.alive);
-          if (res.impact > 120) addFx(res.x, res.y, res.impact, [ida, idb]);
-          if (res.touch && B.alive && g.phase === "play") tryPass(ida, idb, t);
-        }
-      }
+    }
+  }
+
+  // Un calcul de la boucle : bots, épaves, et humains silencieux.
+  function step() {
+    const t = now();
+    for (const [id, s] of Object.entries(g.cars)) {
+      if (!s.alive) advanceCar(id, 0);                         // l'épave finit de glisser
+      else if (s.bot) advanceCar(id, botKeys(id, s, P.TICK));
+      else if (t - s.lastInputAt > 200) advanceCar(id, 0);     // onglet en pause : la voiture roule en roue libre
     }
   }
 
@@ -332,12 +325,6 @@ export function createGame(ctx) {
   function tick() {
     const t = now();
     if (g.phase === "countdown") {
-      // Voitures figées : on jette les touches reçues mais on note où en est chacun.
-      for (const s of Object.values(g.cars)) {
-        const last = s.queue.at(-1);
-        if (last) { s.seq = last.s; s.lastK = 0; }
-        s.queue.length = 0;
-      }
       if (t >= g.phaseEnd) { g.phase = "play"; lightFuse(); }
     } else if (g.phase === "play" || g.phase === "boom") {
       step();
@@ -390,10 +377,20 @@ export function createGame(ctx) {
     },
 
     // Touches du joueur : { s: numéro, k: touches combinées } (30 fois/s).
+    // Chaque message = la voiture avance de 1/30 s tout de suite.
     in(pid, { s, k }) {
       const st = g.cars[pid];
-      if (!st || st.bot || typeof s !== "number") return;
-      st.queue.push({ s, k: k & 63 });
+      if (!st || st.bot || typeof s !== "number" || s <= st.seq) return;
+      const t = now();
+      st.seq = s;
+      st.lastInputAt = t;
+      if (!st.alive || !["play", "boom"].includes(g.phase)) return;   // figé (compte à rebours)
+      // Anti-triche simple : pas plus de ~36 calculs par seconde.
+      st.budget = Math.min(6, (st.budget ?? 6) + (t - (st.budgetAt || t)) * 0.036);
+      st.budgetAt = t;
+      if (st.budget < 1) return;
+      st.budget -= 1;
+      advanceCar(pid, k & 63);
     },
 
     setup(pid) {
