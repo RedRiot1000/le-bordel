@@ -1,0 +1,7 @@
+/* IMPOSTER — petits ajouts (le gros du style est dans style.css) */
+.imp-logo { margin: 2vh 0 26px; }
+.imp-logo .logo-icon { font-size: 48px; }
+.imp-logo h1 { font-size: clamp(32px, 7vw, 54px); }
+.pc-head .avatar { background: var(--av, var(--accent)); }
+.player-card.offline { opacity: 0.45; }
+#imp-finish-setup { margin-top: 6px; }

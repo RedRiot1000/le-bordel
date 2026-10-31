@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Le Bordel</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎉</text></svg>" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="hub.css" />
+</head>
+<body class="theme-violet">
+  <!-- Fond animé -->
+  <div class="bg-blobs" aria-hidden="true">
+    <span class="blob b1"></span>
+    <span class="blob b2"></span>
+    <span class="blob b3"></span>
+  </div>
+
+  <main class="app">
+
+    <!-- Barre du salon (visible dès qu'on est dans un salon) -->
+    <div id="hub-bar" class="hub-bar hidden">
+      <span class="hub-brand">🎉 LE BORDEL</span>
+      <span class="hub-code">Salon <b id="bar-code">----</b></span>
+      <span class="hub-online" id="bar-online"></span>
+      <button id="btn-abort" class="btn btn-ghost btn-small hidden">⏹ Arrêter le jeu</button>
+      <button id="btn-leave" class="btn btn-ghost btn-small">🚪 Quitter</button>
+    </div>
+
+    <!-- ============ ACCUEIL ============ -->
+    <section id="screen-home" class="screen active">
+      <div class="logo">
+        <span class="logo-icon">🎉</span>
+        <h1>LE BORDEL</h1>
+        <p class="tagline">Des mini-jeux entre potes. 3 à 6 joueurs.</p>
+      </div>
+
+      <div class="card home-card">
+        <label class="field">
+          <span>Ton pseudo</span>
+          <input id="input-pseudo" type="text" maxlength="20" placeholder="Ex : Scotty" autocomplete="off" />
+        </label>
+
+        <button id="btn-create" class="btn btn-primary btn-big">Créer un salon</button>
+
+        <div class="divider"><span>ou</span></div>
+
+        <div class="join-row">
+          <input id="input-code" type="text" maxlength="4" placeholder="CODE" class="code-input" autocomplete="off" />
+          <button id="btn-join" class="btn btn-secondary">Rejoindre</button>
+        </div>
+
+        <p id="home-error" class="error-msg"></p>
+      </div>
+    </section>
+
+    <!-- ============ SALON : menu des jeux ============ -->
+    <section id="screen-lobby" class="screen">
+      <div class="lobby-header">
+        <div>
+          <p class="muted">Code du salon</p>
+          <div class="room-code" id="room-code">----</div>
+        </div>
+        <button id="btn-copy" class="btn btn-ghost">📋 Copier le lien</button>
+      </div>
+
+      <div class="hub-grid">
+        <div class="card">
+          <h2>Joueurs <span id="player-count" class="pill">0</span></h2>
+          <ul id="player-list" class="player-list"></ul>
+        </div>
+
+        <div class="card">
+          <h2>🎮 Choisis un jeu</h2>
+          <p id="games-hint" class="muted games-hint"></p>
+          <div id="game-tiles" class="game-tiles"></div>
+          <p id="lobby-error" class="error-msg"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ JEU EN COURS ============ -->
+    <section id="screen-game" class="screen">
+      <div id="game-root"></div>
+    </section>
+
+    <!-- ============ PODIUM ============ -->
+    <section id="screen-podium" class="screen">
+      <div class="card podium-card">
+        <h2 id="podium-title" class="podium-title">🏆 Résultats</h2>
+        <ul id="podium-list" class="podium-list"></ul>
+        <h3 class="muted podium-sub">Classement de la soirée</h3>
+        <ul id="evening-list" class="evening-list"></ul>
+        <button id="btn-close-podium" class="btn btn-primary btn-big">Retour au menu</button>
+        <p id="podium-wait" class="muted">En attente de l'hôte…</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="version" id="version"></footer>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Mini-jeux : chacun s'enregistre dans window.GAMES -->
+  <script>window.GAMES = {};</script>
+  <link rel="stylesheet" href="games/imposter/imposter.css" />
+  <script src="games/imposter/client.js"></script>
+  <!-- Le hub en dernier -->
+  <script src="hub.js"></script>
+</body>
+</html>

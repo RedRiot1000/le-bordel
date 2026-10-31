@@ -1,0 +1,11 @@
+# Configuration Render : le serveur se redéploie tout seul à chaque push sur GitHub.
+services:
+  - type: web
+    name: le-bordel
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
