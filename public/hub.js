@@ -44,7 +44,9 @@ function escapeHtml(str) {
 
 // Petit rond de couleur avec l'initiale du joueur.
 function avatar(p, cls = "mini-avatar") {
-  return `<span class="${cls}" style="--av:${p?.color || "var(--accent)"}">${escapeHtml((p?.pseudo || "?").charAt(0).toUpperCase())}</span>`;
+  // [...texte][0] = premier caractère entier (un emoji comme 🤖 compte pour un seul).
+  const first = [...(p?.pseudo || "?")][0].toUpperCase();
+  return `<span class="${cls}" style="--av:${p?.color || "var(--accent)"}">${escapeHtml(first)}</span>`;
 }
 
 function toast(msg) {

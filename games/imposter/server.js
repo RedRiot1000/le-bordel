@@ -319,6 +319,7 @@ export function createGame(ctx) {
       result: null,
       guesserId: null,
       outcome: null,
+      scoresAtStart: { ...g.scores },   // pour calculer les points gagnés pendant la manche
     };
 
     g.phase = "clues";
@@ -451,9 +452,14 @@ export function createGame(ctx) {
       }
     }
 
+    // Points gagnés pendant la manche (victoire + bonus de bons votes).
+    const gains = {};
+    for (const id of r.seating) gains[id] = (g.scores[id] || 0) - (r.scoresAtStart[id] || 0);
+
     r.outcome = {
       winnerSide,
       winners,
+      gains,
       pair: r.pair,
       roles: r.seating.map((id) => ({ playerId: id, role: r.assignments[id].role, word: r.assignments[id].word })),
     };

@@ -59,8 +59,15 @@
       <div class="game-topbar">
         <span class="pill" id="game-round">Manche 1</span>
         <span class="phase-label" id="game-phase">—</span>
-        <span id="timer-pill" class="timer-pill hidden">⏱️ —</span>
         <button id="btn-scores" class="btn btn-ghost">🏆 Scores</button>
+      </div>
+      <!-- Gros minuteur -->
+      <div id="imp-timer" class="imp-timer hidden">
+        <div class="imp-timer-num"><span id="imp-timer-sec">30</span><small>s</small></div>
+        <div class="imp-timer-right">
+          <div id="imp-timer-label" class="imp-timer-label"></div>
+          <div class="imp-timer-bar"><i id="imp-timer-fill"></i></div>
+        </div>
       </div>
       <div id="secret-card" class="secret-card"></div>
       <div id="players-strip" class="players-strip"></div>
@@ -350,29 +357,48 @@
   }
 
   // --- Bandeau des joueurs (places + indices) ---
+  // Pendant le vote, on clique directement sur la carte d'un joueur pour voter.
   function renderPlayersStrip() {
     const strip = $("players-strip");
     const r = st.round;
+    const voting = st.phase === "vote" && r.alive.includes(me());
+    const counts = r.voteCounts || {};          // votes reçus (affichés après le dépouillement)
+    strip.classList.toggle("voting", voting);
     strip.innerHTML = r.seating.map((id) => {
       const p = playerOf(id);
       if (!p) return "";
       const elim = r.eliminated.find((e) => e.playerId === id);
       const isCurrent = st.phase === "clues" && r.currentPlayerId === id;
       const isMe = id === me();
+      const votable = voting && !isMe && r.alive.includes(id);
+      const hasVoted = st.phase === "vote" && (r.votedIds || []).includes(id);
       const clues = r.clues.filter((c) => c.playerId === id)
         .map((c) => `<span class="clue">${c.absent ? "—" : esc(c.text)}</span>`).join("");
       const cls = "player-card" + (isCurrent ? " current" : "") + (elim ? " eliminated" : "") +
-        (isMe ? " me" : "") + (p.connected ? "" : " offline");
+        (isMe ? " me" : "") + (p.connected ? "" : " offline") +
+        (votable ? " votable" : "") + (votable && myVote === id ? " chosen" : "");
       return `
-        <div class="${cls}">
+        <div class="${cls}" data-id="${id}">
           <div class="pc-head">
             ${api.avatar(p, "avatar")}
             <span class="pc-name">${esc(p.pseudo)}${isMe ? " (toi)" : ""}</span>
             ${elim ? `<span class="pc-role role-${elim.role}">${roleName(elim.role)}</span>` : ""}
+            ${hasVoted ? '<span class="pc-voted" title="A voté">✔ a voté</span>' : ""}
+            ${!hasVoted && counts[id] ? `<span class="pc-votes">🗳️ ${counts[id]}</span>` : ""}
           </div>
           <div class="clues">${clues || '<span class="clue empty">…</span>'}</div>
+          ${votable ? `<div class="pc-vote-hint">${myVote === id ? "✅ Ton vote" : "👆 Voter"}</div>` : ""}
         </div>`;
     }).join("");
+
+    strip.querySelectorAll(".player-card.votable").forEach((el) => {
+      el.onclick = () => {
+        myVote = el.dataset.id;
+        send("vote", { targetId: myVote });
+        renderPlayersStrip();
+        renderActionZone();
+      };
+    });
   }
 
   // --- Zone d'action selon la phase ---
@@ -412,23 +438,16 @@
     // ---- VOTE ----
     if (st.phase === "vote") {
       const voted = (r.votedIds || []).length;
+      const voters = r.alive.filter((id) => playerOf(id)?.connected).length;
       if (!iAmAlive) {
-        zone.innerHTML = `<p class="waiting">Les joueurs en vie votent… (${voted} vote(s))</p>`;
+        zone.innerHTML = `<p class="waiting">Les joueurs en vie votent… (${voted}/${voters})</p>`;
         return;
       }
-      const voters = r.alive.filter((id) => playerOf(id)?.connected).length;
-      const buttons = r.alive.filter((id) => id !== me()).map((id) =>
-        `<button class="vote-btn ${myVote === id ? "chosen" : ""}" data-id="${id}">${esc(pseudoOf(id))}</button>`
-      ).join("");
-      zone.innerHTML = `<p class="muted">Qui est l'imposteur ? (${voted}/${voters} ont voté)</p>
-        <div class="vote-grid">${buttons}</div>`;
-      zone.querySelectorAll(".vote-btn").forEach((b) => {
-        b.onclick = () => {
-          myVote = b.dataset.id;
-          send("vote", { targetId: myVote });
-          renderActionZone();
-        };
-      });
+      zone.innerHTML = myVote
+        ? `<p class="waiting">✅ Tu as voté contre <b>${esc(pseudoOf(myVote))}</b>. Tu peux encore changer d'avis.</p>
+           <p class="muted">${voted}/${voters} joueurs ont voté</p>`
+        : `<p class="waiting">🗳️ Qui est l'imposteur ? <b>Clique sur sa carte</b> ci-dessus.</p>
+           <p class="muted">${voted}/${voters} joueurs ont voté</p>`;
       return;
     }
 
@@ -455,11 +474,16 @@
     if (st.phase === "result") {
       let msg;
       if (r.result?.tie) {
-        msg = "🤝 Égalité au vote ! Personne n'est éliminé. Un tour d'indices de plus.";
+        msg = `<div class="res-title">🤝 Égalité !</div>
+               <div class="res-sub">Personne n'est éliminé. On refait un tour d'indices.</div>`;
       } else {
-        msg = `<b>${esc(pseudoOf(r.result.eliminatedId))}</b> est éliminé… c'était <b class="role-${r.result.role}">${roleName(r.result.role)}</b> !`;
+        const role = r.result.role;
+        const caught = role !== "civil";
+        msg = `<div class="res-title">🗳️ ${esc(pseudoOf(r.result.eliminatedId))} est éliminé !</div>
+               <div class="res-role role-${role}">Rôle : ${roleName(role)}</div>
+               <div class="res-sub">${caught ? "🎯 Bien vu, c'était un imposteur !" : "😬 Raté, c'était un innocent…"}</div>`;
       }
-      zone.innerHTML = `<p class="result-msg">${msg}</p>` +
+      zone.innerHTML = `<div class="result-msg">${msg}</div>` +
         (host ? `<button id="continue-btn" class="btn btn-primary">Continuer</button>`
               : `<p class="muted">En attente de l'hôte…</p>`);
       if (host) $("continue-btn").onclick = () => send("continue");
@@ -472,14 +496,42 @@
       const banner = o.winnerSide === "civils" ? "🟢 Les Civils gagnent !"
                    : o.winnerSide === "mrwhite" ? "⚪ Mr White gagne !"
                    : "🔴 Les Imposteurs gagnent !";
-      const roles = o.roles.map((x) =>
-        `<li><b>${esc(pseudoOf(x.playerId))}</b> — <span class="role-${x.role}">${roleName(x.role)}</span>${x.word ? " (" + esc(x.word) + ")" : ""}</li>`
-      ).join("");
+      const gains = o.gains || {};
+      const plus = (n) => (n > 0 ? `+${n}` : `${n}`) + " pt" + (Math.abs(n) > 1 ? "s" : "");
+
+      // Ce qui me concerne : mon rôle et mes points de la manche.
+      const mine = o.roles.find((x) => x.playerId === me());
+      const meLine = mine ? `
+        <div class="go-me">
+          Tu étais <b class="role-${mine.role}">${roleName(mine.role)}</b>
+          ${mine.word ? ` avec le mot <b>${esc(mine.word)}</b>` : " (sans mot)"}
+          <span class="go-me-pts ${gains[me()] > 0 ? "win" : ""}">${plus(gains[me()] || 0)} cette manche</span>
+        </div>` : "";
+
+      // Tableau de tout le monde : rôle, mot, points gagnés, total.
+      const rows = [...o.roles].sort((a, b) => (gains[b.playerId] || 0) - (gains[a.playerId] || 0)).map((x) => {
+        const p = playerOf(x.playerId);
+        return `<tr class="${x.playerId === me() ? "me" : ""}">
+          <td class="go-who">${api.avatar(p)} ${esc(pseudoOf(x.playerId))}</td>
+          <td><span class="role-${x.role}">${roleName(x.role)}</span></td>
+          <td>${x.word ? esc(x.word) : '<span class="muted">aucun</span>'}</td>
+          <td class="go-gain ${gains[x.playerId] > 0 ? "win" : ""}">${plus(gains[x.playerId] || 0)}</td>
+          <td class="go-total">${p?.score ?? 0}</td>
+        </tr>`;
+      }).join("");
+
       zone.innerHTML = `
         <div class="gameover">
           <h2 class="go-banner">${banner}</h2>
-          <p class="go-pair">Mot des civils : <b>${esc(o.pair.civil)}</b> • Undercover : <b>${esc(o.pair.undercover)}</b></p>
-          <ul class="go-roles">${roles}</ul>
+          ${meLine}
+          <div class="go-words">
+            <div class="go-word civil"><span>🟢 Mot des civils</span><b>${esc(o.pair.civil)}</b></div>
+            <div class="go-word undercover"><span>🟠 Mot de l'Undercover</span><b>${esc(o.pair.undercover)}</b></div>
+          </div>
+          <table class="go-table">
+            <thead><tr><th>Joueur</th><th>Rôle</th><th>Mot</th><th>Manche</th><th>Total</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
           ${host ? `<div class="go-actions">
               <button id="next-round" class="btn btn-primary">Nouvelle manche</button>
               <button id="to-setup" class="btn btn-secondary">Réglages</button>
@@ -506,18 +558,26 @@
     $("scoreboard").classList.remove("hidden");
   }
 
-  // --- Compte à rebours (d'après la date de fin envoyée par le serveur) ---
+  // --- Gros minuteur (d'après la date de fin envoyée par le serveur) ---
+  // Barre qui se vide + nombre géant : orange sous 10 s, rouge qui clignote sous 5 s.
+  const TIMER_OF = { clues: "clue", vote: "vote", mrwhite_guess: "guess" };
   function tickTimer() {
-    const pill = $("timer-pill");
-    if (!pill) return;
+    const box = $("imp-timer");
+    if (!box) return;
     const deadline = st?.round?.deadline;
-    if (!st || !["clues", "vote", "mrwhite_guess"].includes(st.phase) || !deadline) {
-      pill.classList.add("hidden");
-      return;
-    }
-    const rem = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-    pill.textContent = "⏱️ " + rem + "s";
-    pill.classList.remove("hidden");
-    pill.classList.toggle("urgent", rem <= 5);
+    if (!st || !TIMER_OF[st.phase] || !deadline) { box.classList.add("hidden"); return; }
+    const total = (st.settings.timers[TIMER_OF[st.phase]] || 30) * 1000;
+    const leftMs = Math.max(0, deadline - Date.now());
+    const sec = Math.ceil(leftMs / 1000);
+    const r = st.round;
+    $("imp-timer-sec").textContent = sec;
+    $("imp-timer-fill").style.width = Math.min(100, (leftMs / total) * 100) + "%";
+    $("imp-timer-label").textContent =
+      st.phase === "clues" ? (r.currentPlayerId === me() ? "⏱️ À toi de donner un indice !" : `⏱️ Indice de ${pseudoOf(r.currentPlayerId)}`)
+      : st.phase === "vote" ? "⏱️ Temps pour voter"
+      : "⏱️ Temps pour deviner le mot";
+    box.classList.remove("hidden");
+    box.classList.toggle("warn", sec <= 10 && sec > 5);
+    box.classList.toggle("urgent", sec <= 5);
   }
 })();

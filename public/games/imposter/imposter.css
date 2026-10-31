@@ -6,6 +6,116 @@
 .player-card.offline { opacity: 0.45; }
 #imp-finish-setup { margin-top: 6px; }
 
+/* =================================================================
+   PLUS GRAND (le jeu se lit de loin, sur un PC)
+   ================================================================= */
+#imp-play .phase-label { font-size: 24px; }
+#imp-play .game-topbar .pill { font-size: 15px; padding: 4px 14px; }
+#imp-play .secret-card { padding: 30px; }
+#imp-play .secret-tag { font-size: 14px; }
+#imp-play .secret-word { font-size: clamp(44px, 9vw, 72px); }
+#imp-play .secret-sub { font-size: 17px; }
+#imp-play .players-strip { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+#imp-play .player-card { padding: 16px; border-radius: 16px; border-width: 2px; }
+#imp-play .pc-head .avatar { width: 38px; height: 38px; font-size: 17px; }
+#imp-play .pc-name { font-size: 17px; }
+#imp-play .pc-role { font-size: 12px; padding: 3px 8px; }
+#imp-play .clue { font-size: 16px; padding: 5px 12px; }
+#imp-play .action-zone { padding: 28px; font-size: 17px; }
+#imp-play .waiting { font-size: 20px; }
+#imp-play .clue-input { max-width: 560px; }
+#imp-play .clue-input input { font-size: 18px; padding: 16px 18px; }
+#imp-play .clue-input .btn { font-size: 17px; padding: 14px 26px; }
+#imp-play .btn { font-size: 16px; }
+#imp-setup .setting { font-size: 16px; }
+#imp-setup .card h2 { font-size: 21px; }
+
+/* =================================================================
+   GROS MINUTEUR
+   ================================================================= */
+.imp-timer {
+  display: flex; align-items: center; gap: 18px;
+  margin-bottom: 18px; padding: 12px 22px;
+  background: var(--surface); border: 2px solid var(--accent); border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.imp-timer-num { font-size: 54px; font-weight: 900; line-height: 1; min-width: 92px; text-align: center; font-variant-numeric: tabular-nums; }
+.imp-timer-num small { font-size: 22px; font-weight: 700; margin-left: 2px; color: var(--muted); }
+.imp-timer-right { flex: 1; }
+.imp-timer-label { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.imp-timer-bar { height: 16px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.imp-timer-bar i {
+  display: block; height: 100%; width: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-3));
+  transition: width 0.25s linear;
+}
+.imp-timer.warn { border-color: #ff9f1c; }
+.imp-timer.warn .imp-timer-num { color: #ff9f1c; }
+.imp-timer.warn .imp-timer-bar i { background: #ff9f1c; }
+.imp-timer.urgent { border-color: var(--danger); animation: timerShake 0.5s ease-in-out infinite; }
+.imp-timer.urgent .imp-timer-num { color: var(--danger); animation: pulseTimer 0.5s ease-in-out infinite; }
+.imp-timer.urgent .imp-timer-bar i { background: var(--danger); }
+@keyframes timerShake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+
+/* =================================================================
+   VOTE EN CLIQUANT SUR LES CARTES
+   ================================================================= */
+.players-strip.voting .player-card:not(.votable):not(.me) { opacity: 0.45; }
+.player-card.votable { cursor: pointer; position: relative; }
+.player-card.votable:hover { border-color: var(--accent-2); transform: translateY(-4px); }
+.player-card.chosen {
+  border-color: var(--accent-2) !important;
+  box-shadow: 0 0 0 4px rgba(255, 92, 157, 0.35);
+  background: linear-gradient(135deg, var(--surface), rgba(255, 92, 157, 0.18));
+}
+.pc-vote-hint {
+  margin-top: 10px; text-align: center; font-weight: 800; font-size: 14px;
+  padding: 6px; border-radius: 10px; background: var(--surface-2); color: var(--accent-2);
+}
+.player-card.chosen .pc-vote-hint { background: var(--accent-2); color: white; }
+.pc-voted { font-size: 11px; font-weight: 700; color: var(--ok); white-space: nowrap; }
+.pc-votes { font-size: 13px; font-weight: 800; color: var(--accent-2); white-space: nowrap; }
+
+/* =================================================================
+   RÉSULTAT D'UN VOTE
+   ================================================================= */
+.result-msg { margin-bottom: 18px; }
+.res-title { font-size: 30px; font-weight: 800; }
+.res-role {
+  display: inline-block; margin: 12px 0 6px; padding: 6px 18px; border-radius: 999px;
+  font-size: 22px; font-weight: 800; background: var(--surface-2);
+}
+.res-sub { font-size: 18px; color: var(--muted); }
+
+/* =================================================================
+   FIN DE MANCHE
+   ================================================================= */
+.go-banner { font-size: 34px !important; }
+.go-me {
+  font-size: 19px; margin: 6px auto 18px; padding: 12px 18px; max-width: 620px;
+  background: var(--surface-2); border-radius: 14px;
+}
+.go-me-pts { display: inline-block; margin-left: 10px; padding: 3px 12px; border-radius: 999px; font-weight: 800; background: var(--surface); color: var(--muted); }
+.go-me-pts.win { background: var(--ok); color: #05210f; }
+.go-words { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; }
+.go-word {
+  flex: 1; min-width: 200px; max-width: 300px; padding: 14px; border-radius: 14px;
+  background: var(--surface-2); border: 2px solid var(--border);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.go-word span { font-size: 14px; color: var(--muted); }
+.go-word b { font-size: 30px; }
+.go-word.civil { border-color: #4ade80; }
+.go-word.undercover { border-color: #fb923c; }
+.go-table { width: 100%; max-width: 720px; margin: 0 auto 22px; border-collapse: collapse; font-size: 16px; }
+.go-table th { color: var(--muted); font-size: 13px; font-weight: 600; text-align: left; padding: 6px 10px; }
+.go-table td { padding: 10px; text-align: left; border-top: 1px solid var(--border); }
+.go-table tr.me td { background: var(--surface-2); }
+.go-who { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.go-gain { font-weight: 800; color: var(--muted); }
+.go-gain.win { color: var(--ok); }
+.go-total { font-weight: 800; color: var(--accent-3); }
+
 /* Minuteurs : boutons ±15 + case à remplir */
 .timer-field button { width: auto; padding: 0 8px; font-size: 13px; }
 .timer-field .num-input {

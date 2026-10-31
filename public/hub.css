@@ -2,6 +2,12 @@
    LE BORDEL — Styles du hub (le reste vient de style.css)
    ================================================================= */
 
+/* Sur un écran de PC, tout est affiché 20 % plus grand (sauf l'arène de Patate). */
+@media (min-width: 1100px) {
+  .app { max-width: 1000px; }
+  .app:not(.pt-wide) { zoom: 1.2; }
+}
+
 .home-card { max-width: 460px; margin: 0 auto; }
 .btn-small { padding: 6px 12px; font-size: 13px; }
 
