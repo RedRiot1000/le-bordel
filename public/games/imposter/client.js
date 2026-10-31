@@ -309,7 +309,7 @@
   function renderGame() {
     const r = st.round;
     if (!r) return;
-    $("game-round").textContent = "Manche " + r.number;
+    $("game-round").textContent = "Manche " + r.number + (st.playlist ? "/" + st.playlist.rounds : "");
     $("game-phase").textContent = PHASE_LABELS[st.phase] || "";
     renderSecretCard();
     renderPlayersStrip();
@@ -532,21 +532,41 @@
             <thead><tr><th>Joueur</th><th>Rôle</th><th>Mot</th><th>Manche</th><th>Total</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
-          ${host ? `<div class="go-actions">
-              <button id="next-round" class="btn btn-primary">Nouvelle manche</button>
-              <button id="to-setup" class="btn btn-secondary">Réglages</button>
-              <button id="to-finish" class="btn btn-secondary">🏁 Terminer le jeu</button>
-            </div>
-            <p id="go-error" class="error-msg"></p>` : `<p class="muted">En attente de l'hôte pour la suite…</p>`}
+          ${endButtons(host)}
         </div>`;
       if (host) {
-        $("next-round").onclick = () => send("start").then((res) => {
+        $("next-round") && ($("next-round").onclick = () => send("start").then((res) => {
           if (res.error) $("go-error").textContent = res.error;
-        });
-        $("to-setup").onclick = () => send("setup");
-        $("to-finish").onclick = finishGame;
+        }));
+        $("to-setup") && ($("to-setup").onclick = () => send("setup"));
+        $("to-finish").onclick = st.playlist?.final ? () => send("finish") : finishGame;
       }
     }
+  }
+
+  // Boutons de fin de manche (différents en mode playlist).
+  let finishEndLocal = 0;
+  function endButtons(host) {
+    const pl = st.playlist;
+    if (pl?.final) {
+      finishEndLocal = Date.now() + pl.finishLeft;
+      return `<p class="go-final">🏁 C'était la dernière manche ! Classement dans <b id="fin-sec">${Math.ceil(pl.finishLeft / 1000)}</b> s</p>
+        ${host ? `<div class="go-actions"><button id="to-finish" class="btn btn-primary">Voir le classement maintenant</button></div>` : ""}`;
+    }
+    if (!host) return `<p class="muted">En attente de l'hôte pour la suite…</p>`;
+    if (pl) {
+      return `<div class="go-actions">
+          <button id="next-round" class="btn btn-primary">▶ Manche suivante (${pl.played + 1}/${pl.rounds})</button>
+          <button id="to-finish" class="btn btn-secondary">🏁 Terminer le jeu</button>
+        </div>
+        <p id="go-error" class="error-msg"></p>`;
+    }
+    return `<div class="go-actions">
+        <button id="next-round" class="btn btn-primary">Nouvelle manche</button>
+        <button id="to-setup" class="btn btn-secondary">Réglages</button>
+        <button id="to-finish" class="btn btn-secondary">🏁 Terminer le jeu</button>
+      </div>
+      <p id="go-error" class="error-msg"></p>`;
   }
 
   // --- Tableau des scores Imposter ---
@@ -564,6 +584,7 @@
   function tickTimer() {
     const box = $("imp-timer");
     if (!box) return;
+    if ($("fin-sec")) $("fin-sec").textContent = Math.max(0, Math.ceil((finishEndLocal - Date.now()) / 1000));
     const deadline = st?.round?.deadline;
     if (!st || !TIMER_OF[st.phase] || !deadline) { box.classList.add("hidden"); return; }
     const total = (st.settings.timers[TIMER_OF[st.phase]] || 30) * 1000;

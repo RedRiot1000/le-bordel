@@ -469,7 +469,7 @@
   //  BANDEAU + ÉCRAN DE FIN DE MANCHE
   // ===================================================================
   function renderHud() {
-    $("pt-round").textContent = "Manche " + st.roundNum;
+    $("pt-round").textContent = "Manche " + st.roundNum + (st.playlist ? "/" + st.playlist.rounds : "");
     $("pt-surface").textContent = SURFACE_LABELS[st.map?.surface] || "";
     const mine = st.cars.find((c) => c.id === me());
     const status = $("pt-status");
@@ -511,19 +511,39 @@
               <span class="muted">(${playerOf(r.id)?.score ?? 0} au total)</span>
             </li>`).join("")}
         </ul>
-        ${host ? `<div class="go-actions">
-            <button id="pt-next" class="btn btn-primary">Nouvelle manche</button>
-            <button id="pt-to-setup" class="btn btn-secondary">Réglages</button>
-            <button id="pt-finish" class="btn btn-secondary">🏁 Terminer le jeu</button>
-          </div>
-          <p id="pt-over-error" class="error-msg"></p>` : `<p class="muted">En attente de l'hôte…</p>`}
+        ${overButtons(host)}
       </div>`;
     ov.classList.remove("hidden");
     if (host) {
-      $("pt-next").onclick = () => api.action("start").then((r) => { if (r.error) $("pt-over-error").textContent = r.error; });
-      $("pt-to-setup").onclick = () => api.action("setup");
-      $("pt-finish").onclick = finishGame;
+      $("pt-next") && ($("pt-next").onclick = () => api.action("start").then((r) => { if (r.error) $("pt-over-error").textContent = r.error; }));
+      $("pt-to-setup") && ($("pt-to-setup").onclick = () => api.action("setup"));
+      $("pt-finish").onclick = st.playlist?.final ? () => api.action("finish") : finishGame;
     }
+  }
+
+  // Boutons de fin de manche (différents en mode playlist).
+  let finishEndLocal = 0;
+  function overButtons(host) {
+    const pl = st.playlist;
+    if (pl?.final) {
+      finishEndLocal = Date.now() + pl.finishLeft;
+      return `<p class="go-final">🏁 C'était la dernière manche ! Classement dans <b id="pt-fin-sec">${Math.ceil(pl.finishLeft / 1000)}</b> s</p>
+        ${host ? `<div class="go-actions"><button id="pt-finish" class="btn btn-primary">Voir le classement maintenant</button></div>` : ""}`;
+    }
+    if (!host) return `<p class="muted">En attente de l'hôte…</p>`;
+    if (pl) {
+      return `<div class="go-actions">
+          <button id="pt-next" class="btn btn-primary">▶ Manche suivante (${pl.played + 1}/${pl.rounds})</button>
+          <button id="pt-finish" class="btn btn-secondary">🏁 Terminer le jeu</button>
+        </div>
+        <p id="pt-over-error" class="error-msg"></p>`;
+    }
+    return `<div class="go-actions">
+        <button id="pt-next" class="btn btn-primary">Nouvelle manche</button>
+        <button id="pt-to-setup" class="btn btn-secondary">Réglages</button>
+        <button id="pt-finish" class="btn btn-secondary">🏁 Terminer le jeu</button>
+      </div>
+      <p id="pt-over-error" class="error-msg"></p>`;
   }
 
   // ===================================================================
@@ -534,6 +554,8 @@
     const dt = Math.min(0.1, (ts - lastTs) / 1000);
     lastTs = ts;
     dbg.frames++; if (dt > 0.025) dbg.slow++;
+    const fin = document.getElementById("pt-fin-sec");
+    if (fin) fin.textContent = Math.max(0, Math.ceil((finishEndLocal - Date.now()) / 1000));
     if (!st || st.phase === "setup" || !g2d || !bg) return;
     driveLocal(dt);
     const decay = Math.pow(0.82, dt * 60);

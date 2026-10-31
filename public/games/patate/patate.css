@@ -21,6 +21,7 @@ kbd {
 .pt-over { max-width: 460px; width: 100%; text-align: center; margin: 0; }
 .pt-over .podium-list li .muted { font-size: 12px; }
 .pt-keys { text-align: center; margin-top: 10px; }
+.pt-over .go-final { font-size: 18px; font-weight: 700; margin-bottom: 12px; color: var(--accent-3); }
 
 .pt-surface { font-size: 13px; color: var(--muted); white-space: nowrap; }
 

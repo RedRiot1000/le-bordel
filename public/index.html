@@ -23,6 +23,7 @@
       <span class="hub-brand">🎉 LE BORDEL</span>
       <span class="hub-code">Salon <b id="bar-code">----</b></span>
       <span class="hub-online" id="bar-online"></span>
+      <span class="hub-playlist hidden" id="bar-playlist"></span>
       <button id="btn-abort" class="btn btn-ghost btn-small hidden">⏹ Arrêter le jeu</button>
       <button id="btn-leave" class="btn btn-ghost btn-small">🚪 Quitter</button>
     </div>
@@ -73,10 +74,48 @@
 
         <div class="card">
           <h2>🎮 Choisis un jeu</h2>
+          <!-- Mode : un seul jeu, ou une playlist de jeux tirés au hasard -->
+          <div id="mode-switch" class="mode-switch">
+            <button data-mode="single">🎮 Un jeu</button>
+            <button data-mode="playlist">🎲 Playlist</button>
+          </div>
           <p id="games-hint" class="muted games-hint"></p>
           <div id="game-tiles" class="game-tiles"></div>
+
+          <div id="playlist-panel" class="playlist-panel hidden">
+            <div class="setting">
+              <label>Réglages des jeux</label>
+              <div class="seg" id="pl-settings">
+                <button data-sm="default">⚙️ Par défaut</button>
+                <button data-sm="vote">🗳️ Vote (30 s)</button>
+              </div>
+            </div>
+            <p id="pl-settings-hint" class="muted pl-settings-hint"></p>
+            <div class="setting">
+              <label>Nombre de jeux</label>
+              <div class="stepper">
+                <button id="pl-dec">−</button><span class="num" id="pl-count">0</span><button id="pl-inc">+</button>
+              </div>
+            </div>
+            <button id="btn-start-playlist" class="btn btn-primary btn-big">🎲 Lancer la playlist</button>
+          </div>
           <p id="lobby-error" class="error-msg"></p>
         </div>
+      </div>
+    </section>
+
+    <!-- ============ PLAYLIST : PROCHAIN JEU (vote des réglages) ============ -->
+    <section id="screen-next" class="screen">
+      <div class="card next-card">
+        <p class="next-num" id="next-num">🎲 Jeu 1 / 3</p>
+        <div class="next-game"><span id="next-emoji" class="next-emoji">🎮</span><h1 id="next-name">—</h1></div>
+        <div class="next-timer">
+          <span class="next-sec"><b id="next-sec">30</b>s</span>
+          <div class="next-bar"><i id="next-fill"></i></div>
+        </div>
+        <p id="next-hint" class="next-hint"></p>
+        <div id="next-options" class="next-options"></div>
+        <button id="btn-launch-now" class="btn btn-primary btn-big hidden">▶ Lancer maintenant</button>
       </div>
     </section>
 

@@ -39,6 +39,37 @@ function defaultSettings() {
   return { fuse: "normale", nitro: true, slippery: true };
 }
 
+// ===================================================================
+//  MODE PLAYLIST : ce que les joueurs peuvent voter, et ce que ça donne.
+// ===================================================================
+export const playlist = {
+  options: [
+    {
+      key: "difficulty", label: "Difficulté", default: "normal",
+      choices: [
+        { v: "facile", label: "😌 Facile", hint: "Mèche longue, sol normal" },
+        { v: "normal", label: "🙂 Normal", hint: "Mèche normale, sols variés" },
+        { v: "difficile", label: "😈 Difficile", hint: "Mèche courte, sols glissants" },
+      ],
+    },
+    {
+      key: "rounds", label: "Nombre de manches", default: "3",
+      choices: [{ v: "3", label: "3" }, { v: "5", label: "5" }, { v: "7", label: "7" }],
+    },
+    {
+      key: "nitro", label: "Nitro", default: "oui",
+      choices: [{ v: "oui", label: "Oui" }, { v: "non", label: "Non" }],
+    },
+  ],
+  settingsFor(c) {
+    const s = defaultSettings();
+    if (c.difficulty === "facile") { s.fuse = "longue"; s.slippery = false; }
+    if (c.difficulty === "difficile") { s.fuse = "courte"; s.slippery = true; }
+    s.nitro = c.nitro !== "non";
+    return s;
+  },
+};
+
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
@@ -67,7 +98,13 @@ export function createGame(ctx) {
     fx: [],               // chocs récents (pour les étincelles côté navigateur)
     fxId: 0,
     loop: null,
+    // Mode playlist : nombre de manches limité, puis fin automatique.
+    roundsPlayed: 0,
+    final: false,
+    finishAt: 0,
+    finishTimer: null,
   };
+  const FINISH_DELAY = 15000;   // temps pour lire les résultats avant le classement
 
   const now = () => Date.now();
   const aliveIds = () => Object.keys(g.cars).filter((id) => g.cars[id].alive);
@@ -87,6 +124,10 @@ export function createGame(ctx) {
       phase: g.phase,
       settings: g.settings,
       roundNum: g.roundNum,
+      playlist: ctx.playlist && {
+        rounds: ctx.playlist.rounds, played: g.roundsPlayed, final: g.final,
+        finishLeft: g.final ? Math.max(0, g.finishAt - t) : 0,
+      },
       players: ctx.players().map((p) => ({ ...p, score: g.scores[p.id] || 0 })),
       map: g.map && {
         id: g.map.id, surface: g.map.surface, grip: g.map.grip, seed: g.map.seed,
@@ -195,6 +236,14 @@ export function createGame(ctx) {
     g.holderId = null;
     g.phase = "roundOver";
     stopLoop();
+
+    // Playlist : c'était la dernière manche ? Classement automatique dans 15 s.
+    g.roundsPlayed++;
+    if (ctx.playlist && g.roundsPlayed >= ctx.playlist.rounds) {
+      g.final = true;
+      g.finishAt = now() + FINISH_DELAY;
+      g.finishTimer = setTimeout(() => ctx.finish(ranking()), FINISH_DELAY);
+    }
     ctx.update();
   }
 
@@ -369,7 +418,7 @@ export function createGame(ctx) {
     },
 
     start(pid) {
-      if (!ctx.isHost(pid) || !["setup", "roundOver"].includes(g.phase)) return;
+      if (!ctx.isHost(pid) || !["setup", "roundOver"].includes(g.phase) || g.final) return;
       const n = ctx.players().filter((p) => p.connected).length;
       if (n < meta.minPlayers) return { error: `Il faut au moins ${meta.minPlayers} joueurs connectés.` };
       startRound();
@@ -394,7 +443,7 @@ export function createGame(ctx) {
     },
 
     setup(pid) {
-      if (!ctx.isHost(pid) || g.phase !== "roundOver") return;
+      if (!ctx.isHost(pid) || g.phase !== "roundOver" || ctx.playlist) return;   // en playlist, pas de réglages
       g.phase = "setup";
       ctx.update();
     },
@@ -415,6 +464,14 @@ export function createGame(ctx) {
     onReconnect() { ctx.update(); },
     onDisconnect(pid) { leave(pid); ctx.update(); },
     canJoin: () => g.phase === "setup" || g.phase === "roundOver",
-    destroy: stopLoop,
+
+    // Mode playlist : on saute l'écran de réglages et on lance la 1re manche.
+    autoStart() {
+      if (ctx.players().filter((p) => p.connected).length < meta.minPlayers) { ctx.finish([]); return; }
+      startRound();
+      ctx.update();
+    },
+
+    destroy() { stopLoop(); clearTimeout(g.finishTimer); },
   };
 }

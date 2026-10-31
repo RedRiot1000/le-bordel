@@ -73,6 +73,18 @@ Pour les jeux d'action : **Phaser 3** côté navigateur, et c'est le **serveur q
 8. **Bots** 🤖 : l'hôte peut ajouter des bots (bouton dans le salon) pour tester seul ou compléter une partie.
    Chaque jeu les fait jouer lui-même (Imposter : indices bidons + votes au hasard ; Patate : le porteur chasse, les autres fuient).
 
+## 5 bis. Deux façons de jouer
+
+1. **🎮 Un jeu** : l'hôte choisit un jeu, le règle, puis enchaîne les manches et clique « Terminer le jeu ».
+2. **🎲 Playlist** : l'hôte coche plusieurs jeux et choisit le nombre de jeux à jouer.
+   L'ordre est tiré au hasard (jamais deux fois le même d'affilée ; les jeux injouables avec ce nombre de joueurs sont sautés).
+   - Réglages **par défaut** : écran « Prochain jeu » 5 s, puis difficulté Normale.
+   - Réglages **au vote** : 30 s où tout le monde vote la difficulté, le nombre de manches et une option du jeu.
+     Majorité ; égalité = tirage au sort ; personne n'a voté = valeur par défaut. L'hôte peut lancer avant la fin.
+   - Chaque jeu a un **nombre de manches** (Imposter 2/3/4, défaut 2 · Patate 3/5/7, défaut 3).
+     Après la dernière : 15 s pour voir les résultats, puis classement automatique → podium → jeu suivant.
+   - Chaque jeu déclare ses options votables dans `export const playlist = { options, settingsFor(choix) }`.
+
 ## 6. Barème de soirée (proposition)
 
 Chaque jeu donne un classement, le hub donne :

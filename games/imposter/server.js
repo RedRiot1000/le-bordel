@@ -44,6 +44,38 @@ function defaultSettings() {
   };
 }
 
+// ===================================================================
+//  MODE PLAYLIST : ce que les joueurs peuvent voter, et ce que ça donne.
+//  (les valeurs sont des textes : "2", "oui"...)
+// ===================================================================
+export const playlist = {
+  options: [
+    {
+      key: "difficulty", label: "Difficulté", default: "normal",
+      choices: [
+        { v: "facile", label: "😌 Facile", hint: "90 s par indice" },
+        { v: "normal", label: "🙂 Normal", hint: "60 s par indice" },
+        { v: "difficile", label: "😈 Difficile", hint: "30 s, 2 tours d'indices" },
+      ],
+    },
+    {
+      key: "rounds", label: "Nombre de manches", default: "2",
+      choices: [{ v: "2", label: "2" }, { v: "3", label: "3" }, { v: "4", label: "4" }],
+    },
+    {
+      key: "mrWhite", label: "Mr White", default: "non",
+      choices: [{ v: "non", label: "Non" }, { v: "oui", label: "Oui" }],
+    },
+  ],
+  settingsFor(c) {
+    const s = defaultSettings();
+    if (c.difficulty === "facile") { s.timers = { ...s.timers, clue: 90, vote: 90, guess: 90 }; }
+    if (c.difficulty === "difficile") { s.timers = { ...s.timers, clue: 30, vote: 45, guess: 30 }; s.clueRounds = 2; }
+    s.mrWhiteEnabled = c.mrWhite === "oui";
+    return s;
+  },
+};
+
 const THEMES = ["theme-violet", "theme-ocean", "theme-sunset", "theme-forest", "theme-candy"];
 
 // Indices bidons des bots (ils ne comprennent pas les mots, c'est pour tester).
@@ -79,7 +111,13 @@ export function createGame(ctx) {
     timerCtx: null,
     botTimers: [],          // actions programmées des bots
     botPending: new Set(),  // pour ne pas programmer deux fois la même action
+    // Mode playlist : nombre de manches limité, puis fin automatique.
+    roundsPlayed: 0,
+    final: false,           // la dernière manche est jouée
+    finishAt: 0,
+    finishTimer: null,
   };
+  const FINISH_DELAY = 15000;   // temps pour lire les résultats avant le classement
 
   const findPlayer = (id) => ctx.players().find((p) => p.id === id);
   const isBot = (id) => !!findPlayer(id)?.bot;
@@ -94,6 +132,10 @@ export function createGame(ctx) {
       settings: g.settings,
       allCategories: CATEGORIES,
       theme: g.theme,
+      playlist: ctx.playlist && {
+        rounds: ctx.playlist.rounds, played: g.roundsPlayed, final: g.final,
+        finishLeft: g.final ? Math.max(0, g.finishAt - Date.now()) : 0,
+      },
       players: ctx.players().map((p) => ({ ...p, score: g.scores[p.id] || 0 })),
     };
     const r = g.round;
@@ -464,6 +506,14 @@ export function createGame(ctx) {
       roles: r.seating.map((id) => ({ playerId: id, role: r.assignments[id].role, word: r.assignments[id].word })),
     };
     g.phase = "gameOver";
+
+    // Playlist : c'était la dernière manche ? Classement automatique dans 15 s.
+    g.roundsPlayed++;
+    if (ctx.playlist && g.roundsPlayed >= ctx.playlist.rounds) {
+      g.final = true;
+      g.finishAt = Date.now() + FINISH_DELAY;
+      g.finishTimer = setTimeout(() => ctx.finish(ranking()), FINISH_DELAY);
+    }
   }
 
   // Classement final (pour les points de soirée) : par score Imposter.
@@ -497,7 +547,7 @@ export function createGame(ctx) {
 
     // --- Lancer une manche (hôte) ---
     start(pid) {
-      if (!ctx.isHost(pid) || !["setup", "gameOver"].includes(g.phase)) return;
+      if (!ctx.isHost(pid) || !["setup", "gameOver"].includes(g.phase) || g.final) return;
       const err = checkStart();
       if (err) return { error: err };
       startRound();
@@ -551,7 +601,7 @@ export function createGame(ctx) {
 
     // --- Retour aux réglages entre deux manches (hôte) ---
     setup(pid) {
-      if (!ctx.isHost(pid) || g.phase !== "gameOver") return;
+      if (!ctx.isHost(pid) || g.phase !== "gameOver" || ctx.playlist) return;   // en playlist, pas de réglages
       g.round = null;
       g.phase = "setup";
       broadcast();
@@ -600,8 +650,15 @@ export function createGame(ctx) {
     // On peut rejoindre seulement entre les manches.
     canJoin: () => g.phase === "setup" || g.phase === "gameOver",
 
+    // Mode playlist : on saute l'écran de réglages et on lance la 1re manche.
+    autoStart() {
+      if (checkStart()) { ctx.finish([]); return; }   // pas jouable : on passe au jeu suivant
+      startRound();
+    },
+
     destroy() {
       clearTimeout(g.timer);
+      clearTimeout(g.finishTimer);
       g.botTimers.forEach(clearTimeout);
     },
   };

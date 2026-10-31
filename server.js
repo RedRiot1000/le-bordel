@@ -42,6 +42,9 @@ const COLORS = ["#7c5cff", "#ff5c9d", "#38e8c8", "#ffb547", "#4ade80", "#2e9dff"
 const HOST_GRACE_MS = 15_000;                // délai avant de passer l'hôte à un autre
 const ROOM_EMPTY_MS = 10 * 60_000;           // salon vide supprimé après 10 min
 const BOT_NAMES = ["Bernard", "Ginette", "Michel", "Josiane", "Gérard", "Huguette", "Roger", "Monique"];
+const VOTE_MS = 30_000;                      // playlist : temps pour voter les réglages
+const INTRO_MS = 5_000;                      // playlist sans vote : écran "prochain jeu"
+const MAX_PLAYLIST = 20;                     // nombre max de jeux dans une playlist
 
 const rooms = {};
 
@@ -71,9 +74,18 @@ function freeColor(room) {
   return COLORS.find((c) => !room.players.some((p) => p.color === c)) || COLORS[0];
 }
 
-// Catalogue envoyé aux clients (infos des jeux, sans le code).
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Catalogue envoyé aux clients (infos des jeux + options votables en playlist).
 const catalogue = {
-  games: Object.values(GAMES).map((g) => g.meta),
+  games: Object.values(GAMES).map((g) => ({ ...g.meta, options: g.playlist?.options || [] })),
   upcoming: UPCOMING,
 };
 
@@ -84,9 +96,13 @@ function publicHub(room) {
   return {
     code: room.code,
     hostId: room.hostId,
-    phase: room.phase,              // "lobby" | "game" | "podium"
+    phase: room.phase,              // "lobby" | "next" | "game" | "podium"
     gameId: room.gameId,
     lastResult: room.lastResult,
+    lobbyMode: room.lobbyMode,      // "single" (un jeu) | "playlist"
+    draft: room.draft,              // la playlist en préparation dans le salon
+    playlist: room.playlist && { num: room.playlist.index + 1, total: room.playlist.order.length },
+    next: publicNext(room),         // écran "prochain jeu" (vote des réglages)
     players: room.players.map((p) => ({
       id: p.id,
       pseudo: p.pseudo,
@@ -97,6 +113,17 @@ function publicHub(room) {
       isHost: p.id === room.hostId,
     })),
   };
+}
+
+// Le prochain jeu de la playlist, avec qui a voté quoi.
+function publicNext(room) {
+  const nx = room.next;
+  if (!nx) return null;
+  const votes = {};   // { option: { valeur: [ids des votants] } }
+  for (const [pid, v] of Object.entries(nx.votes)) {
+    for (const [key, value] of Object.entries(v)) ((votes[key] ||= {})[value] ||= []).push(pid);
+  }
+  return { gameId: nx.gameId, num: nx.num, total: nx.total, vote: nx.vote, left: Math.max(0, nx.endsAt - Date.now()), votes };
 }
 
 function sendHub(room) {
@@ -111,7 +138,8 @@ function sendGame(room, target = room.code) {
 // ===================================================================
 //  LANCER / TERMINER UN MINI-JEU
 // ===================================================================
-function startGame(room, gameId) {
+// opts (mode playlist) = { settings, rounds } : réglages imposés + nombre de manches.
+function startGame(room, gameId, opts = null) {
   const def = GAMES[gameId];
   room.gameId = gameId;
   room.phase = "game";
@@ -129,13 +157,81 @@ function startGame(room, gameId) {
       if (p?.connected && p.socketId) io.to(p.socketId).emit("gameMsg", { type, payload });
     },
     finish: (ranking) => finishGame(room, ranking),
-    savedSettings: room.gameSettings[gameId] || null,
+    savedSettings: opts?.settings || room.gameSettings[gameId] || null,
     saveSettings: (s) => { room.gameSettings[gameId] = s; },
+    playlist: opts ? { rounds: opts.rounds } : null,   // null = mode "un jeu"
   };
 
   sendHub(room);                 // le client affiche l'écran du jeu...
   room.game = def.createGame(ctx);
+  if (opts) room.game.autoStart();   // playlist : pas d'écran de réglages, on joue direct
   sendGame(room);                // ...puis reçoit son premier état
+}
+
+// ===================================================================
+//  MODE PLAYLIST
+// ===================================================================
+
+// Ordre des jeux : au hasard, jamais deux fois le même d'affilée.
+function buildOrder(games, count) {
+  const order = [];
+  while (order.length < count) {
+    const bag = shuffle(games);
+    if (order.length && bag.length > 1 && bag[0] === order.at(-1)) bag.push(bag.shift());
+    order.push(...bag);
+  }
+  return order.slice(0, count);
+}
+
+// Écran "prochain jeu" : vote des réglages (30 s) ou simple annonce (5 s).
+function startNext(room) {
+  const pl = room.playlist;
+  const n = room.players.length;
+  // On saute les jeux qui ne se jouent pas avec ce nombre de joueurs.
+  while (pl.index < pl.order.length) {
+    const m = GAMES[pl.order[pl.index]]?.meta;
+    if (m && n >= m.minPlayers && n <= m.maxPlayers) break;
+    pl.index++;
+  }
+  if (pl.index >= pl.order.length) return endPlaylist(room);
+
+  const vote = pl.settingsMode === "vote";
+  const ms = vote ? VOTE_MS : INTRO_MS;
+  room.phase = "next";
+  room.gameId = null;
+  room.next = { gameId: pl.order[pl.index], num: pl.index + 1, total: pl.order.length, vote, endsAt: Date.now() + ms, votes: {} };
+  clearTimeout(room.nextTimer);
+  room.nextTimer = setTimeout(() => launchNext(room), ms);
+  sendHub(room);
+}
+
+// Fin du vote : on compte, puis on lance le jeu avec les réglages gagnants.
+function launchNext(room) {
+  clearTimeout(room.nextTimer);
+  const nx = room.next;
+  if (!nx || room.phase !== "next") return;
+  const def = GAMES[nx.gameId];
+  const choices = {};
+  for (const o of def.playlist.options) {
+    const counts = {};
+    for (const v of Object.values(nx.votes)) if (v[o.key] != null) counts[v[o.key]] = (counts[v[o.key]] || 0) + 1;
+    const max = Math.max(0, ...Object.values(counts));
+    const top = Object.keys(counts).filter((k) => counts[k] === max);
+    // Personne n'a voté -> valeur par défaut. Égalité -> tirage au sort.
+    choices[o.key] = max === 0 ? o.default : top[Math.floor(Math.random() * top.length)];
+  }
+  room.next = null;
+  room.playlist.choices = choices;
+  startGame(room, nx.gameId, { settings: def.playlist.settingsFor(choices), rounds: Number(choices.rounds) || 2 });
+}
+
+function endPlaylist(room) {
+  clearTimeout(room.nextTimer);
+  room.playlist = null;
+  room.next = null;
+  room.gameId = null;
+  room.phase = "lobby";
+  sendHub(room);
 }
 
 // ranking = liste de groupes d'ids, du 1er au dernier.
@@ -157,9 +253,15 @@ function finishGame(room, ranking = []) {
     place += group.length;
   }
 
+  const pl = room.playlist;
   if (results.length) {
     room.lastResult = { gameId: room.gameId, results };
+    if (pl) room.lastResult.playlist = { num: pl.index + 1, total: pl.order.length, final: pl.index + 1 >= pl.order.length, choices: pl.choices };
     room.phase = "podium";
+  } else if (pl) {
+    // Jeu de la playlist pas joué (pas assez de monde...) : on passe au suivant.
+    pl.index++;
+    return startNext(room);
   } else {
     // Personne n'a joué (jeu quitté avant la 1re manche) : retour direct au menu.
     room.phase = "lobby";
@@ -168,13 +270,11 @@ function finishGame(room, ranking = []) {
   sendHub(room);
 }
 
-// L'hôte arrête le jeu en cours sans distribuer de points.
+// L'hôte arrête le jeu en cours (et la playlist) sans distribuer de points.
 function abortGame(room) {
   room.game?.destroy();
   room.game = null;
-  room.gameId = null;
-  room.phase = "lobby";
-  sendHub(room);
+  endPlaylist(room);
 }
 
 // ===================================================================
@@ -194,6 +294,7 @@ function scheduleCleanup(room) {
     if (humansOnline(room)) return;
     room.game?.destroy();
     clearTimeout(room.hostTimer);
+    clearTimeout(room.nextTimer);
     delete rooms[room.code];
   }, ROOM_EMPTY_MS);
 }
@@ -249,6 +350,10 @@ io.on("connection", (socket) => {
       game: null,
       gameSettings: {},     // réglages mémorisés par jeu pour la soirée
       lastResult: null,
+      lobbyMode: "single",  // "single" = un jeu, "playlist" = plusieurs au hasard
+      draft: { games: [], settingsMode: "default", count: 0 },
+      playlist: null,       // playlist en cours : { order, index, settingsMode, choices }
+      next: null,           // écran "prochain jeu" en cours
     };
     rooms[code] = room;
     attach(room, player);
@@ -294,7 +399,7 @@ io.on("connection", (socket) => {
     const room = roomOf();
     if (!room) return callback?.({ error: "Tu n'es dans aucun salon." });
     if (!amHost()) return callback?.({ error: "Seul l'hôte choisit le jeu." });
-    if (room.phase === "game") return callback?.({ error: "Un jeu est déjà en cours." });
+    if (room.phase === "game" || room.phase === "next" || room.playlist) return callback?.({ error: "Un jeu est déjà en cours." });
     const def = GAMES[gameId];
     if (!def) return callback?.({ error: "Jeu inconnu." });
     const n = room.players.length;
@@ -318,19 +423,79 @@ io.on("connection", (socket) => {
     callback?.(res || { ok: true });
   });
 
-  // --- L'hôte arrête le jeu (sans points) ---
+  // --- L'hôte arrête le jeu / la playlist (sans points) ---
   socket.on("abortGame", () => {
     const room = roomOf();
-    if (room && amHost() && room.phase === "game") abortGame(room);
+    if (room && amHost() && ["game", "next"].includes(room.phase)) abortGame(room);
   });
 
-  // --- Fin du podium : retour au menu ---
+  // --- Fin du podium : retour au menu (fin de la playlist s'il y en a une) ---
   socket.on("closePodium", () => {
     const room = roomOf();
     if (!room || !amHost() || room.phase !== "podium") return;
-    room.phase = "lobby";
-    room.gameId = null;
+    endPlaylist(room);
+  });
+
+  // ================= MODE PLAYLIST =================
+
+  // L'hôte passe de "un jeu" à "playlist" (tout le monde voit le changement).
+  socket.on("setLobbyMode", ({ mode } = {}) => {
+    const room = roomOf();
+    if (!room || !amHost() || room.phase !== "lobby" || !["single", "playlist"].includes(mode)) return;
+    room.lobbyMode = mode;
     sendHub(room);
+  });
+
+  // L'hôte prépare la playlist : jeux cochés, réglages (défaut/vote), nombre de jeux.
+  socket.on("setDraft", ({ games, settingsMode, count } = {}) => {
+    const room = roomOf();
+    if (!room || !amHost() || room.phase !== "lobby") return;
+    const d = room.draft;
+    if (Array.isArray(games)) d.games = [...new Set(games)].filter((id) => GAMES[id]);
+    if (["default", "vote"].includes(settingsMode)) d.settingsMode = settingsMode;
+    if (Number.isFinite(count)) d.count = Math.max(1, Math.min(MAX_PLAYLIST, Math.round(count)));
+    sendHub(room);
+  });
+
+  socket.on("startPlaylist", (_, callback) => {
+    const room = roomOf();
+    if (!room || !amHost()) return callback?.({ error: "Seul l'hôte lance la playlist." });
+    if (room.phase !== "lobby") return callback?.({ error: "Un jeu est déjà en cours." });
+    const d = room.draft;
+    const n = room.players.length;
+    const playable = d.games.filter((id) => n >= GAMES[id].meta.minPlayers && n <= GAMES[id].meta.maxPlayers);
+    if (!d.games.length) return callback?.({ error: "Coche au moins un jeu." });
+    if (!playable.length) return callback?.({ error: `Pas assez de joueurs pour ces jeux (il en faut au moins ${Math.min(...d.games.map((id) => GAMES[id].meta.minPlayers))}).` });
+    const count = d.count || d.games.length;
+    room.playlist = { order: buildOrder(playable, count), index: 0, settingsMode: d.settingsMode, choices: null };
+    callback?.({ ok: true });
+    startNext(room);
+  });
+
+  // Un joueur vote pour un réglage du prochain jeu.
+  socket.on("voteOption", ({ key, value } = {}) => {
+    const room = roomOf();
+    const nx = room?.next;
+    if (!nx || !nx.vote || room.phase !== "next" || !me()) return;
+    const opt = GAMES[nx.gameId].playlist.options.find((o) => o.key === key);
+    if (!opt || !opt.choices.some((c) => c.v === value)) return;
+    (nx.votes[socket.data.playerId] ||= {})[key] = value;
+    sendHub(room);
+  });
+
+  // L'hôte n'attend pas la fin des 30 s.
+  socket.on("launchNow", () => {
+    const room = roomOf();
+    if (room && amHost() && room.phase === "next") launchNext(room);
+  });
+
+  // Podium d'un jeu de la playlist -> jeu suivant.
+  socket.on("nextInPlaylist", () => {
+    const room = roomOf();
+    if (!room || !amHost() || room.phase !== "podium" || !room.playlist) return;
+    room.playlist.index++;
+    if (room.playlist.index >= room.playlist.order.length) endPlaylist(room);
+    else startNext(room);
   });
 
   // --- L'hôte ajoute un bot (pour tester seul ou compléter une partie) ---

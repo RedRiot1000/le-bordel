@@ -135,7 +135,8 @@ $("btn-leave").addEventListener("click", () => {
 });
 
 $("btn-abort").addEventListener("click", () => {
-  if (confirm("Arrêter le jeu en cours ? Personne ne gagnera de points.")) socket.emit("abortGame");
+  const what = hub.playlist ? "la playlist" : "le jeu en cours";
+  if (confirm(`Arrêter ${what} ? Personne ne gagnera de points.`)) socket.emit("abortGame");
 });
 
 function renderBar() {
@@ -143,7 +144,10 @@ function renderBar() {
   $("bar-code").textContent = hub.code;
   const online = hub.players.filter((p) => p.connected).length;
   $("bar-online").textContent = `👥 ${online}/${hub.players.length} en ligne`;
-  $("btn-abort").classList.toggle("hidden", !(isHost() && hub.phase === "game"));
+  $("btn-abort").classList.toggle("hidden", !(isHost() && ["game", "next"].includes(hub.phase)));
+  $("btn-abort").textContent = hub.playlist ? "⏹ Arrêter la playlist" : "⏹ Arrêter le jeu";
+  $("bar-playlist").classList.toggle("hidden", !hub.playlist);
+  if (hub.playlist) $("bar-playlist").textContent = `🎲 Jeu ${hub.playlist.num}/${hub.playlist.total}`;
 }
 
 // ===================================================================
@@ -193,20 +197,30 @@ function renderLobby() {
   const host = isHost();
   $("btn-add-bot").classList.toggle("hidden", !host || n >= 6);
 
+  // --- Mode : un jeu / playlist ---
+  const playlistMode = hub.lobbyMode === "playlist";
+  const draft = hub.draft;
+  $("mode-switch").querySelectorAll("button").forEach((b) => {
+    b.classList.toggle("on", b.dataset.mode === hub.lobbyMode);
+    b.disabled = !host;
+  });
+
   // --- Menu des jeux ---
   const minNeeded = Math.min(...catalogue.games.map((g) => g.minPlayers));
   const hint = $("games-hint");
   hint.classList.toggle("warn", host && n < minNeeded);
-  hint.textContent = !host ? "L'hôte choisit le prochain jeu…"
-    : n < minNeeded ? `👉 Il faut au moins ${minNeeded} joueurs. Invite tes potes ou ajoute des bots 🤖 pour tester !`
-    : "Clique sur un jeu pour le lancer.";
+  hint.textContent = n < minNeeded && host ? `👉 Il faut au moins ${minNeeded} joueurs. Invite tes potes ou ajoute des bots 🤖 pour tester !`
+    : playlistMode ? (host ? "Coche les jeux de la playlist : ils seront joués dans un ordre au hasard." : "L'hôte prépare une playlist de jeux…")
+    : (host ? "Clique sur un jeu pour le lancer." : "L'hôte choisit le prochain jeu…");
 
   const tiles = catalogue.games.map((g) => {
     const ok = n >= g.minPlayers && n <= g.maxPlayers;
     const why = n < g.minPlayers ? ` · il manque ${g.minPlayers - n} joueur(s)` : "";
+    const picked = playlistMode && draft.games.includes(g.id);
     // L'hôte peut toujours cliquer : s'il manque du monde, un message l'explique.
     return `
-      <button class="game-tile ${ok ? "" : "locked"}" data-id="${g.id}" ${host ? "" : "disabled"}>
+      <button class="game-tile ${ok ? "" : "locked"} ${playlistMode ? "pickable" : ""} ${picked ? "picked" : ""}" data-id="${g.id}" ${host ? "" : "disabled"}>
+        ${playlistMode ? `<span class="gt-check">${picked ? "✓" : ""}</span>` : ""}
         <span class="gt-emoji">${g.emoji}</span>
         <span class="gt-name">${escapeHtml(g.name)}</span>
         <span class="gt-meta">${g.family} · ${g.minPlayers}-${g.maxPlayers} joueurs${why}</span>
@@ -224,22 +238,129 @@ function renderLobby() {
   $("game-tiles").querySelectorAll(".game-tile:not(.soon)").forEach((b) => {
     b.onclick = () => {
       $("lobby-error").textContent = "";
+      if (playlistMode) {
+        // Playlist : on coche / décoche le jeu.
+        const id = b.dataset.id;
+        const games = draft.games.includes(id) ? draft.games.filter((x) => x !== id) : [...draft.games, id];
+        socket.emit("setDraft", { games });
+        return;
+      }
       socket.emit("pickGame", { gameId: b.dataset.id }, (res) => {
         if (res?.error) $("lobby-error").textContent = res.error;
       });
     };
   });
+
+  // --- Panneau de la playlist ---
+  $("playlist-panel").classList.toggle("hidden", !playlistMode);
+  if (!playlistMode) return;
+  const count = draft.count || draft.games.length;
+  $("pl-count").textContent = count;
+  $("pl-dec").disabled = !host || count <= 1;
+  $("pl-inc").disabled = !host || count >= 20;
+  $("pl-settings").querySelectorAll("button").forEach((b) => {
+    b.classList.toggle("on", b.dataset.sm === draft.settingsMode);
+    b.disabled = !host;
+  });
+  $("pl-settings-hint").textContent = draft.settingsMode === "vote"
+    ? "Avant chaque jeu, tout le monde a 30 s pour voter la difficulté, le nombre de manches et les options."
+    : "Chaque jeu se lance en difficulté normale, avec son nombre de manches par défaut.";
+  const start = $("btn-start-playlist");
+  start.classList.toggle("hidden", !host);
+  start.disabled = !draft.games.length;
+  start.textContent = draft.games.length ? `🎲 Lancer la playlist (${count} jeu${count > 1 ? "x" : ""})` : "Coche au moins un jeu";
 }
+
+// Boutons du salon (mode et playlist), branchés une seule fois.
+$("mode-switch").querySelectorAll("button").forEach((b) => {
+  b.onclick = () => socket.emit("setLobbyMode", { mode: b.dataset.mode });
+});
+$("pl-settings").querySelectorAll("button").forEach((b) => {
+  b.onclick = () => socket.emit("setDraft", { settingsMode: b.dataset.sm });
+});
+const plCount = () => hub.draft.count || hub.draft.games.length;
+$("pl-dec").onclick = () => socket.emit("setDraft", { count: plCount() - 1 });
+$("pl-inc").onclick = () => socket.emit("setDraft", { count: plCount() + 1 });
+$("btn-start-playlist").onclick = () => {
+  $("lobby-error").textContent = "";
+  socket.emit("startPlaylist", {}, (res) => { if (res?.error) $("lobby-error").textContent = res.error; });
+};
+
+// ===================================================================
+//  PLAYLIST : PROCHAIN JEU (vote des réglages)
+// ===================================================================
+let nextEndLocal = 0;
+let nextTotalMs = 30000;
+
+$("btn-launch-now").onclick = () => socket.emit("launchNow");
+
+function renderNext() {
+  const nx = hub.next;
+  const game = catalogue.games.find((g) => g.id === nx.gameId);
+  nextEndLocal = Date.now() + nx.left;
+  nextTotalMs = nx.vote ? 30000 : 5000;
+  $("next-num").textContent = `🎲 Jeu ${nx.num} / ${nx.total}`;
+  $("next-emoji").textContent = game?.emoji || "🎮";
+  $("next-name").textContent = game?.name || "?";
+  $("next-hint").textContent = nx.vote
+    ? "🗳️ Votez pour les réglages ! (la majorité l'emporte)"
+    : "Réglages par défaut — c'est parti !";
+  $("btn-launch-now").classList.toggle("hidden", !isHost());
+
+  const myVotes = {};
+  for (const [key, byValue] of Object.entries(nx.votes || {})) {
+    for (const [value, ids] of Object.entries(byValue)) if (ids.includes(store.playerId)) myVotes[key] = value;
+  }
+
+  $("next-options").innerHTML = (game?.options || []).map((o) => `
+    <div class="next-option">
+      <div class="next-option-label">${escapeHtml(o.label)}</div>
+      <div class="next-choices">
+        ${o.choices.map((c) => {
+          const voters = nx.votes?.[o.key]?.[c.v] || [];
+          const mine = myVotes[o.key] === c.v;
+          const isDefault = !nx.vote && c.v === o.default;
+          return `
+            <button class="next-choice ${mine || isDefault ? "on" : ""}" data-key="${o.key}" data-v="${c.v}" ${nx.vote ? "" : "disabled"}>
+              <span class="nc-label">${escapeHtml(c.label)}</span>
+              ${c.hint ? `<span class="nc-hint">${escapeHtml(c.hint)}</span>` : ""}
+              ${nx.vote ? `<span class="nc-voters">${voters.map((id) => avatar(playerOf(id))).join("") || '<span class="muted">0 vote</span>'}</span>` : ""}
+            </button>`;
+        }).join("")}
+      </div>
+    </div>`).join("");
+
+  $("next-options").querySelectorAll(".next-choice:not([disabled])").forEach((b) => {
+    b.onclick = () => socket.emit("voteOption", { key: b.dataset.key, value: b.dataset.v });
+  });
+}
+
+// Compte à rebours de l'écran "prochain jeu".
+setInterval(() => {
+  if (hub?.phase !== "next") return;
+  const left = Math.max(0, nextEndLocal - Date.now());
+  $("next-sec").textContent = Math.ceil(left / 1000);
+  $("next-fill").style.width = Math.min(100, (left / nextTotalMs) * 100) + "%";
+}, 200);
 
 // ===================================================================
 //  PODIUM
 // ===================================================================
-$("btn-close-podium").addEventListener("click", () => socket.emit("closePodium"));
+$("btn-close-podium").addEventListener("click", () => {
+  // En playlist (pas finie) : jeu suivant. Sinon : retour au menu.
+  const pl = hub.lastResult?.playlist;
+  socket.emit(pl && !pl.final && hub.playlist ? "nextInPlaylist" : "closePodium");
+});
 
 function renderPodium() {
   const r = hub.lastResult;
   const game = catalogue.games.find((g) => g.id === r?.gameId);
-  $("podium-title").textContent = `🏆 Résultats — ${game ? game.emoji + " " + game.name : ""}`;
+  const pl = r?.playlist;
+  $("podium-title").textContent = `🏆 Résultats — ${game ? game.emoji + " " + game.name : ""}` +
+    (pl ? ` (jeu ${pl.num}/${pl.total})` : "");
+  $("btn-close-podium").textContent = !pl ? "Retour au menu"
+    : pl.final ? "🏁 Fin de la playlist — retour au menu" : `▶ Jeu suivant (${pl.num + 1}/${pl.total})`;
+  document.querySelector(".podium-sub").textContent = pl?.final ? "🏆 Classement final de la playlist" : "Classement de la soirée";
   const medals = ["🥇", "🥈", "🥉"];
   $("podium-list").innerHTML = (r?.results || []).map((x, i) => {
     const p = playerOf(x.playerId);
@@ -315,6 +436,7 @@ socket.on("hub", (h) => {
   }
   unmountGame();
   if (h.phase === "podium") { renderPodium(); showScreen("podium"); }
+  else if (h.phase === "next") { renderNext(); showScreen("next"); }
   else { renderLobby(); showScreen("lobby"); }
 });
 

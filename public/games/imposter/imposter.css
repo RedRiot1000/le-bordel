@@ -115,6 +115,7 @@
 .go-gain { font-weight: 800; color: var(--muted); }
 .go-gain.win { color: var(--ok); }
 .go-total { font-weight: 800; color: var(--accent-3); }
+.go-final { font-size: 19px; font-weight: 700; margin-bottom: 14px; color: var(--accent-3); }
 
 /* Minuteurs : boutons ±15 + case à remplir */
 .timer-field button { width: auto; padding: 0 8px; font-size: 13px; }
