@@ -183,7 +183,7 @@
       ${s.timers.enabled ? `
         <div class="setting"><label>⏱️ Temps par indice</label><div class="val">${timerField("clue", s.timers.clue)}</div></div>
         <div class="setting"><label>⏱️ Temps pour voter</label><div class="val">${timerField("vote", s.timers.vote)}</div></div>
-        <div class="setting"><label>⏱️ Temps de devinette</label><div class="val">${timerField("guess", s.timers.guess)}</div></div>
+        ${s.mrWhiteEnabled ? `<div class="setting"><label title="Quand Mr White est éliminé, il a ce temps pour deviner le mot des civils">⏱️ Devinette de Mr White</label><div class="val">${timerField("guess", s.timers.guess)}</div></div>` : ""}
       ` : ""}
 
       <div class="setting-block">

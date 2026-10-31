@@ -30,7 +30,7 @@ function defaultSettings() {
     categories: [...CATEGORIES],   // toutes actives par défaut
     timers: {
       enabled: true,
-      clue: 30,   // secondes par indice
+      clue: 60,   // secondes par indice
       vote: 60,   // secondes pour voter
       guess: 30,  // secondes pour la devinette de Mr White
     },
