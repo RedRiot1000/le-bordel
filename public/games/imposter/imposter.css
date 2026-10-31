@@ -5,3 +5,13 @@
 .pc-head .avatar { background: var(--av, var(--accent)); }
 .player-card.offline { opacity: 0.45; }
 #imp-finish-setup { margin-top: 6px; }
+
+/* Minuteurs : boutons ±15 + case à remplir */
+.timer-field button { width: auto; padding: 0 8px; font-size: 13px; }
+.timer-field .num-input {
+  width: 58px; padding: 4px 6px; text-align: center; font-weight: 700; font-size: 15px;
+  border-radius: 8px; -moz-appearance: textfield;
+}
+.timer-field .num-input::-webkit-outer-spin-button,
+.timer-field .num-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.timer-field .unit { color: var(--muted); font-size: 13px; margin-left: -2px; }

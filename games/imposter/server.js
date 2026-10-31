@@ -480,6 +480,11 @@ export function createGame(ctx) {
         scoring: { ...g.settings.scoring, ...(settings.scoring || {}) },
       };
       if (!g.settings.categories?.length) g.settings.categories = [...CATEGORIES];
+      // Minuteurs : nombres entiers entre 5 s et 10 min, quoi qu'on envoie.
+      for (const k of ["clue", "vote", "guess"]) {
+        const v = Math.round(Number(g.settings.timers[k]));
+        g.settings.timers[k] = Number.isFinite(v) ? Math.max(5, Math.min(600, v)) : defaultSettings().timers[k];
+      }
       ctx.saveSettings(structuredClone(g.settings));
       broadcast();
     },

@@ -18,6 +18,11 @@
   const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
   const send = (type, data) => api.action(type, data);
 
+  // Minuteurs (en secondes).
+  const TIMER_STEP = 15;
+  const TIMER_MIN = 5;
+  const TIMER_MAX = 600;
+
   const PHASE_LABELS = {
     clues: "🗣️ Tour d'indices",
     vote: "🗳️ Vote",
@@ -100,7 +105,8 @@
         myRole = null;
         $("imp-play").classList.add("hidden");
         $("imp-setup").classList.remove("hidden");
-        renderSettings();
+        // On ne redessine pas les réglages pendant que l'hôte tape dans une case.
+        if (!document.activeElement?.classList.contains("num-input")) renderSettings();
         renderStartArea();
       } else {
         if (st.phase === "vote" && prevPhase !== "vote") myVote = null;
@@ -142,6 +148,16 @@
         <button data-act="inc" ${!host || value >= max ? "disabled" : ""}>+</button>
       </div>`;
 
+    // Minuteur : boutons de 15 en 15 + case où l'on tape le nombre soi-même.
+    const timerField = (key, value) => `
+      <div class="stepper timer-field" data-timer="${key}">
+        <button data-step="-${TIMER_STEP}" ${!host || value <= TIMER_MIN ? "disabled" : ""}>−${TIMER_STEP}</button>
+        <input class="num-input" type="number" inputmode="numeric" min="${TIMER_MIN}" max="${TIMER_MAX}"
+               value="${value}" ${host ? "" : "disabled"} title="Tape un nombre de secondes puis Entrée" />
+        <span class="unit">s</span>
+        <button data-step="${TIMER_STEP}" ${!host || value >= TIMER_MAX ? "disabled" : ""}>+${TIMER_STEP}</button>
+      </div>`;
+
     const toggle = (key, checked) => `
       <label class="switch">
         <input type="checkbox" data-key="${key}" ${checked ? "checked" : ""} ${host ? "" : "disabled"} />
@@ -158,9 +174,9 @@
       <div class="setting"><label>Mode Chaos 🌀</label><div class="val">${toggle("chaosMode", s.chaosMode)}</div></div>
       <div class="setting"><label>Minuteur activé</label><div class="val">${toggle("timersEnabled", s.timers.enabled)}</div></div>
       ${s.timers.enabled ? `
-        <div class="setting"><label>⏱️ Secondes / indice</label><div class="val">${stepper("timerClue", s.timers.clue, 10, 120)}</div></div>
-        <div class="setting"><label>⏱️ Secondes / vote</label><div class="val">${stepper("timerVote", s.timers.vote, 15, 180)}</div></div>
-        <div class="setting"><label>⏱️ Secondes / devinette</label><div class="val">${stepper("timerGuess", s.timers.guess, 10, 120)}</div></div>
+        <div class="setting"><label>⏱️ Temps par indice</label><div class="val">${timerField("clue", s.timers.clue)}</div></div>
+        <div class="setting"><label>⏱️ Temps pour voter</label><div class="val">${timerField("vote", s.timers.vote)}</div></div>
+        <div class="setting"><label>⏱️ Temps de devinette</label><div class="val">${timerField("guess", s.timers.guess)}</div></div>
       ` : ""}
 
       <div class="setting-block">
@@ -187,10 +203,25 @@
 
     if (!host) return;
 
-    panel.querySelectorAll(".stepper").forEach((el) => {
+    panel.querySelectorAll(".stepper[data-key]").forEach((el) => {
       el.querySelectorAll("button").forEach((btn) => {
         btn.onclick = () => applySettingChange(el.dataset.key, btn.dataset.act === "inc" ? 1 : -1);
       });
+    });
+
+    // Minuteurs : boutons ±15 et saisie libre (validée par Entrée ou en quittant la case).
+    panel.querySelectorAll(".timer-field").forEach((el) => {
+      const key = el.dataset.timer;
+      const input = el.querySelector("input");
+      el.querySelectorAll("button").forEach((btn) => {
+        btn.onclick = () => setTimer(key, st.settings.timers[key] + Number(btn.dataset.step));
+      });
+      // En quittant la case (clic ailleurs, Tab ou Entrée), on envoie ce qui a été tapé.
+      input.onblur = () => {
+        if (input.value !== String(st.settings.timers[key])) setTimer(key, Number(input.value));
+      };
+      input.onkeydown = (e) => { if (e.key === "Enter") input.blur(); };
+      input.onfocus = () => input.select();
     });
     panel.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
       cb.onchange = () => applyToggleChange(cb.dataset.key, cb.checked);
@@ -209,7 +240,6 @@
   function applySettingChange(key, delta) {
     const s = st.settings;
     const patch = {};
-    const t = { ...s.timers };
 
     if (key.startsWith("score_")) {
       const field = key.slice(6);
@@ -221,11 +251,15 @@
       case "undercoverCount": patch.undercoverCount = clamp(s.undercoverCount + delta, 1, 4); break;
       case "mrWhiteCount":    patch.mrWhiteCount = clamp(s.mrWhiteCount + delta, 1, 2); break;
       case "clueRounds":      patch.clueRounds = clamp(s.clueRounds + delta, 1, 6); break;
-      case "timerClue":       t.clue = clamp(s.timers.clue + delta, 10, 120); patch.timers = t; break;
-      case "timerVote":       t.vote = clamp(s.timers.vote + delta, 15, 180); patch.timers = t; break;
-      case "timerGuess":      t.guess = clamp(s.timers.guess + delta, 10, 120); patch.timers = t; break;
     }
     send("settings", { settings: patch });
+  }
+
+  // Change un minuteur (en secondes, borné entre TIMER_MIN et TIMER_MAX).
+  function setTimer(key, value) {
+    // (case vide ou n'importe quoi tapé -> on garde l'ancienne valeur)
+    const v = value > 0 ? clamp(Math.round(value), TIMER_MIN, TIMER_MAX) : st.settings.timers[key];
+    send("settings", { settings: { timers: { ...st.settings.timers, [key]: v } } });
   }
 
   function applyToggleChange(key, checked) {
