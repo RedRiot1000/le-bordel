@@ -1,10 +1,17 @@
 // ===================================================================
 //  PATATE CHAUDE — Moteur du jeu (module du hub Le Bordel)
-//  Arène vue de dessus. Un joueur a la bombe et la refile en touchant
-//  quelqu'un. Quand la mèche (cachée) arrive au bout : BOUM, éliminé.
-//  Dernier debout = gagnant. C'est le SERVEUR qui calcule les
-//  déplacements (30 fois par seconde) : personne ne peut tricher.
+//  Des petites voitures téléguidées dans une arène aléatoire. Une
+//  voiture porte la bombe et la refile en touchant une autre. Quand
+//  la mèche (cachée) arrive au bout : BOUM, éliminé (l'épave reste).
+//  C'est le SERVEUR qui fait foi : il calcule tout 30 fois par seconde
+//  avec la même physique que le navigateur (physics.js).
 // ===================================================================
+
+import "../../public/games/patate/physics.js";
+import { generateMap } from "./maps.js";
+
+const P = globalThis.PatatePhysics;
+const K = P.K;
 
 export const meta = {
   id: "patate",
@@ -13,53 +20,30 @@ export const meta = {
   family: "Action",
   minPlayers: 3,
   maxPlayers: 6,
-  description: "Refile la bombe avant qu'elle explose !",
+  description: "Petites voitures, une bombe : refile-la avant qu'elle explose !",
 };
 
-// --- Réglages de la physique ---
-const W = 960, H = 600;        // taille de l'arène (en pixels "virtuels")
-const R = 22;                  // rayon d'un joueur
+// --- Rythme ---
 const TICK_MS = 1000 / 30;     // 30 calculs par seconde
-const SPEED = 260;             // pixels par seconde
-const HOLDER_BONUS = 1.12;     // le porteur de bombe va 12 % plus vite
-const DASH_MULT = 2.6;         // vitesse pendant le sprint
-const DASH_TIME = 0.16;        // durée du sprint (s)
-const DASH_COOLDOWN = 2.5;     // recharge du sprint (s)
 const NO_PASS_BACK = 1.0;      // pas de renvoi immédiat au précédent (s)
-const PASS_COOLDOWN = 0.25;    // délai mini entre deux passes (s)
+const PASS_COOLDOWN = 0.3;     // délai mini entre deux passes (s)
 const COUNTDOWN_MS = 3000;     // compte à rebours en début de manche
 const RESPAWN_MS = 2000;       // pause avant la bombe suivante
 const BOOM_MS = 1800;          // durée de l'explosion à l'écran
+const MAX_QUEUE = 4;           // touches en attente max par joueur (évite le retard qui s'accumule)
 
 // Durée de la mèche (en secondes, tirée au hasard dans l'intervalle).
-// ("test" = mèche éclair utilisée seulement par le test automatique.)
-const FUSES = { courte: [10, 18], normale: [15, 28], longue: [25, 40], test: [2, 3] };
-
-// Dispositions d'obstacles (rectangles), une tirée au hasard par manche.
-const LAYOUTS = [
-  [ // 4 piliers
-    { x: 220, y: 140, w: 90, h: 90 }, { x: 650, y: 140, w: 90, h: 90 },
-    { x: 220, y: 370, w: 90, h: 90 }, { x: 650, y: 370, w: 90, h: 90 },
-  ],
-  [ // bloc central + 2 barres
-    { x: 420, y: 245, w: 120, h: 110 },
-    { x: 140, y: 280, w: 170, h: 40 }, { x: 650, y: 280, w: 170, h: 40 },
-  ],
-  [ // couloirs
-    { x: 300, y: 0, w: 40, h: 200 }, { x: 620, y: 400, w: 40, h: 200 },
-    { x: 300, y: 400, w: 40, h: 110 }, { x: 620, y: 90, w: 40, h: 110 },
-  ],
-  [ // croix
-    { x: 455, y: 150, w: 50, h: 300 }, { x: 330, y: 275, w: 300, h: 50 },
-  ],
-];
+// ("test" = mèche éclair utilisée seulement par les tests automatiques.)
+const FUSES = { courte: [12, 20], normale: [18, 30], longue: [28, 42], test: [4, 6] };
 
 function defaultSettings() {
-  return { fuse: "normale", obstacles: true, dash: true };
+  return { fuse: "normale", nitro: true, slippery: true };
 }
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const r2 = (v) => Math.round(v * 100) / 100;
+const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 
 // ===================================================================
 //  CRÉATION D'UNE PARTIE (appelée par le hub)
@@ -67,26 +51,28 @@ const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 export function createGame(ctx) {
   const g = {
     phase: "setup",       // setup | countdown | play | boom | roundOver
-    settings: ctx.savedSettings ? { ...ctx.savedSettings } : defaultSettings(),
+    settings: ctx.savedSettings ? { ...defaultSettings(), ...ctx.savedSettings } : defaultSettings(),
     scores: {},           // points Patate (classement final)
     roundNum: 0,
-    obstacles: [],
-    bodies: {},           // id -> { x, y, alive, input, dir, dashT, dashCd }
+    map: null,
+    env: null,            // ce dont la physique a besoin (murs, sol, huile)
+    cars: {},             // id -> { car, alive, bot, queue, lastK, seq, ai }
     holderId: null,
     prevHolder: null,
     lastPassAt: 0,
     fuseStart: 0,
     fuseEnd: 0,
     phaseEnd: 0,
-    elimOrder: [],        // ordre d'élimination de la manche
+    elimOrder: [],
     lastBoom: null,       // { id, x, y }
-    lastRound: null,      // résultats de la dernière manche
+    lastRound: null,
+    fx: [],               // chocs récents (pour les étincelles côté navigateur)
+    fxId: 0,
     loop: null,
   };
 
   const now = () => Date.now();
-  const aliveIds = () => Object.keys(g.bodies).filter((id) => g.bodies[id].alive);
-  let botIds = new Set();   // ids des bots de la manche en cours
+  const aliveIds = () => Object.keys(g.cars).filter((id) => g.cars[id].alive);
 
   // =================================================================
   //  ÉTAT PUBLIC (envoyé 30 fois par seconde pendant le jeu)
@@ -97,22 +83,28 @@ export function createGame(ctx) {
     if (g.phase === "play" && g.fuseEnd > g.fuseStart) {
       heat = Math.min(1, (t - g.fuseStart) / (g.fuseEnd - g.fuseStart));
     }
+    g.fx = g.fx.filter((f) => t - f.t < 600);
     return {
       phase: g.phase,
       settings: g.settings,
       roundNum: g.roundNum,
       players: ctx.players().map((p) => ({ ...p, score: g.scores[p.id] || 0 })),
-      arena: { w: W, h: H, r: R, obstacles: g.obstacles },
-      bodies: Object.entries(g.bodies).map(([id, b]) => ({
-        id, x: Math.round(b.x), y: Math.round(b.y), alive: b.alive,
-        dashing: b.dashT > 0, dashReady: b.dashCd <= 0,
+      map: g.map && {
+        id: g.map.id, surface: g.map.surface, grip: g.map.grip, seed: g.map.seed,
+        obstacles: g.map.obstacles, oils: g.map.oils, w: P.W, h: P.H,
+      },
+      cars: Object.entries(g.cars).map(([id, s]) => ({
+        id, alive: s.alive, seq: s.seq,
+        x: r2(s.car.x), y: r2(s.car.y), a: Math.round(s.car.a * 1000) / 1000,
+        vx: r2(s.car.vx), vy: r2(s.car.vy), w: r2(s.car.w),
+        nitro: r2(s.car.nitro), slide: s.car.slide, st: s.car.st, boost: s.car.boost,
       })),
       holderId: g.holderId,
       heat,                                   // 0 -> 1 : la bombe clignote de plus en plus vite
       phaseLeft: Math.max(0, g.phaseEnd - t), // ms restantes (compte à rebours, explosion)
       lastBoom: g.lastBoom,
       lastRound: g.lastRound,
-      elimOrder: g.elimOrder,
+      fx: g.fx.map(({ id, x, y, s, cars }) => ({ id, x, y, s, cars })),
     };
   }
 
@@ -121,23 +113,18 @@ export function createGame(ctx) {
   // =================================================================
   function startRound() {
     const players = ctx.players().filter((p) => p.connected);
-    botIds = new Set(players.filter((p) => p.bot).map((p) => p.id));
     g.roundNum++;
-    g.obstacles = g.settings.obstacles ? pick(LAYOUTS) : [];
-    g.bodies = {};
+    g.map = generateMap({ W: P.W, H: P.H, players: players.length, slippery: g.settings.slippery });
+    g.env = { w: P.W, h: P.H, grip: g.map.grip, oils: g.map.oils, obstacles: g.map.obstacles, nitro: g.settings.nitro };
+    g.cars = {};
     g.elimOrder = [];
     g.lastBoom = null;
     g.lastRound = null;
+    g.fx = [];
 
-    // Placement en cercle autour du centre.
     players.forEach((p, i) => {
-      const a = (i / players.length) * Math.PI * 2 + Math.PI / 2;
-      const b = {
-        x: W / 2 + Math.cos(a) * 380, y: H / 2 + Math.sin(a) * 230,
-        alive: true, input: {}, dir: { x: 0, y: -1 }, dashT: 0, dashCd: 0,
-      };
-      pushOutOfObstacles(b);
-      g.bodies[p.id] = b;
+      const s = g.map.spawns[i];
+      g.cars[p.id] = { car: P.newCar(s.x, s.y, s.a), alive: true, bot: !!p.bot, queue: [], lastK: 0, seq: 0, ai: {} };
       g.scores[p.id] = g.scores[p.id] || 0;   // il apparaît au classement
     });
 
@@ -159,25 +146,38 @@ export function createGame(ctx) {
     g.fuseEnd = g.fuseStart + rand(a, b) * 1000;
   }
 
-  // Un joueur est éliminé (explosion ou départ).
   function eliminate(id) {
-    const b = g.bodies[id];
-    if (!b || !b.alive) return;
-    b.alive = false;
+    const s = g.cars[id];
+    if (!s || !s.alive) return;
+    s.alive = false;
+    s.car.boost = false;
     g.elimOrder.push(id);
   }
 
   function explode() {
     const id = g.holderId;
-    const b = g.bodies[id];
-    g.lastBoom = { id, x: Math.round(b.x), y: Math.round(b.y) };
+    const c = g.cars[id].car;
+    g.lastBoom = { id, x: Math.round(c.x), y: Math.round(c.y) };
+    // Le souffle repousse les voitures proches.
+    for (const oid of aliveIds()) {
+      if (oid === id) continue;
+      const o = g.cars[oid].car;
+      const dx = o.x - c.x, dy = o.y - c.y, d = Math.hypot(dx, dy) || 1;
+      if (d < 220) {
+        const f = (1 - d / 220) * 420;
+        o.vx += (dx / d) * f; o.vy += (dy / d) * f;
+        o.w += (Math.random() - 0.5) * 10 * (1 - d / 220);
+        o.slide = true;
+      }
+    }
+    // L'épave est projetée et tourne.
+    c.vx *= 0.3; c.vy *= 0.3; c.w = (Math.random() - 0.5) * 6;
     eliminate(id);
     g.holderId = null;
     g.phase = "boom";
     g.phaseEnd = now() + BOOM_MS;
   }
 
-  // Après une explosion (ou un départ) : manche finie ou bombe suivante ?
   function nextBombOrEnd() {
     const alive = aliveIds();
     if (alive.length <= 1) return endRound();
@@ -188,7 +188,7 @@ export function createGame(ctx) {
 
   // Points : 1 par joueur éliminé avant toi, le gagnant a n-1.
   function endRound() {
-    const ids = Object.keys(g.bodies);
+    const ids = Object.keys(g.cars);
     const order = [...g.elimOrder, ...aliveIds()];   // du 1er éliminé au gagnant
     g.lastRound = order.map((id, i) => ({ id, points: i, place: ids.length - i })).reverse();
     for (const r of g.lastRound) g.scores[r.id] = (g.scores[r.id] || 0) + r.points;
@@ -199,119 +199,119 @@ export function createGame(ctx) {
   }
 
   // =================================================================
-  //  PHYSIQUE
+  //  BOTS AU VOLANT
+  //  Le porteur fonce sur la voiture la plus proche, les autres fuient
+  //  vers un point loin de la bombe. S'ils sont coincés, ils reculent.
   // =================================================================
-  function pushOutOfObstacles(b) {
-    // Murs de l'arène.
-    b.x = Math.max(R, Math.min(W - R, b.x));
-    b.y = Math.max(R, Math.min(H - R, b.y));
-    // Rectangles : on repousse le rond hors du point le plus proche.
-    for (const o of g.obstacles) {
-      const cx = Math.max(o.x, Math.min(b.x, o.x + o.w));
-      const cy = Math.max(o.y, Math.min(b.y, o.y + o.h));
-      let dx = b.x - cx, dy = b.y - cy;
-      const d2 = dx * dx + dy * dy;
-      if (d2 >= R * R) continue;
-      if (d2 === 0) {
-        // Centre à l'intérieur du rectangle : on sort par le côté le plus proche.
-        const exits = [
-          { d: b.x - o.x, x: o.x - R, y: b.y }, { d: o.x + o.w - b.x, x: o.x + o.w + R, y: b.y },
-          { d: b.y - o.y, x: b.x, y: o.y - R }, { d: o.y + o.h - b.y, x: b.x, y: o.y + o.h + R },
-        ].sort((p, q) => p.d - q.d)[0];
-        b.x = exits.x; b.y = exits.y;
-      } else {
-        const d = Math.sqrt(d2);
-        b.x = cx + (dx / d) * R;
-        b.y = cy + (dy / d) * R;
-      }
-    }
-  }
+  function botKeys(id, s, dt) {
+    const c = s.car, ai = s.ai;
+    const speed = Math.hypot(c.vx, c.vy);
+    ai.think = (ai.think || 0) - dt;
+    ai.reverse = Math.max(0, (ai.reverse || 0) - dt);
 
-  // =================================================================
-  //  BOTS : le porteur fonce sur le plus proche, les autres fuient.
-  //  Ils "réfléchissent" 6 fois par seconde (pas plus, sinon ils sont
-  //  trop forts) et visent un peu à côté pour rester battables.
-  // =================================================================
-  function botsThink(alive) {
-    const holder = g.bodies[g.holderId];
-    for (const id of alive) {
-      if (!botIds.has(id)) continue;
-      const b = g.bodies[id];
-      b.brain = (b.brain || 0) - 1;
-      if (b.brain > 0) continue;
-      b.brain = 5;   // une décision tous les 5 calculs (~6 fois/s)
+    // Coincé contre un mur ? On recule en braquant.
+    if (ai.wantGo && speed < 30) ai.stuck = (ai.stuck || 0) + dt; else ai.stuck = 0;
+    if (ai.stuck > 0.8) { ai.reverse = 0.9; ai.stuck = 0; ai.revSteer = Math.random() < 0.5 ? K.LEFT : K.RIGHT; }
+    if (ai.reverse > 0) { ai.wantGo = false; return K.DOWN | ai.revSteer; }
 
-      let tx = 0, ty = 0;
+    const holder = g.holderId && g.cars[g.holderId]?.car;
+    if (ai.think <= 0) {
+      ai.think = 0.25 + Math.random() * 0.2;   // réfléchit ~4 fois par seconde
       if (id === g.holderId) {
-        // Chasse : vers le joueur le plus proche.
+        // Chasse : la voiture la plus proche (en visant un peu devant elle).
         let best = null, bestD = Infinity;
-        for (const o of alive) {
-          if (o === id) continue;
-          const d = Math.hypot(g.bodies[o].x - b.x, g.bodies[o].y - b.y);
-          if (d < bestD) { bestD = d; best = g.bodies[o]; }
+        for (const oid of aliveIds()) {
+          if (oid === id) continue;
+          const o = g.cars[oid].car;
+          const d = Math.hypot(o.x - c.x, o.y - c.y);
+          if (d < bestD) { bestD = d; best = o; }
         }
-        if (best) { tx = best.x - b.x; ty = best.y - b.y; }
-        if (best && bestD < 140 && Math.random() < 0.15) actions.dash(id);
+        if (best) ai.target = { x: best.x + best.vx * 0.3, y: best.y + best.vy * 0.3 };
+        ai.dist = bestD;
       } else if (holder) {
-        const d = Math.hypot(b.x - holder.x, b.y - holder.y);
-        if (d < 300) {
-          // Fuite : à l'opposé du porteur, en évitant de se coincer dans un coin.
-          tx = (b.x - holder.x) / d + (W / 2 - b.x) / W;
-          ty = (b.y - holder.y) / d + (H / 2 - b.y) / H;
-          if (d < 90 && Math.random() < 0.2) actions.dash(id);
-        } else if (Math.random() < 0.3) {
-          tx = Math.random() - 0.5; ty = Math.random() - 0.5;   // flâne un peu
+        // Fuite : un point loin de la bombe (on en change de temps en temps).
+        const dH = Math.hypot(holder.x - c.x, holder.y - c.y);
+        ai.flee = (ai.flee || 0) - 0.3;
+        if (!ai.target || ai.flee <= 0 || dH < 160) {
+          let best = null, bestScore = -Infinity;
+          for (let i = 0; i < 12; i++) {
+            const p = { x: rand(90, P.W - 90), y: rand(90, P.H - 90) };
+            if (g.map.obstacles.some((o) => p.x > o.x - 40 && p.x < o.x + o.w + 40 && p.y > o.y - 40 && p.y < o.y + o.h + 40)) continue;
+            const score = Math.hypot(p.x - holder.x, p.y - holder.y) - 0.5 * Math.hypot(p.x - c.x, p.y - c.y);
+            if (score > bestScore) { bestScore = score; best = p; }
+          }
+          if (best) ai.target = best;
+          ai.flee = 1.5;
+        }
+        ai.dist = dH;
+      } else {
+        ai.target = null;
+      }
+    }
+
+    if (!ai.target) { ai.wantGo = false; return 0; }
+    const want = Math.atan2(ai.target.y - c.y, ai.target.x - c.x);
+    const diff = angDiff(want, c.a);
+    let k = 0;
+    if (diff > 0.12) k |= K.RIGHT;
+    else if (diff < -0.12) k |= K.LEFT;
+    if (Math.abs(diff) < 1.9 || speed < 120) { k |= K.UP; ai.wantGo = true; }
+    else { k |= K.DOWN; ai.wantGo = false; }
+    if (Math.abs(diff) > 1.0 && speed > 230 && Math.random() < 0.4) k |= K.HB;          // dérapage pour tourner
+    if (id === g.holderId && Math.abs(diff) < 0.25 && ai.dist > 220) k |= K.NITRO;      // nitro en ligne droite
+    if (id !== g.holderId && ai.dist < 180 && Math.abs(diff) < 0.5) k |= K.NITRO;       // nitro pour s'échapper
+    return k;
+  }
+
+  // =================================================================
+  //  UN CALCUL DE PHYSIQUE (1/30 s, découpé en petits pas)
+  // =================================================================
+  function step() {
+    const alive = aliveIds();
+    const all = Object.keys(g.cars);
+
+    // 1. Quelles touches pour chaque voiture ?
+    const keys = {};
+    for (const id of alive) {
+      const s = g.cars[id];
+      if (s.bot) { keys[id] = botKeys(id, s, P.TICK); continue; }
+      // Un humain : on prend la prochaine touche reçue (ou la dernière connue).
+      if (s.queue.length > MAX_QUEUE) s.queue.splice(0, s.queue.length - 2);
+      const inp = s.queue.shift();
+      if (inp) { s.lastK = inp.k; s.seq = inp.s; }
+      keys[id] = s.lastK;
+    }
+
+    const dt = P.TICK / P.SUB;
+    const t = now();
+    for (let sub = 0; sub < P.SUB; sub++) {
+      // 2. Conduite + murs. Les épaves glissent encore un peu puis s'arrêtent.
+      for (const id of all) {
+        const s = g.cars[id];
+        P.drive(s.car, s.alive ? keys[id] : 0, dt, g.env, id === g.holderId ? P.HOLDER_BONUS : 1);
+        const hit = P.collideStatic(s.car, g.env);
+        if (hit > 180 && s.alive) addFx(s.car.x, s.car.y, hit, [id]);
+      }
+      // 3. Chocs entre voitures (les épaves sont des obstacles fixes).
+      for (let i = 0; i < all.length; i++) {
+        for (let j = i + 1; j < all.length; j++) {
+          let A = g.cars[all[i]], B = g.cars[all[j]];
+          if (!A.alive && !B.alive) continue;
+          let ida = all[i], idb = all[j];
+          if (!A.alive) { [A, B] = [B, A]; [ida, idb] = [idb, ida]; }
+          const res = P.collideCars(A.car, B.car, !B.alive);
+          if (res.impact > 120) addFx(res.x, res.y, res.impact, [ida, idb]);
+          if (res.touch && B.alive && g.phase === "play") tryPass(ida, idb, t);
         }
       }
-      // Un peu de hasard dans la direction.
-      tx += (Math.random() - 0.5) * 0.6 * Math.hypot(tx, ty);
-      ty += (Math.random() - 0.5) * 0.6 * Math.hypot(tx, ty);
-      const dz = 0.2 * Math.hypot(tx, ty);
-      b.input = { r: tx > dz, l: tx < -dz, d: ty > dz, u: ty < -dz };
     }
   }
 
-  function step(dt) {
-    const alive = aliveIds();
-    botsThink(alive);
-
-    // 1. Déplacements selon les touches.
-    for (const id of alive) {
-      const b = g.bodies[id];
-      const i = b.input;
-      let mx = (i.r ? 1 : 0) - (i.l ? 1 : 0);
-      let my = (i.d ? 1 : 0) - (i.u ? 1 : 0);
-      const len = Math.hypot(mx, my);
-      if (len) { mx /= len; my /= len; b.dir = { x: mx, y: my }; }
-
-      b.dashCd = Math.max(0, b.dashCd - dt);
-      let speed = SPEED * (id === g.holderId ? HOLDER_BONUS : 1);
-      if (b.dashT > 0) {
-        b.dashT -= dt;
-        speed *= DASH_MULT;
-        if (!len) { mx = b.dir.x; my = b.dir.y; }   // le sprint part tout droit
-      }
-      b.x += mx * speed * dt;
-      b.y += my * speed * dt;
-      pushOutOfObstacles(b);
-    }
-
-    // 2. Les joueurs se repoussent entre eux + passe de la bombe.
+  function addFx(x, y, s, cars) {
     const t = now();
-    for (let a = 0; a < alive.length; a++) {
-      for (let c = a + 1; c < alive.length; c++) {
-        const A = g.bodies[alive[a]], B = g.bodies[alive[c]];
-        const dx = B.x - A.x, dy = B.y - A.y;
-        const d = Math.hypot(dx, dy) || 0.01;
-        if (d < R * 2 + 2) tryPass(alive[a], alive[c], t);
-        if (d < R * 2) {
-          const push = (R * 2 - d) / 2;
-          A.x -= (dx / d) * push; A.y -= (dy / d) * push;
-          B.x += (dx / d) * push; B.y += (dy / d) * push;
-          pushOutOfObstacles(A); pushOutOfObstacles(B);
-        }
-      }
-    }
+    // Un seul effet par endroit et par instant (sinon chaque petit pas en rajoute).
+    if (g.fx.some((f) => t - f.t < 150 && Math.hypot(f.x - x, f.y - y) < 40)) return;
+    g.fx.push({ id: ++g.fxId, t, x: Math.round(x), y: Math.round(y), s: Math.round(s), cars });
   }
 
   function tryPass(idA, idB, t) {
@@ -331,15 +331,21 @@ export function createGame(ctx) {
   // =================================================================
   function tick() {
     const t = now();
-    if (g.phase === "countdown" && t >= g.phaseEnd) {
-      g.phase = "play";
-      lightFuse();
-    } else if (g.phase === "play") {
-      step(TICK_MS / 1000);
-      if (t >= g.fuseEnd) explode();
-    } else if (g.phase === "boom" && t >= g.phaseEnd) {
-      nextBombOrEnd();
-      if (g.phase === "roundOver") return;   // endRound a déjà tout envoyé
+    if (g.phase === "countdown") {
+      // Voitures figées : on jette les touches reçues mais on note où en est chacun.
+      for (const s of Object.values(g.cars)) {
+        const last = s.queue.at(-1);
+        if (last) { s.seq = last.s; s.lastK = 0; }
+        s.queue.length = 0;
+      }
+      if (t >= g.phaseEnd) { g.phase = "play"; lightFuse(); }
+    } else if (g.phase === "play" || g.phase === "boom") {
+      step();
+      if (g.phase === "play" && t >= g.fuseEnd) explode();
+      else if (g.phase === "boom" && t >= g.phaseEnd) {
+        nextBombOrEnd();
+        if (g.phase === "roundOver") return;   // endRound a déjà tout envoyé
+      }
     }
     ctx.update();
   }
@@ -347,21 +353,20 @@ export function createGame(ctx) {
   function startLoop() { stopLoop(); g.loop = setInterval(tick, TICK_MS); }
   function stopLoop() { clearInterval(g.loop); g.loop = null; }
 
-  // Classement final (pour les points de soirée) : par score Patate.
   function ranking() {
     const byScore = {};
     for (const [id, score] of Object.entries(g.scores)) (byScore[score] ||= []).push(id);
     return Object.keys(byScore).map(Number).sort((a, b) => b - a).map((s) => byScore[s]);
   }
 
-  // Quelqu'un part en pleine manche : il est éliminé (sans explosion).
+  // Quelqu'un part en pleine manche : sa voiture devient une épave.
   function leave(id) {
-    const b = g.bodies[id];
-    if (!b?.alive || !["countdown", "play", "boom"].includes(g.phase)) return;
+    const s = g.cars[id];
+    if (!s?.alive || !["countdown", "play", "boom"].includes(g.phase)) return;
     eliminate(id);
     const alive = aliveIds();
     if (alive.length <= 1) { endRound(); return; }
-    if (g.holderId === id) giveBomb(pick(alive));   // la bombe saute sur un autre
+    if (g.holderId === id) giveBomb(pick(alive));
   }
 
   // =================================================================
@@ -370,7 +375,7 @@ export function createGame(ctx) {
   const actions = {
     settings(pid, { settings }) {
       if (!ctx.isHost(pid) || g.phase !== "setup" || !settings) return;
-      if (settings.fuse && !FUSES[settings.fuse]) delete settings.fuse;
+      if (settings.fuse && (!FUSES[settings.fuse])) delete settings.fuse;
       g.settings = { ...g.settings, ...settings };
       ctx.saveSettings({ ...g.settings });
       ctx.update();
@@ -384,18 +389,11 @@ export function createGame(ctx) {
       ctx.update();
     },
 
-    // Touches enfoncées : { u, d, l, r } (haut, bas, gauche, droite).
-    input(pid, data) {
-      const b = g.bodies[pid];
-      if (!b) return;
-      b.input = { u: !!data.u, d: !!data.d, l: !!data.l, r: !!data.r };
-    },
-
-    dash(pid) {
-      const b = g.bodies[pid];
-      if (!b?.alive || g.phase !== "play" || !g.settings.dash || b.dashCd > 0) return;
-      b.dashT = DASH_TIME;
-      b.dashCd = DASH_COOLDOWN;
+    // Touches du joueur : { s: numéro, k: touches combinées } (30 fois/s).
+    in(pid, { s, k }) {
+      const st = g.cars[pid];
+      if (!st || st.bot || typeof s !== "number") return;
+      st.queue.push({ s, k: k & 63 });
     },
 
     setup(pid) {
@@ -410,9 +408,6 @@ export function createGame(ctx) {
     },
   };
 
-  // =================================================================
-  //  CE QUE LE HUB APPELLE
-  // =================================================================
   return {
     publicState,
     onAction(pid, type, data) {

@@ -1,4 +1,5 @@
 /* PATATE CHAUDE — styles */
+.app.pt-wide { max-width: 1340px; }
 .pt-setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 @media (max-width: 760px) { .pt-setup-grid { grid-template-columns: 1fr; } }
 
@@ -20,6 +21,14 @@ kbd {
 .pt-over { max-width: 460px; width: 100%; text-align: center; margin: 0; }
 .pt-over .podium-list li .muted { font-size: 12px; }
 .pt-keys { text-align: center; margin-top: 10px; }
+
+.pt-surface { font-size: 13px; color: var(--muted); white-space: nowrap; }
+
+/* Jauge de nitro */
+.pt-nitro { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #7cc8ff; }
+.pt-nitro .bar { width: 110px; height: 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; }
+.pt-nitro .bar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #3aa0ff, #9ae6ff); transition: width 0.1s linear; }
+.pt-nitro .bar.on i { background: linear-gradient(90deg, #ff8a2a, #ffe066); }
 
 .pt-danger { color: var(--danger); animation: pulseTimer 0.6s ease-in-out infinite; }
 .pt-dim { opacity: 0.5; }

@@ -105,16 +105,19 @@ sont 1ers ex æquo et tous les perdants sont derniers ex æquo.
 - **Buzzer** : question à choix, le premier qui a juste prend le plus de points.
 - **Qui de nous ?** : "Qui finirait en prison en premier ?" → tout le monde vote, on gagne si on vote comme la majorité.
 
-## 7 bis. Patate chaude 💣 (règles v1)
+## 7 bis. Patate chaude 💣 (v2 : petites voitures)
 
-- Arène vue de dessus, chaque joueur = un rond de sa couleur. **ZQSD / flèches** pour bouger, **Espace** = sprint (court, recharge 2,5 s).
-- Un joueur tiré au sort a la bombe. Il la **refile en touchant** quelqu'un (pas de renvoi immédiat au précédent pendant 1 s).
-- Le porteur va un peu plus vite (+12 %) pour pouvoir chasser.
-- La mèche est **cachée** (durée au hasard) mais la bombe clignote de plus en plus vite.
-- Boum → le porteur est éliminé, la bombe va à un survivant au hasard, nouvelle mèche. Dernier debout = gagnant.
-- Points de manche : 1 point par joueur éliminé avant toi (le gagnant a n−1). Plusieurs manches possibles, puis « Terminer le jeu » → classement → points de soirée.
-- Réglages : mèche courte / normale / longue, obstacles oui/non, sprint oui/non.
-- Technique : canvas 2D simple (pas besoin de Phaser pour des ronds), serveur qui calcule tout à 30 images/s.
+- Chaque joueur conduit une **petite voiture téléguidée** vue de dessus.
+  **Z/↑** accélérer · **S/↓** freiner puis reculer · **Q D/← →** tourner · **Espace** frein à main (dérapage) · **Shift** nitro (jauge qui se recharge).
+- Vraie physique : vitesse avant + glisse latérale freinée par l'adhérence. Trop vite dans un virage → l'arrière décroche.
+  Les chocs sont des impulsions entre objets qui tournent : taper l'arrière d'une voiture = tête-à-queue, plus c'est rapide plus ça tape.
+- **Map aléatoire** à chaque manche : sol asphalte / terre / neige (adhérence 1 / 0,65 / 0,45), 5 à 9 obstacles avec toujours 100 px de passage + une route libre le long des bords, 1 à 3 flaques d'huile.
+- Une voiture a la bombe et la **refile en touchant** une autre (pas de renvoi immédiat au précédent pendant 1 s). Le porteur a un moteur +8 %.
+- Mèche **cachée** mais la bombe clignote de plus en plus vite. Boum → éliminé, l'**épave reste** comme obstacle, le souffle repousse les voisins.
+- Points de manche : 1 point par joueur éliminé avant toi. Plusieurs manches, puis « Terminer le jeu » → points de soirée.
+- Réglages : mèche courte / normale / longue, nitro oui/non, sols glissants oui/non.
+- Technique : physique partagée serveur/navigateur (`public/games/patate/physics.js`), serveur à 30 Hz qui fait foi,
+  **prédiction** de sa propre voiture côté navigateur (zéro retard au volant) + autres voitures lissées avec 0,1 s de retard.
 
 ## 8. Feuille de route
 
