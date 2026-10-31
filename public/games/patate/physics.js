@@ -44,7 +44,6 @@ P.INERTIA = 0.55 * (P.CAR_L * P.CAR_L + P.CAR_W * P.CAR_W) / 12;
   const NITRO_USE = 0.45;     // jauge consommée par seconde
   const NITRO_REGEN = 0.12;   // jauge rechargée par seconde
   const E_WALL = 0.3;         // rebond contre les murs / obstacles
-  const E_CAR = 0.55;         // rebond entre voitures
   P.HOLDER_BONUS = 1.08;      // le porteur de bombe a un moteur un poil plus fort
 
   // Touches (combinées en un seul nombre).
@@ -181,49 +180,102 @@ P.INERTIA = 0.55 * (P.CAR_L * P.CAR_L + P.CAR_W * P.CAR_W) / 12;
   //  bStatic = true si B est une épave (elle ne bouge plus).
   //  Renvoie { touch, impact, x, y } : touch = elles se touchent
   //  (pour passer la bombe), impact = violence du choc.
+  //
+  //  Les voitures sont de vrais RECTANGLES (exactement la forme dessinée).
+  //  On cherche l'axe où elles se chevauchent le moins (méthode "SAT"),
+  //  on les sépare le long de cet axe, puis on applique le choc au point
+  //  de contact, avec du FROTTEMENT (pour pousser au lieu de glisser).
   // ===================================================================
+  const E_CAR_BOX = 0.3;      // rebond entre voitures (bas = on reste au contact pour pousser)
+  const FRICTION = 0.45;      // frottement carrosserie contre carrosserie
+
+  // Les 4 coins d'une voiture.
+  P.corners = function (c) {
+    const fx = Math.cos(c.a), fy = Math.sin(c.a), rx = -fy, ry = fx;
+    const hl = P.CAR_L / 2, hw = P.CAR_W / 2;
+    return [
+      [c.x + fx * hl + rx * hw, c.y + fy * hl + ry * hw],
+      [c.x + fx * hl - rx * hw, c.y + fy * hl - ry * hw],
+      [c.x - fx * hl - rx * hw, c.y - fy * hl - ry * hw],
+      [c.x - fx * hl + rx * hw, c.y - fy * hl + ry * hw],
+    ];
+  };
+
+  // Le point (x, y) est-il dans la voiture c (avec une marge) ?
+  function insideCar(c, x, y, margin = 0) {
+    const fx = Math.cos(c.a), fy = Math.sin(c.a);
+    const dx = x - c.x, dy = y - c.y;
+    return Math.abs(dx * fx + dy * fy) <= P.CAR_L / 2 + margin && Math.abs(-dx * fy + dy * fx) <= P.CAR_W / 2 + margin;
+  }
+
   P.collideCars = function (A, B, bStatic = false) {
-    const R = P.CR;
-    let touch = false, impact = 0, ix = 0, iy = 0;
+    const none = { touch: false, impact: 0, x: 0, y: 0 };
+    // Trop loin pour se toucher : on ne calcule rien.
+    if (Math.hypot(B.x - A.x, B.y - A.y) > P.CAR_L + 6) return none;
+
+    // 1. Sur quel axe se chevauchent-elles le moins ?
+    const ca = P.corners(A), cb = P.corners(B);
+    let pen = Infinity, nx = 0, ny = 0;
+    for (const ang of [A.a, A.a + Math.PI / 2, B.a, B.a + Math.PI / 2]) {
+      const ax = Math.cos(ang), ay = Math.sin(ang);
+      let aMin = Infinity, aMax = -Infinity, bMin = Infinity, bMax = -Infinity;
+      for (const [x, y] of ca) { const d = x * ax + y * ay; if (d < aMin) aMin = d; if (d > aMax) aMax = d; }
+      for (const [x, y] of cb) { const d = x * ax + y * ay; if (d < bMin) bMin = d; if (d > bMax) bMax = d; }
+      const o = Math.min(aMax, bMax) - Math.max(aMin, bMin);
+      if (o < pen) { pen = o; nx = ax; ny = ay; }
+    }
+    if (pen < -3) return none;                       // séparées (même pas frôlées)
+    if (pen <= 0) return { ...none, touch: true };   // elles se frôlent (assez pour passer la bombe)
+    if ((B.x - A.x) * nx + (B.y - A.y) * ny < 0) { nx = -nx; ny = -ny; }   // normale de A vers B
+
+    // 2. Point de contact : les coins de l'une qui sont rentrés dans l'autre.
+    let px = 0, py = 0, n = 0;
+    for (const [x, y] of ca) if (insideCar(B, x, y, 0.5)) { px += x; py += y; n++; }
+    for (const [x, y] of cb) if (insideCar(A, x, y, 0.5)) { px += x; py += y; n++; }
+    if (n) { px /= n; py /= n; } else { px = (A.x + B.x) / 2; py = (A.y + B.y) / 2; }
+
+    // 3. On les sépare complètement (plus jamais à moitié l'une dans l'autre).
     const invMA = 1 / P.MASS, invIA = 1 / P.INERTIA;
     const invMB = bStatic ? 0 : 1 / P.MASS, invIB = bStatic ? 0 : 1 / P.INERTIA;
-    for (const ca of P.circles(A)) {
-      for (const cb of P.circles(B)) {
-        const dx = cb.x - ca.x, dy = cb.y - ca.y;
-        const d = Math.hypot(dx, dy) || 0.01;
-        if (d < R * 2 + 3) touch = true;
-        if (d >= R * 2) continue;
-        const nx = dx / d, ny = dy / d;
-        // On les sépare.
-        const pen = R * 2 - d;
-        const share = invMA / (invMA + invMB);
-        A.x -= nx * pen * share; A.y -= ny * pen * share;
-        B.x += nx * pen * (1 - share); B.y += ny * pen * (1 - share);
-        // Choc (impulsion) au point de contact.
-        const px = (ca.x + cb.x) / 2, py = (ca.y + cb.y) / 2;
-        const rAx = px - A.x, rAy = py - A.y, rBx = px - B.x, rBy = py - B.y;
-        const vAx = A.vx - A.w * rAy, vAy = A.vy + A.w * rAx;
-        const vBx = B.vx - B.w * rBy, vBy = B.vy + B.w * rBx;
-        const vn = (vBx - vAx) * nx + (vBy - vAy) * ny;
-        if (vn >= 0) continue;                                // déjà en train de s'écarter
-        const rAn = rAx * ny - rAy * nx, rBn = rBx * ny - rBy * nx;
-        const j = -(1 + E_CAR) * vn / (invMA + invMB + rAn * rAn * invIA + rBn * rBn * invIB);
-        A.vx -= j * nx * invMA; A.vy -= j * ny * invMA; A.w -= rAn * j * invIA;
-        B.vx += j * nx * invMB; B.vy += j * ny * invMB; B.w += rBn * j * invIB;
-        if (-vn > 150) { A.slide = true; if (!bStatic) B.slide = true; }
-        if (-vn > impact) { impact = -vn; ix = px; iy = py; }
-      }
-    }
-    return { touch, impact, x: ix, y: iy };
+    const share = invMA / (invMA + invMB);
+    A.x -= nx * pen * share; A.y -= ny * pen * share;
+    B.x += nx * pen * (1 - share); B.y += ny * pen * (1 - share);
+
+    // 4. Le choc au point de contact.
+    const rAx = px - A.x, rAy = py - A.y, rBx = px - B.x, rBy = py - B.y;
+    const vAx = A.vx - A.w * rAy, vAy = A.vy + A.w * rAx;
+    const vBx = B.vx - B.w * rBy, vBy = B.vy + B.w * rBx;
+    const rvx = vBx - vAx, rvy = vBy - vAy;
+    const vn = rvx * nx + rvy * ny;
+    if (vn >= 0) return { touch: true, impact: 0, x: px, y: py };   // déjà en train de s'écarter
+    const rAn = rAx * ny - rAy * nx, rBn = rBx * ny - rBy * nx;
+    const j = -(1 + E_CAR_BOX) * vn / (invMA + invMB + rAn * rAn * invIA + rBn * rBn * invIB);
+    A.vx -= j * nx * invMA; A.vy -= j * ny * invMA; A.w -= rAn * j * invIA;
+    B.vx += j * nx * invMB; B.vy += j * ny * invMB; B.w += rBn * j * invIB;
+
+    // 5. Frottement : les carrosseries "accrochent" au lieu de glisser l'une sur l'autre.
+    const tx = -ny, ty = nx;
+    const vt = rvx * tx + rvy * ty;
+    const rAt = rAx * ty - rAy * tx, rBt = rBx * ty - rBy * tx;
+    let jt = -vt / (invMA + invMB + rAt * rAt * invIA + rBt * rBt * invIB);
+    jt = Math.max(-FRICTION * j, Math.min(FRICTION * j, jt));
+    A.vx -= jt * tx * invMA; A.vy -= jt * ty * invMA; A.w -= rAt * jt * invIA;
+    B.vx += jt * tx * invMB; B.vy += jt * ty * invMB; B.w += rBt * jt * invIB;
+
+    if (-vn > 150) { A.slide = true; if (!bStatic) B.slide = true; }
+    return { touch: true, impact: -vn, x: px, y: py };
   };
 
   // Un calcul complet (1/30 s) pour UNE voiture seule (utilisé par le
-  // navigateur pour prédire sa propre voiture).
-  P.simulate = function (c, k, env, bonus = 1) {
+  // navigateur pour prédire sa propre voiture). "others" = les autres
+  // voitures telles qu'on les voit : ma voiture bute dessus au lieu de
+  // passer à travers en attendant la réponse du serveur.
+  P.simulate = function (c, k, env, bonus = 1, others = null) {
     const dt = P.TICK / P.SUB;
     for (let i = 0; i < P.SUB; i++) {
       P.drive(c, k, dt, env, bonus);
       P.collideStatic(c, env);
+      if (others) for (const o of others) P.collideCars(c, o, true);
     }
   };
 

@@ -246,7 +246,8 @@
     const oldPred = pred;
     pred = P.copyCar(sc);
     const e = env(), b = myBonus();
-    for (const p of pending) { P.simulate(pred, p.k, e, b); history.set(p.s, P.copyCar(pred)); }
+    const others = othersForPred();
+    for (const p of pending) { P.simulate(pred, p.k, e, b, others); history.set(p.s, P.copyCar(pred)); }
     if (prevPred && oldPred) {   // on décale aussi l'image précédente pour garder le glissé
       prevPred.x += pred.x - oldPred.x; prevPred.y += pred.y - oldPred.y; prevPred.a += angDiff(pred.a, oldPred.a);
     }
@@ -265,6 +266,7 @@
     if (!pred || !["play", "boom"].includes(st?.phase)) { acc = 0; return; }
     acc = Math.min(acc + dt, 0.2);
     const e = env(), b = myBonus();
+    const others = acc >= P.TICK ? othersForPred() : null;
     while (acc >= P.TICK) {
       const k = keyMask();
       seq++;
@@ -272,10 +274,16 @@
       pending.push({ s: seq, k });
       if (pending.length > 90) pending.shift();
       prevPred = P.copyCar(pred);
-      P.simulate(pred, k, e, b);
+      P.simulate(pred, k, e, b, others);
       history.set(seq, P.copyCar(pred));
       acc -= P.TICK;
     }
+  }
+
+  // Les autres voitures (et les épaves) là où on les VOIT : ma voiture
+  // prédite bute dessus, donc à l'écran elle ne passe jamais à travers.
+  function othersForPred() {
+    return st.cars.filter((c) => c.id !== me()).map((c) => P.copyCar(interpolated(c.id) || c));
   }
 
   // Position affichée des autres voitures (entre deux messages reçus).

@@ -201,7 +201,8 @@
     const oldPred = pred;
     pred = P.copyCar(sc);
     const e = env();
-    for (const p of pending) { P.simulate(pred, p.k, e, 1); history.set(p.s, P.copyCar(pred)); }
+    const others = othersForPred();
+    for (const p of pending) { P.simulate(pred, p.k, e, 1, others); history.set(p.s, P.copyCar(pred)); }
     if (prevPred && oldPred) { prevPred.x += pred.x - oldPred.x; prevPred.y += pred.y - oldPred.y; prevPred.a += angDiff(pred.a, oldPred.a); }
     if (before) {
       const after = ownView();
@@ -213,6 +214,7 @@
     if (!pred || st?.phase !== "play") { acc = 0; return; }
     acc = Math.min(acc + dt, 0.2);
     const e = env();
+    const others = acc >= P.TICK ? othersForPred() : null;
     while (acc >= P.TICK) {
       const k = keyMask();
       seq++;
@@ -220,11 +222,17 @@
       pending.push({ s: seq, k });
       if (pending.length > 90) pending.shift();
       prevPred = P.copyCar(pred);
-      P.simulate(pred, k, e, 1);
+      P.simulate(pred, k, e, 1, others);
       history.set(seq, P.copyCar(pred));
       acc -= P.TICK;
     }
   }
+  // Les autres voitures (encore sur la piste) là où on les VOIT : ma voiture
+  // prédite bute dessus, donc à l'écran elle ne passe jamais à travers.
+  function othersForPred() {
+    return st.cars.filter((c) => c.id !== me() && c.alive && !c.falling).map((c) => P.copyCar(interpolated(c.id) || c));
+  }
+
   function interpolated(id) {
     const t = Date.now() - INTERP_DELAY;
     let a = null, b = null;
