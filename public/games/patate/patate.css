@@ -1,0 +1,25 @@
+/* PATATE CHAUDE — styles */
+.pt-setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 760px) { .pt-setup-grid { grid-template-columns: 1fr; } }
+
+.pt-help { list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: 14px; color: var(--muted); }
+kbd {
+  display: inline-block; min-width: 22px; padding: 2px 6px; margin-right: 3px;
+  border-radius: 6px; border: 1px solid var(--border); border-bottom-width: 3px;
+  background: var(--surface-2); color: var(--text); font-size: 12px; font-family: inherit; text-align: center;
+}
+
+.pt-arena-wrap { position: relative; }
+#pt-canvas {
+  display: block; width: 100%; height: auto;
+  border-radius: var(--radius); border: 2px solid var(--border); box-shadow: var(--shadow);
+}
+/* Fin de manche : remplace l'arène (pas par-dessus, sinon ça déborde sur petit écran) */
+.pt-overlay { display: grid; place-items: center; }
+.pt-arena-wrap.over #pt-canvas { display: none; }
+.pt-over { max-width: 460px; width: 100%; text-align: center; margin: 0; }
+.pt-over .podium-list li .muted { font-size: 12px; }
+.pt-keys { text-align: center; margin-top: 10px; }
+
+.pt-danger { color: var(--danger); animation: pulseTimer 0.6s ease-in-out infinite; }
+.pt-dim { opacity: 0.5; }

@@ -60,6 +60,8 @@ const api = {
   players: () => hub?.players || [],
   action: (type, data = {}) => new Promise((res) =>
     socket.emit("gameAction", { type, data }, (r) => res(r || {}))),
+  // Envoi rapide sans réponse (touches du clavier dans les jeux d'action).
+  send: (type, data = {}) => socket.emit("gameAction", { type, data }),
   setTheme: (theme) => { document.body.className = theme || "theme-violet"; },
   escapeHtml,
   avatar,

@@ -103,6 +103,17 @@ sont 1ers ex æquo et tous les perdants sont derniers ex æquo.
 - **Buzzer** : question à choix, le premier qui a juste prend le plus de points.
 - **Qui de nous ?** : "Qui finirait en prison en premier ?" → tout le monde vote, on gagne si on vote comme la majorité.
 
+## 7 bis. Patate chaude 💣 (règles v1)
+
+- Arène vue de dessus, chaque joueur = un rond de sa couleur. **ZQSD / flèches** pour bouger, **Espace** = sprint (court, recharge 2,5 s).
+- Un joueur tiré au sort a la bombe. Il la **refile en touchant** quelqu'un (pas de renvoi immédiat au précédent pendant 1 s).
+- Le porteur va un peu plus vite (+12 %) pour pouvoir chasser.
+- La mèche est **cachée** (durée au hasard) mais la bombe clignote de plus en plus vite.
+- Boum → le porteur est éliminé, la bombe va à un survivant au hasard, nouvelle mèche. Dernier debout = gagnant.
+- Points de manche : 1 point par joueur éliminé avant toi (le gagnant a n−1). Plusieurs manches possibles, puis « Terminer le jeu » → classement → points de soirée.
+- Réglages : mèche courte / normale / longue, obstacles oui/non, sprint oui/non.
+- Technique : canvas 2D simple (pas besoin de Phaser pour des ronds), serveur qui calcule tout à 30 images/s.
+
 ## 8. Feuille de route
 
 | Phase | Contenu | Objectif |
