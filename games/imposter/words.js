@@ -1,191 +1,142 @@
 // ===================================================================
 //  IMPOSTER — Banque de mots
-//  Des PAIRES de mots proches : { civil, undercover }.
-//  - civil       = le mot de la majorité
-//  - undercover  = le mot proche donné à l'imposteur
+//  Des PAIRES DE CONTRAIRES : [mot A, mot B].
+//  À chaque manche, le jeu tire au hasard qui reçoit quoi :
+//  A pour les civils et B pour l'Undercover, ou l'inverse.
 //  Classées par catégories (l'hôte peut en activer/désactiver).
 //
 //  👉 Pour agrandir la banque : ajoute simplement des lignes ici.
 // ===================================================================
 
 export const WORD_BANK = {
+  "Vie quotidienne": [
+    ["Jour", "Nuit"], ["Matin", "Soir"], ["Lundi", "Vendredi"], ["Réveil", "Dodo"],
+    ["Travail", "Vacances"], ["Entrée", "Sortie"], ["Ouvert", "Fermé"], ["Allumé", "Éteint"],
+    ["Propre", "Sale"], ["Rangé", "Bordel"], ["Debout", "Couché"], ["Silence", "Bruit"],
+    ["Rire", "Pleurer"], ["Gagner", "Perdre"], ["Acheter", "Vendre"], ["Donner", "Prendre"],
+    ["Arriver", "Partir"], ["Bonjour", "Au revoir"], ["Oui", "Non"], ["Toujours", "Jamais"],
+    ["Tôt", "Tard"], ["Plein", "Vide"], ["Neuf", "Usé"], ["Avant", "Après"],
+    ["Pile", "Face"], ["Pair", "Impair"], ["Cadeau", "Facture"], ["Anniversaire", "Enterrement"],
+  ],
+
+  "Sentiments & Caractère": [
+    ["Amour", "Haine"], ["Joie", "Tristesse"], ["Courage", "Peur"], ["Calme", "Colère"],
+    ["Gentil", "Méchant"], ["Timide", "Frimeur"], ["Patient", "Pressé"], ["Généreux", "Radin"],
+    ["Honnête", "Menteur"], ["Optimiste", "Pessimiste"], ["Paresseux", "Bosseur"], ["Sage", "Turbulent"],
+    ["Modeste", "Vantard"], ["Fidèle", "Infidèle"], ["Poli", "Grossier"], ["Ami", "Ennemi"],
+    ["Confiance", "Méfiance"], ["Espoir", "Désespoir"], ["Fierté", "Honte"], ["Ennui", "Passion"],
+    ["Stress", "Détente"], ["Sérieux", "Rigolo"], ["Curieux", "Indifférent"], ["Bavard", "Muet"],
+    ["Prudent", "Casse-cou"], ["Jaloux", "Confiant"],
+  ],
+
   "Nourriture": [
-    { civil: "Pomme", undercover: "Poire" },
-    { civil: "Fraise", undercover: "Framboise" },
-    { civil: "Citron", undercover: "Orange" },
-    { civil: "Pizza", undercover: "Tarte" },
-    { civil: "Frites", undercover: "Chips" },
-    { civil: "Café", undercover: "Thé" },
-    { civil: "Chocolat", undercover: "Caramel" },
-    { civil: "Baguette", undercover: "Croissant" },
-    { civil: "Fromage", undercover: "Beurre" },
-    { civil: "Crêpe", undercover: "Gaufre" },
-    { civil: "Sushi", undercover: "Maki" },
-    { civil: "Burger", undercover: "Sandwich" },
-    { civil: "Miel", undercover: "Confiture" },
-    { civil: "Yaourt", undercover: "Crème" },
-    { civil: "Pâtes", undercover: "Riz" },
-    { civil: "Soupe", undercover: "Bouillon" },
-    { civil: "Glace", undercover: "Sorbet" },
-    { civil: "Bonbon", undercover: "Sucette" },
-    { civil: "Ketchup", undercover: "Mayonnaise" },
-    { civil: "Concombre", undercover: "Courgette" },
+    ["Sucré", "Salé"], ["Chaud", "Froid"], ["Cru", "Cuit"], ["Entrée", "Dessert"],
+    ["Petit-déjeuner", "Dîner"], ["Apéro", "Digestif"], ["Glace", "Fondue"], ["Chocolat noir", "Chocolat blanc"],
+    ["Fast-food", "Restaurant étoilé"], ["Légume", "Bonbon"], ["Régime", "Buffet à volonté"], ["Frais", "Périmé"],
+    ["Croustillant", "Mou"], ["Piquant", "Doux"], ["Amer", "Sucré"], ["Pain frais", "Pain rassis"],
+    ["Végétarien", "Boucher"], ["Eau plate", "Eau gazeuse"], ["Café", "Tisane"], ["Soupe", "Sorbet"],
+    ["Citron", "Miel"], ["Faim", "Satiété"], ["Gâteau raté", "Gâteau réussi"], ["Cantine", "Gastronomie"],
+    ["Surgelé", "Fait maison"], ["Vin rouge", "Vin blanc"], ["Steak saignant", "Steak bien cuit"],
   ],
 
   "Animaux": [
-    { civil: "Chien", undercover: "Loup" },
-    { civil: "Chat", undercover: "Tigre" },
-    { civil: "Lapin", undercover: "Lièvre" },
-    { civil: "Cheval", undercover: "Âne" },
-    { civil: "Grenouille", undercover: "Crapaud" },
-    { civil: "Papillon", undercover: "Libellule" },
-    { civil: "Abeille", undercover: "Guêpe" },
-    { civil: "Dauphin", undercover: "Requin" },
-    { civil: "Aigle", undercover: "Faucon" },
-    { civil: "Tortue", undercover: "Escargot" },
-    { civil: "Crocodile", undercover: "Alligator" },
-    { civil: "Léopard", undercover: "Guépard" },
-    { civil: "Singe", undercover: "Gorille" },
-    { civil: "Souris", undercover: "Rat" },
-    { civil: "Poule", undercover: "Canard" },
-    { civil: "Mouton", undercover: "Chèvre" },
-    { civil: "Baleine", undercover: "Orque" },
-    { civil: "Corbeau", undercover: "Pie" },
-    { civil: "Fourmi", undercover: "Termite" },
-    { civil: "Pingouin", undercover: "Manchot" },
-  ],
-
-  "Objets": [
-    { civil: "Chaise", undercover: "Tabouret" },
-    { civil: "Stylo", undercover: "Crayon" },
-    { civil: "Fourchette", undercover: "Cuillère" },
-    { civil: "Verre", undercover: "Tasse" },
-    { civil: "Téléphone", undercover: "Tablette" },
-    { civil: "Montre", undercover: "Réveil" },
-    { civil: "Parapluie", undercover: "Parasol" },
-    { civil: "Balai", undercover: "Serpillère" },
-    { civil: "Marteau", undercover: "Tournevis" },
-    { civil: "Bougie", undercover: "Lampe" },
-    { civil: "Sac", undercover: "Valise" },
-    { civil: "Lunettes", undercover: "Masque" },
-    { civil: "Ciseaux", undercover: "Couteau" },
-    { civil: "Clé", undercover: "Cadenas" },
-    { civil: "Miroir", undercover: "Fenêtre" },
-    { civil: "Oreiller", undercover: "Couette" },
-    { civil: "Casque", undercover: "Écouteurs" },
-    { civil: "Aspirateur", undercover: "Balayette" },
-    { civil: "Bouteille", undercover: "Gourde" },
-    { civil: "Livre", undercover: "Magazine" },
+    ["Chat", "Chien"], ["Souris", "Éléphant"], ["Tortue", "Lièvre"], ["Loup", "Mouton"],
+    ["Lion", "Gazelle"], ["Chouette", "Coq"], ["Pingouin", "Chameau"], ["Requin", "Dauphin"],
+    ["Fourmi", "Baleine"], ["Escargot", "Guépard"], ["Aigle", "Taupe"], ["Poisson", "Oiseau"],
+    ["Chat", "Souris"], ["Renard", "Poule"], ["Ours polaire", "Ours brun"], ["Moustique", "Hirondelle"],
+    ["Paresseux", "Colibri"], ["Girafe", "Teckel"], ["Serpent", "Mangouste"], ["Vache", "Cheval de course"],
+    ["Hibou", "Alouette"], ["Araignée", "Papillon"], ["Crocodile", "Zèbre"], ["Licorne", "Dragon"],
+    ["Chiot", "Vieux chien"], ["Abeille", "Frelon"],
   ],
 
   "Lieux": [
-    { civil: "Plage", undercover: "Désert" },
-    { civil: "Montagne", undercover: "Colline" },
-    { civil: "Forêt", undercover: "Jungle" },
-    { civil: "École", undercover: "Université" },
-    { civil: "Hôpital", undercover: "Clinique" },
-    { civil: "Restaurant", undercover: "Cantine" },
-    { civil: "Piscine", undercover: "Lac" },
-    { civil: "Cinéma", undercover: "Théâtre" },
-    { civil: "Musée", undercover: "Galerie" },
-    { civil: "Château", undercover: "Palais" },
-    { civil: "Gare", undercover: "Aéroport" },
-    { civil: "Supermarché", undercover: "Marché" },
-    { civil: "Parc", undercover: "Jardin" },
-    { civil: "Église", undercover: "Cathédrale" },
-    { civil: "Hôtel", undercover: "Auberge" },
-    { civil: "Prison", undercover: "Cachot" },
-    { civil: "Rivière", undercover: "Fleuve" },
-    { civil: "Île", undercover: "Presqu'île" },
-    { civil: "Grotte", undercover: "Tunnel" },
-    { civil: "Ferme", undercover: "Grange" },
-  ],
-
-  "Sport & Loisirs": [
-    { civil: "Football", undercover: "Rugby" },
-    { civil: "Tennis", undercover: "Badminton" },
-    { civil: "Ski", undercover: "Snowboard" },
-    { civil: "Boxe", undercover: "Karaté" },
-    { civil: "Vélo", undercover: "Trottinette" },
-    { civil: "Natation", undercover: "Plongée" },
-    { civil: "Basket", undercover: "Handball" },
-    { civil: "Golf", undercover: "Pétanque" },
-    { civil: "Course", undercover: "Marche" },
-    { civil: "Danse", undercover: "Gymnastique" },
-    { civil: "Échecs", undercover: "Dames" },
-    { civil: "Guitare", undercover: "Ukulélé" },
-    { civil: "Piano", undercover: "Orgue" },
-    { civil: "Peinture", undercover: "Dessin" },
-    { civil: "Poker", undercover: "Belote" },
-    { civil: "Escalade", undercover: "Randonnée" },
-    { civil: "Surf", undercover: "Kite" },
-    { civil: "Violon", undercover: "Alto" },
-    { civil: "Trompette", undercover: "Saxophone" },
-    { civil: "Cerf-volant", undercover: "Frisbee" },
-  ],
-
-  "Transports": [
-    { civil: "Voiture", undercover: "Camion" },
-    { civil: "Avion", undercover: "Hélicoptère" },
-    { civil: "Train", undercover: "Métro" },
-    { civil: "Bateau", undercover: "Sous-marin" },
-    { civil: "Moto", undercover: "Scooter" },
-    { civil: "Bus", undercover: "Tramway" },
-    { civil: "Fusée", undercover: "Navette" },
-    { civil: "Vélo", undercover: "Monocycle" },
-    { civil: "Taxi", undercover: "Ambulance" },
-    { civil: "Voilier", undercover: "Yacht" },
-    { civil: "Montgolfière", undercover: "Planeur" },
-    { civil: "Trottinette", undercover: "Skateboard" },
+    ["Plage", "Montagne"], ["Ville", "Campagne"], ["Paradis", "Enfer"], ["Désert", "Banquise"],
+    ["Cave", "Grenier"], ["Prison", "Palace"], ["École", "Vacances"], ["Hôpital", "Salle de sport"],
+    ["Bibliothèque", "Boîte de nuit"], ["Pôle Nord", "Pôle Sud"], ["Océan", "Désert"], ["Forêt", "Parking"],
+    ["Château", "Cabane"], ["Rez-de-chaussée", "Dernier étage"], ["Intérieur", "Extérieur"], ["Est", "Ouest"],
+    ["Nord", "Sud"], ["Gauche", "Droite"], ["Cuisine", "Salle de bain"], ["Cimetière", "Maternité"],
+    ["Église", "Casino"], ["Aéroport", "Port"], ["Métro", "Téléphérique"], ["Village", "Mégalopole"],
+    ["Île déserte", "Centre commercial"], ["Tribunal", "Fête foraine"],
   ],
 
   "Métiers": [
-    { civil: "Médecin", undercover: "Infirmier" },
-    { civil: "Professeur", undercover: "Instituteur" },
-    { civil: "Policier", undercover: "Gendarme" },
-    { civil: "Pompier", undercover: "Secouriste" },
-    { civil: "Cuisinier", undercover: "Pâtissier" },
-    { civil: "Avocat", undercover: "Juge" },
-    { civil: "Pilote", undercover: "Steward" },
-    { civil: "Coiffeur", undercover: "Barbier" },
-    { civil: "Boulanger", undercover: "Boucher" },
-    { civil: "Peintre", undercover: "Sculpteur" },
-    { civil: "Journaliste", undercover: "Écrivain" },
-    { civil: "Astronaute", undercover: "Explorateur" },
-    { civil: "Jardinier", undercover: "Fleuriste" },
-    { civil: "Chanteur", undercover: "Musicien" },
-    { civil: "Acteur", undercover: "Comédien" },
-    { civil: "Dentiste", undercover: "Chirurgien" },
+    ["Policier", "Voleur"], ["Professeur", "Élève"], ["Juge", "Accusé"], ["Patron", "Stagiaire"],
+    ["Pompier", "Pyromane"], ["Avocat", "Procureur"], ["Pilote", "Passager"], ["Serveur", "Client"],
+    ["Acteur", "Spectateur"], ["Arbitre", "Supporter"], ["Médecin", "Malade"], ["Dentiste", "Gourmand"],
+    ["Chanteur", "Sourd"], ["Gardien de prison", "Évadé"], ["Douanier", "Contrebandier"], ["Prof de sport", "Glandeur"],
+    ["Chef cuisinier", "Critique gastronomique"], ["Banquier", "Endetté"], ["Agent secret", "Espion ennemi"], ["Clown", "Croque-mort"],
+    ["Astronaute", "Plongeur"], ["Maçon", "Démolisseur"], ["Vendeur", "Acheteur"], ["Coach", "Joueur"],
+    ["Jardinier", "Bûcheron"], ["Infirmier", "Patient"],
   ],
 
-  "Nature": [
-    { civil: "Soleil", undercover: "Lune" },
-    { civil: "Pluie", undercover: "Neige" },
-    { civil: "Arbre", undercover: "Buisson" },
-    { civil: "Rose", undercover: "Tulipe" },
-    { civil: "Nuage", undercover: "Brouillard" },
-    { civil: "Orage", undercover: "Tempête" },
-    { civil: "Sable", undercover: "Gravier" },
-    { civil: "Cascade", undercover: "Source" },
-    { civil: "Volcan", undercover: "Geyser" },
-    { civil: "Étoile", undercover: "Planète" },
-    { civil: "Feuille", undercover: "Pétale" },
-    { civil: "Champignon", undercover: "Mousse" },
-    { civil: "Glacier", undercover: "Iceberg" },
-    { civil: "Vent", undercover: "Brise" },
-    { civil: "Arc-en-ciel", undercover: "Aurore" },
-    { civil: "Cactus", undercover: "Palmier" },
+  "Sport & Loisirs": [
+    ["Attaque", "Défense"], ["Victoire", "Défaite"], ["Gardien", "Attaquant"], ["Sprint", "Marathon"],
+    ["Ski", "Surf"], ["Échecs", "Rugby"], ["Yoga", "Boxe"], ["Champion", "Débutant"],
+    ["Domicile", "Extérieur"], ["Plongeon", "Escalade"], ["Coup franc", "Penalty"], ["Carton jaune", "Carton rouge"],
+    ["Mi-temps", "Prolongations"], ["Tricheur", "Fair-play"], ["Jeux d'été", "Jeux d'hiver"], ["Lecture", "Jeux vidéo"],
+    ["Solo", "Multijoueur"], ["Tennis", "Golf"], ["Pétanque", "Parachute"], ["Supporter", "Hooligan"],
+    ["Pêche", "Course de voitures"], ["Bowling", "Billard"], ["Sieste", "Footing"], ["Karaoké", "Concert"],
+    ["Premier", "Dernier"],
+  ],
+
+  "Objets": [
+    ["Clé", "Serrure"], ["Marteau", "Clou"], ["Stylo", "Gomme"], ["Allumette", "Extincteur"],
+    ["Parapluie", "Lunettes de soleil"], ["Réveil", "Oreiller"], ["Fourchette", "Cuillère"], ["Échelle", "Toboggan"],
+    ["Ventilateur", "Radiateur"], ["Lampe", "Rideau"], ["Aimant", "Ciseaux"], ["Frigo", "Four"],
+    ["Bonnet", "Casquette"], ["Moufles", "Tongs"], ["Aspirateur", "Poubelle"], ["Savon", "Boue"],
+    ["Téléphone", "Lettre"], ["Calculatrice", "Boulier"], ["Télécommande", "Bouton"], ["Livre", "Écran"],
+    ["Crayon", "Taille-crayon"], ["Bouchon", "Tire-bouchon"], ["Colle", "Scotch"], ["Miroir", "Fenêtre"],
+    ["Valise", "Placard"], ["Bougie", "Ampoule"],
+  ],
+
+  "Transports": [
+    ["Avion", "Sous-marin"], ["Fusée", "Escargot"], ["Voiture", "Piéton"], ["Décollage", "Atterrissage"],
+    ["Accélérateur", "Frein"], ["Autoroute", "Chemin de terre"], ["Taxi", "Auto-stop"], ["Limousine", "Trottinette"],
+    ["Hélicoptère", "Métro"], ["TGV", "Tracteur"], ["Montée", "Descente"], ["Marche avant", "Marche arrière"],
+    ["Feu vert", "Feu rouge"], ["Départ", "Arrivée"], ["Aller", "Retour"], ["Bateau", "Train"],
+    ["Vélo", "Moto"], ["Embouteillage", "Route déserte"], ["Ascenseur", "Escalier"], ["Parachute", "Montgolfière"],
+    ["Première classe", "Classe éco"], ["Camping-car", "Hôtel"], ["Skateboard", "Roller"], ["Pneu crevé", "Plein d'essence"],
+  ],
+
+  "Nature & Météo": [
+    ["Soleil", "Lune"], ["Été", "Hiver"], ["Printemps", "Automne"], ["Feu", "Eau"],
+    ["Pluie", "Sécheresse"], ["Chaleur", "Gel"], ["Ciel", "Terre"], ["Volcan", "Glacier"],
+    ["Marée haute", "Marée basse"], ["Lever du soleil", "Coucher du soleil"], ["Tempête", "Calme plat"], ["Arc-en-ciel", "Orage"],
+    ["Sommet", "Vallée"], ["Rivière", "Lac"], ["Fleur", "Épine"], ["Graine", "Arbre"],
+    ["Neige", "Sable"], ["Brouillard", "Grand soleil"], ["Étoile", "Trou noir"], ["Racine", "Feuille"],
+    ["Source", "Embouchure"], ["Jungle", "Toundra"], ["Tonnerre", "Éclair"], ["Ombre", "Lumière"],
+  ],
+
+  "Personnages": [
+    ["Héros", "Méchant"], ["Ange", "Démon"], ["Batman", "Joker"], ["Harry Potter", "Voldemort"],
+    ["Mario", "Bowser"], ["Luke Skywalker", "Dark Vador"], ["Sherlock Holmes", "Moriarty"], ["Blanche-Neige", "La sorcière"],
+    ["Tom", "Jerry"], ["Bip Bip", "Vil Coyote"], ["Astérix", "Jules César"], ["Zeus", "Hadès"],
+    ["Père Noël", "Grinch"], ["Simba", "Scar"], ["Peter Pan", "Capitaine Crochet"], ["Superman", "Lex Luthor"],
+    ["Spider-Man", "Bouffon Vert"], ["Gandalf", "Sauron"], ["Sonic", "Docteur Eggman"], ["Aladdin", "Jafar"],
+    ["Cendrillon", "La belle-mère"], ["Le Petit Chaperon rouge", "Le Grand Méchant Loup"], ["Robin des Bois", "Shérif de Nottingham"], ["Bob l'éponge", "Plankton"],
+    ["Les Schtroumpfs", "Gargamel"], ["Pikachu", "Team Rocket"],
+  ],
+
+  "Choses opposées": [
+    ["Grand", "Petit"], ["Gros", "Maigre"], ["Rapide", "Lent"], ["Fort", "Faible"],
+    ["Lourd", "Léger"], ["Dur", "Mou"], ["Lisse", "Rugueux"], ["Noir", "Blanc"],
+    ["Clair", "Foncé"], ["Haut", "Bas"], ["Large", "Étroit"], ["Long", "Court"],
+    ["Jeune", "Vieux"], ["Riche", "Pauvre"], ["Beau", "Moche"], ["Intelligent", "Bête"],
+    ["Facile", "Difficile"], ["Vrai", "Faux"], ["Début", "Fin"], ["Guerre", "Paix"],
+    ["Vivant", "Mort"], ["Mariage", "Divorce"], ["Naissance", "Retraite"], ["Mouillé", "Sec"],
+    ["Bruyant", "Silencieux"], ["Sauvage", "Domestique"], ["Ancien", "Moderne"], ["Réel", "Imaginaire"],
   ],
 };
 
 // Aplatit la banque selon les catégories actives -> liste de paires.
+// Chaque paire : { a, b } (le jeu décide au hasard qui reçoit quoi).
 export function getPairs(activeCategories) {
   const cats = activeCategories && activeCategories.length
     ? activeCategories
     : Object.keys(WORD_BANK);
   const pairs = [];
   for (const cat of cats) {
-    if (WORD_BANK[cat]) pairs.push(...WORD_BANK[cat]);
+    for (const [a, b] of WORD_BANK[cat] || []) pairs.push({ a, b });
   }
   return pairs;
 }

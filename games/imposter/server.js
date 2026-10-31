@@ -21,7 +21,7 @@ export const meta = {
 function defaultSettings() {
   return {
     undercoverCount: 1,
-    mrWhiteEnabled: true,
+    mrWhiteEnabled: false,        // désactivé par défaut (l'hôte peut l'activer)
     mrWhiteCount: 1,
     roleReveal: "hidden",         // "hidden" (rôle caché) ou "announced"
     impostorsKnowEachOther: false,
@@ -243,15 +243,20 @@ export function createGame(ctx) {
   //  DÉROULÉ D'UNE MANCHE
   // =================================================================
 
-  // Choisit une paire non encore utilisée pendant la soirée.
+  // Choisit une paire non encore utilisée pendant la soirée, et tire au
+  // hasard le sens : un coup "Jour" pour les civils et "Nuit" pour
+  // l'Undercover, un coup l'inverse.
   function pickPair() {
     const pool = getPairs(g.settings.categories);
-    const available = pool.filter((p) => !g.usedPairs.has(p.civil + "|" + p.undercover));
+    const key = (p) => p.a + "|" + p.b;
+    const available = pool.filter((p) => !g.usedPairs.has(key(p)));
     const list = available.length ? available : pool;   // si épuisé, on recycle
     if (available.length === 0) g.usedPairs.clear();
     const pair = list[Math.floor(Math.random() * list.length)];
-    g.usedPairs.add(pair.civil + "|" + pair.undercover);
-    return pair;
+    g.usedPairs.add(key(pair));
+    return Math.random() < 0.5
+      ? { civil: pair.a, undercover: pair.b }
+      : { civil: pair.b, undercover: pair.a };
   }
 
   // Vérifie que la manche peut démarrer avec les joueurs présents.
