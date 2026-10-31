@@ -9,7 +9,6 @@
 (() => {
   const P = window.PatatePhysics;
   const K = P.K;
-  const INTERP_DELAY = 100;   // ms de retard pour afficher les autres voitures
 
   let api = null, root = null;
   let st = null;              // dernier état reçu du serveur
@@ -22,12 +21,10 @@
   let prevPred = null;        // état au calcul précédent (pour glisser entre les deux à l'écran)
   let pending = [];           // touches envoyées mais pas encore traitées par le serveur
   const history = new Map();  // n° de touche -> ce que j'avais prédit juste après
-  let clockOff = null;        // écart entre l'horloge du serveur et la nôtre
   let seq = 0;
   let acc = 0;                // temps accumulé avant le prochain calcul
   const off = { x: 0, y: 0, a: 0 };   // petit décalage lissé quand le serveur nous recale
 
-  const snaps = [];           // dernières positions reçues (pour lisser les autres)
   const pressed = new Set();  // touches enfoncées (codes)
 
   // Décor
@@ -112,7 +109,7 @@
   window.GAMES.patate = {
     mount(rootEl, hubApi) {
       api = hubApi; root = rootEl;
-      st = null; pred = prevPred = null; pending = []; snaps.length = 0; particles = []; clockOff = null;
+      st = null; pred = prevPred = null; pending = []; particles = [];
       mapId = null; boomKey = null; seenFx.clear(); pressed.clear();
       root.innerHTML = TEMPLATE;
       api.setTheme("theme-sunset");
@@ -146,15 +143,18 @@
       if (st.map && st.map.id !== mapId) newMap();
       if (prevRound !== st.roundNum) { pending = []; pred = prevPred = null; history.clear(); }
 
-      // On date chaque position avec l'heure du SERVEUR (convertie en heure locale) :
-      // les petits retards du réseau ne font plus trembler les autres voitures.
-      const d = Date.now() - st.t;
-      clockOff = clockOff === null ? d : Math.min(d, clockOff + 1);
-      snaps.push({ t: st.t + clockOff, cars: Object.fromEntries(st.cars.map((c) => [c.id, c])) });
-      if (snaps.length > 30) snaps.shift();
-
       handleEffects();
+      const hadPred = !!pred, prevAhead = aheadNow();
       reconcile();
+      if (hadPred && !pred) {
+        // Je ne conduis plus (explosé) : ma voiture devient une voiture "affichée" comme les autres.
+        frozenAhead = prevAhead;
+        const me0 = lastOwn && st.cars.find((c) => c.id === me());
+        if (me0) lastShown[me()] = { ...me0, x: lastOwn.x, y: lastOwn.y, a: lastOwn.a };
+      }
+      if (prevRound !== st.roundNum) { frozenAhead = 0; for (const k in lastShown) delete lastShown[k]; }
+      lastSnapRecv = performance.now();
+      rebaseCars();
       renderHud();
     },
 
@@ -246,8 +246,8 @@
     const oldPred = pred;
     pred = P.copyCar(sc);
     const e = env(), b = myBonus();
-    const others = othersForPred();
-    for (const p of pending) { P.simulate(pred, p.k, e, b, others); history.set(p.s, P.copyCar(pred)); }
+    // Les autres voitures avancent avec moi pendant qu'on rejoue mes touches.
+    pending.forEach((p, i) => { P.simulate(pred, p.k, e, b, othersAt((i + 1) * P.TICK)); history.set(p.s, P.copyCar(pred)); });
     if (prevPred && oldPred) {   // on décale aussi l'image précédente pour garder le glissé
       prevPred.x += pred.x - oldPred.x; prevPred.y += pred.y - oldPred.y; prevPred.a += angDiff(pred.a, oldPred.a);
     }
@@ -266,7 +266,6 @@
     if (!pred || !["play", "boom"].includes(st?.phase)) { acc = 0; return; }
     acc = Math.min(acc + dt, 0.2);
     const e = env(), b = myBonus();
-    const others = acc >= P.TICK ? othersForPred() : null;
     while (acc >= P.TICK) {
       const k = keyMask();
       seq++;
@@ -274,35 +273,62 @@
       pending.push({ s: seq, k });
       if (pending.length > 90) pending.shift();
       prevPred = P.copyCar(pred);
-      P.simulate(pred, k, e, b, others);
+      P.simulate(pred, k, e, b, othersAt(pending.length * P.TICK));
       history.set(seq, P.copyCar(pred));
       acc -= P.TICK;
     }
   }
 
-  // Les autres voitures (et les épaves) là où on les VOIT : ma voiture
-  // prédite bute dessus, donc à l'écran elle ne passe jamais à travers.
-  function othersForPred() {
-    return st.cars.filter((c) => c.id !== me()).map((c) => P.copyCar(interpolated(c.id) || c));
+  // ===================================================================
+  //  LES AUTRES VOITURES "AU PRÉSENT"
+  //  Ma voiture est calculée en avance (mes touches pas encore traitées
+  //  par le serveur). Pour que les chocs soient justes, on fait avancer
+  //  les autres voitures du même temps, d'après leur vitesse : tout le
+  //  monde est au même instant, à l'écran comme dans les calculs.
+  // ===================================================================
+  const MAX_AHEAD = 0.3;                 // on ne devine pas plus de 0,3 s à l'avance
+  const othersOff = {};                  // petit décalage lissé par voiture
+  const lastShown = {};                  // dernière position dessinée par voiture
+  let lastSnapRecv = 0;                  // quand le dernier message du serveur est arrivé
+  let frozenAhead = 0;                   // avance gardée quand je ne conduis plus (explosé, spectateur)
+  let lastOwn = null;                    // dernière position dessinée de MA voiture
+
+  // Les autres voitures (et les épaves), avancées de t secondes.
+  function othersAt(t) {
+    t = Math.min(MAX_AHEAD, Math.max(0, t));
+    return st.cars.filter((c) => c.id !== me()).map((c) => P.extrapolate(c, t));
   }
 
-  // Position affichée des autres voitures (entre deux messages reçus).
-  function interpolated(id) {
-    const t = Date.now() - INTERP_DELAY;
-    let a = null, b = null;
-    for (let i = snaps.length - 1; i >= 0; i--) {
-      if (snaps[i].t <= t) { a = snaps[i]; b = snaps[i + 1] || snaps[i]; break; }
+  // Instant affiché en ce moment (même instant que ma voiture à l'écran).
+  const shownAhead = () => Math.min(MAX_AHEAD, Math.max(0, (pending.length - 1 + acc / P.TICK) * P.TICK));
+
+  // Quand je ne conduis plus, on garde la même avance : pas de bond à l'écran.
+  function aheadNow() {
+    if (pred) return shownAhead();
+    return Math.min(MAX_AHEAD, frozenAhead + (performance.now() - lastSnapRecv) / 1000);
+  }
+
+  // Une voiture affichée (toutes sauf la mienne quand je conduis).
+  function shownCar(c) {
+    const base = P.extrapolate(c, aheadNow());
+    const o = othersOff[c.id] || { x: 0, y: 0, a: 0 };
+    const v = { ...base, x: base.x + o.x, y: base.y + o.y, a: base.a + o.a };
+    lastShown[c.id] = v;
+    return v;
+  }
+
+  // Nouveau message du serveur : la position "devinée" change un peu.
+  // On garde la voiture là où elle était à l'écran et on efface l'écart en douceur.
+  function rebaseCars() {
+    const t = aheadNow();
+    for (const c of st.cars) {
+      if (c.id === me() && pred) continue;
+      const prev = lastShown[c.id];
+      const base = P.extrapolate(c, t);
+      if (prev && Math.hypot(prev.x - base.x, prev.y - base.y) < 120) {
+        othersOff[c.id] = { x: prev.x - base.x, y: prev.y - base.y, a: angDiff(prev.a, base.a) };
+      } else othersOff[c.id] = { x: 0, y: 0, a: 0 };
     }
-    if (!a) a = b = snaps[0];
-    const ca = a?.cars[id], cb = b?.cars[id] || ca;
-    if (!ca) return null;
-    const f = b.t > a.t ? Math.min(1, (t - a.t) / (b.t - a.t)) : 0;
-    return {
-      ...cb,
-      x: ca.x + (cb.x - ca.x) * f,
-      y: ca.y + (cb.y - ca.y) * f,
-      a: ca.a + angDiff(cb.a, ca.a) * f,
-    };
   }
 
   // ===================================================================
@@ -568,6 +594,7 @@
     driveLocal(dt);
     const decay = Math.pow(0.82, dt * 60);
     off.x *= decay; off.y *= decay; off.a *= decay;
+    for (const o of Object.values(othersOff)) { o.x *= decay; o.y *= decay; o.a *= decay; }
     const t0 = performance.now();
     draw(ts, dt);
     dbg.drawMs += performance.now() - t0;
@@ -589,8 +616,9 @@
       if (c.id === me() && pred) {
         const o = ownView();
         v = { ...o, id: c.id, alive: true, x: o.x + off.x, y: o.y + off.y, a: o.a + off.a };
+        lastOwn = { x: v.x, y: v.y, a: v.a };
       }
-      else v = interpolated(c.id) || c;
+      else v = shownCar(c);                      // tout le monde au même instant (que je conduise ou non)
       view.push(v);
       if (v.alive) drawSkids(c.id, v);
     }

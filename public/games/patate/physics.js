@@ -208,7 +208,9 @@ P.INERTIA = 0.55 * (P.CAR_L * P.CAR_L + P.CAR_W * P.CAR_W) / 12;
     return Math.abs(dx * fx + dy * fy) <= P.CAR_L / 2 + margin && Math.abs(-dx * fy + dy * fx) <= P.CAR_W / 2 + margin;
   }
 
-  P.collideCars = function (A, B, bStatic = false) {
+  // maxPush : séparation maximale par petit pas (utilisé par la prédiction
+  // du navigateur pour éviter les sauts brusques si on se chevauche beaucoup).
+  P.collideCars = function (A, B, bStatic = false, maxPush = Infinity) {
     const none = { touch: false, impact: 0, x: 0, y: 0 };
     // Trop loin pour se toucher : on ne calcule rien.
     if (Math.hypot(B.x - A.x, B.y - A.y) > P.CAR_L + 6) return none;
@@ -238,8 +240,9 @@ P.INERTIA = 0.55 * (P.CAR_L * P.CAR_L + P.CAR_W * P.CAR_W) / 12;
     const invMA = 1 / P.MASS, invIA = 1 / P.INERTIA;
     const invMB = bStatic ? 0 : 1 / P.MASS, invIB = bStatic ? 0 : 1 / P.INERTIA;
     const share = invMA / (invMA + invMB);
-    A.x -= nx * pen * share; A.y -= ny * pen * share;
-    B.x += nx * pen * (1 - share); B.y += ny * pen * (1 - share);
+    const push = Math.min(pen, maxPush);
+    A.x -= nx * push * share; A.y -= ny * push * share;
+    B.x += nx * push * (1 - share); B.y += ny * push * (1 - share);
 
     // 4. Le choc au point de contact.
     const rAx = px - A.x, rAy = py - A.y, rBx = px - B.x, rBy = py - B.y;
@@ -275,8 +278,14 @@ P.INERTIA = 0.55 * (P.CAR_L * P.CAR_L + P.CAR_W * P.CAR_W) / 12;
     for (let i = 0; i < P.SUB; i++) {
       P.drive(c, k, dt, env, bonus);
       P.collideStatic(c, env);
-      if (others) for (const o of others) P.collideCars(c, o, true);
+      if (others) for (const o of others) P.collideCars(c, o, true, 6);
     }
+  };
+
+  // Où sera une voiture dans t secondes si elle garde sa vitesse ?
+  // (le navigateur s'en sert pour voir les autres voitures "au présent")
+  P.extrapolate = function (c, t) {
+    return { ...c, x: c.x + c.vx * t, y: c.y + c.vy * t, a: c.a + c.w * t };
   };
 
   root.PatatePhysics = P;

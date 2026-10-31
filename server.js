@@ -130,9 +130,14 @@ function sendHub(room) {
   io.to(room.code).emit("hub", publicHub(room));
 }
 
+// Pour tester : LAG_MS=60 simule un réseau lent (60 ms de retard dans chaque sens).
+const LAG_MS = Number(process.env.LAG_MS) || 0;
+
 function sendGame(room, target = room.code) {
   if (!room.game) return;
-  io.to(target).emit("game", { gameId: room.gameId, state: room.game.publicState() });
+  const msg = { gameId: room.gameId, state: room.game.publicState() };
+  if (LAG_MS) setTimeout(() => io.to(target).emit("game", msg), LAG_MS);
+  else io.to(target).emit("game", msg);
 }
 
 // ===================================================================
@@ -410,7 +415,12 @@ io.on("connection", (socket) => {
   });
 
   // --- Action dans le mini-jeu en cours (transmise telle quelle) ---
-  socket.on("gameAction", ({ type, data } = {}, callback) => {
+  socket.on("gameAction", (msg = {}, callback) => {
+    if (LAG_MS) setTimeout(() => handleGameAction(msg, callback), LAG_MS);
+    else handleGameAction(msg, callback);
+  });
+
+  function handleGameAction({ type, data } = {}, callback) {
     const room = roomOf();
     if (!room?.game || !me()) return callback?.({ error: "Aucun jeu en cours." });
     let res;
@@ -421,7 +431,7 @@ io.on("connection", (socket) => {
       res = { error: "Oups, le jeu a planté sur cette action." };
     }
     callback?.(res || { ok: true });
-  });
+  }
 
   // --- L'hôte arrête le jeu / la playlist (sans points) ---
   socket.on("abortGame", () => {
