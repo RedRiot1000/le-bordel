@@ -12,6 +12,8 @@ import * as quidenous from "./quidenous/server.js";
 import * as neon from "./neon/server.js";
 import * as carfoot from "./carfoot/server.js";
 import * as sur10 from "./sur10/server.js";
+import * as classement from "./classement/server.js";
+import * as chat from "./chat/server.js";
 
 // Les jeux jouables.
 export const GAMES = {
@@ -23,6 +25,8 @@ export const GAMES = {
   [neon.meta.id]: neon,
   [carfoot.meta.id]: carfoot,
   [sur10.meta.id]: sur10,
+  [classement.meta.id]: classement,
+  [chat.meta.id]: chat,
 };
 
 // Les jeux prévus (affichés grisés "bientôt" dans le menu).

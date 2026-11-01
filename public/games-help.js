@@ -152,5 +152,39 @@
       ],
       example: "Thème « <b>Un jeu vidéo</b> ». Tu choisis <b>10</b> et tu écris « <b>Rust</b> » parce que pour toi c'est le meilleur jeu du monde. Alice dit 9 (+2), Bob dit 3 (« Rust c'est nul ! » → 0 point). Comme Alice t'a trouvé à 1 près, tu prends <b>+1</b>.",
     },
+    classement: {
+      goal: "Deviner comment ton pote classe 5 choses selon ses goûts… et être le plus prévisible quand c'est toi le juge.",
+      steps: [
+        "À chaque manche, un joueur est le <b>juge</b> ⚖️ (chacun son tour). Il choisit un <b>thème</b> parmi 3, comme « Un fast-food ».",
+        "<b>5 choses</b> du thème s'affichent (McDo, KFC, Five Guys…).",
+        "Le juge les <b>classe selon SES goûts</b>, du 1er au 5e. En même temps, les autres essaient de <b>deviner son classement</b>.",
+        "Pour classer : <b>clique les choses dans l'ordre</b>, du 1er au 5e. Tu t'es trompé ? Clique sur une case de l'échelle pour la retirer. Puis <b>Valider</b> (tu peux encore changer et renvoyer).",
+        "<b>Révélation</b> : le classement du juge à côté de celui de chaque joueur. Vert = bonne place, jaune = à une place près.",
+      ],
+      points: [
+        "<b>2 points</b> par chose à la bonne place, <b>1 point</b> si elle est à une place près (10 points maximum).",
+        "Le juge gagne la <b>moyenne</b> des points des autres : il a intérêt à être sincère et prévisible !",
+      ],
+      example: "Le juge, c'est Bob, thème « <b>Un plat</b> ». Tu sais qu'il adore la raclette et déteste le foie : tu mets <b>Raclette</b> 1er et <b>Foie de veau</b> 5e. Bob avait mis Raclette 1er, Pizza 2e… et le foie 5e. Tu as 2 places exactes et 2 à une place près = <b>6 points</b>.",
+    },
+
+    chat: {
+      goal: "En souris : ne pas te faire attraper. En chat : attraper toutes les souris.",
+      steps: [
+        "Au début de chaque manche, un joueur est le <b>chat</b> 🐱 (2 chats à partir de 5 joueurs). Tous les autres sont des <b>souris</b> 🐭. Chacun est chat à tour de rôle.",
+        "Le chat conduit une <b>Sportive</b> un peu plus puissante, avec un nitro qui dure plus longtemps. Les souris ont des <b>motos</b> qui tournent très court.",
+        "Les souris partent avec <b>2 secondes d'avance</b> : le chat est bloqué au départ.",
+        "Si le chat <b>touche une souris</b>, elle devient <b>chat</b> à son tour ! Elle clignote 1,5 s (elle ne peut pas attraper tout de suite), puis elle chasse avec les autres.",
+        "La manche s'arrête quand <b>toutes les souris sont attrapées</b>, ou à la fin du <b>chrono</b> : les souris encore libres ont gagné.",
+        "Astuce de souris : tourne serré autour des obstacles, la moto vire beaucoup mieux que la Sportive.",
+      ],
+      controls: DRIVE,
+      points: [
+        "Chat : <b>+1</b> par souris attrapée (même si tu es devenu chat en cours de route).",
+        "Souris : <b>+1</b> par souris attrapée avant toi.",
+        "Souris encore libre à la fin : <b>+1 par souris attrapée +2</b> de bonus.",
+      ],
+      example: "Tu es souris. Le chat Bob fonce sur toi : tu tournes sec derrière un bloc, il dérape tout droit. Mais Alice se fait attraper et devient chat… Maintenant ils sont deux ! Le chrono tombe à 0 et tu es encore libre : 1 souris a été attrapée, donc tu prends <b>1 + 2 = 3 points</b>.",
+    },
   };
 })();

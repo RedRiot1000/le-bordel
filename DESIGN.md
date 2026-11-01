@@ -392,6 +392,29 @@ bien si l'indice vient de la liste, au pif autour de 5 sinon.
 Les joueurs risquent de toujours choisir 0 ou 10 (le plus facile à faire deviner). Si ça arrive :
 réglage « note tirée au hasard ».
 
+## 7 nonies. Classement 📊 — validé (« fait », choix par défaut)
+
+À chaque manche, un **juge** (chacun son tour, 1 ou 2 fois) choisit un thème parmi 3. Les thèmes viennent
+de Sur 10 : chaque thème a déjà 5 exemples, ce sont les **5 choses à classer**.
+- Le juge classe les 5 choses selon **ses goûts** (1er = le haut de l'échelle du thème, ex. « génial »).
+  En même temps, les autres devinent **son** classement. On clique les choses dans l'ordre ; on peut corriger et renvoyer.
+- Points : **2** par chose à la bonne place, **1** à une place près (max 10). Le juge gagne la **moyenne** des autres.
+- Révélation : une colonne par joueur (vert = bonne place, jaune = à une place près), 14 s, l'hôte peut passer.
+- Réglages : chacun juge 1 ou 2 fois, temps pour classer 30/45/60 s. Playlist : « Chacun est juge » 1/2 fois.
+- Bots : le juge suit les notes de Sur 10 (avec du hasard), les devineurs aussi mais avec plus de hasard.
+
+## 7 decies. Chat et souris 🐱 — validé (« fait », choix par défaut)
+
+Un chat chasse les souris ; une souris touchée devient chat (« infection »).
+- **Chat = Sportive** (moteur +10 %, nitro boosté comme le porteur de la Patate), **souris = moto** (vire très court).
+- 1 chat au départ (2 à partir de 5 joueurs), chacun est chat à tour de rôle. Les souris partent **2 s avant** le chat.
+- Un nouveau chat clignote 1,5 s et ne peut pas attraper pendant ce temps (pas de réaction en chaîne).
+- Fin de manche : plus aucune souris, ou fin du chrono (60/90/120 s, défaut 90).
+- Points : chat +1 par souris attrapée ; souris +1 par souris attrapée avant elle ; souris libre à la fin : +1 par souris attrapée +2.
+- Maps : celles de la Patate (sol aléatoire, obstacles, huile). Réglages : manches 3/5/7 (défaut 5). Playlist : 3/5 (défaut 3).
+- À surveiller en jouant : en test bots contre bots, les souris tombent vite (7 à 30 s). Si c'est pareil entre humains :
+  réduire encore le boost du chat ou allonger l'avance des souris.
+
 ## 8. Feuille de route
 
 | Phase | Contenu | Objectif |

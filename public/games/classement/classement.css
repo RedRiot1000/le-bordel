@@ -1,0 +1,48 @@
+/* CLASSEMENT — styles (le reste vient de quidenous.css et sur10.css : .qn-*, .s10-*) */
+.cl-judge { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 19px; margin-bottom: 8px; }
+.cl-ask { text-align: center; font-size: 19px; margin-bottom: 12px; }
+.cl-ask .muted { display: block; font-size: 14px; margin-top: 2px; }
+
+/* Classer : les choses à gauche, l'échelle à droite */
+.cl-board { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 900px; margin: 0 auto; align-items: start; }
+.cl-pool { display: flex; flex-direction: column; gap: 8px; }
+.cl-item {
+  padding: 14px 16px; border-radius: 14px; border: 3px solid var(--border); background: var(--surface); color: var(--text);
+  font-size: 18px; font-weight: 800; text-align: left; cursor: pointer; transition: transform 0.1s, border-color 0.15s;
+  animation: popIn 0.3s cubic-bezier(.2,1.4,.4,1) both;
+}
+.cl-item:hover { transform: translateX(4px); border-color: var(--accent); }
+.cl-ladder { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.cl-slot {
+  position: relative; display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px 14px; border-radius: 14px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.06), var(--surface)); border: 3px solid var(--accent); cursor: pointer; font-size: 17px; font-weight: 800;
+}
+.cl-slot.empty { border-style: dashed; border-color: var(--border); cursor: default; background: var(--surface-2); }
+.cl-pos { display: grid; place-items: center; min-width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 900; font-size: 15px; }
+.cl-slot.empty .cl-pos { background: var(--border); }
+.cl-txt { flex: 1; }
+.cl-x { color: var(--muted); font-size: 14px; }
+.cl-slot:hover:not(.empty) .cl-x { color: var(--danger); }
+.cl-end { position: absolute; right: 10px; top: -10px; font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-weight: 700; }
+
+/* Révélation : une colonne par joueur */
+.cl-ends { text-align: center; color: var(--muted); margin-bottom: 10px; }
+.cl-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; max-width: 1100px; margin: 0 auto; }
+.cl-col { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 14px; background: var(--surface); }
+.cl-col.judge { border: 3px solid #ffcf5c; background: linear-gradient(180deg, rgba(255, 207, 92, 0.18), var(--surface)); }
+.cl-colhead { display: flex; align-items: center; gap: 6px; justify-content: center; font-size: 16px; margin-bottom: 2px; }
+.cl-cell {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: var(--surface-2); font-size: 14px; font-weight: 700;
+  border: 2px solid transparent; animation: popIn 0.35s cubic-bezier(.2,1.4,.4,1) both;
+}
+.cl-cell .cl-pos { min-width: 22px; height: 22px; font-size: 12px; }
+.cl-cell.ok { border-color: var(--ok); background: rgba(70, 220, 120, 0.18); }
+.cl-cell.near { border-color: #ffcf5c; background: rgba(255, 207, 92, 0.15); }
+.cl-cell.far { opacity: 0.6; }
+.cl-gain { text-align: center; font-size: 24px; font-weight: 900; color: var(--ok); animation: popIn 0.4s 1.2s cubic-bezier(.2,1.4,.4,1) both; }
+.cl-legend { text-align: center; margin-top: 10px; font-size: 13px; }
+
+.cl-recap { padding-left: 22px; font-size: 14px; display: flex; flex-direction: column; gap: 2px; }
+.s10-rround h3 { display: flex; align-items: center; gap: 6px; }
+
+@media (max-width: 700px) { .cl-board { grid-template-columns: 1fr; } }
