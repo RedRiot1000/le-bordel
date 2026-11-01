@@ -7,12 +7,14 @@
 import * as imposter from "./imposter/server.js";
 import * as patate from "./patate/server.js";
 import * as sumo from "./sumo/server.js";
+import * as cs2map from "./cs2map/server.js";
 
 // Les jeux jouables.
 export const GAMES = {
   [imposter.meta.id]: imposter,
   [patate.meta.id]: patate,
   [sumo.meta.id]: sumo,
+  [cs2map.meta.id]: cs2map,
 };
 
 // Les jeux prévus (affichés grisés "bientôt" dans le menu).

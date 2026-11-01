@@ -1,0 +1,63 @@
+/* DEVINE LA MAP — styles */
+.cm-empty { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+#cm-pool code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-size: 13px; }
+.cm-pool { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; margin-top: 10px; }
+.cm-pool li { display: flex; justify-content: space-between; background: var(--surface-2); padding: 6px 10px; border-radius: 8px; font-size: 14px; }
+
+.cm-sec { font-size: 30px; font-weight: 900; min-width: 70px; text-align: right; font-variant-numeric: tabular-nums; }
+.cm-sec.urgent { color: var(--danger); animation: pulseTimer 0.5s ease-in-out infinite; }
+.cm-bar { height: 12px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin-bottom: 12px; }
+.cm-bar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-3)); }
+
+/* Le cadre de l'image : tout ce qui dépasse du zoom est caché */
+/* (largeur limitée par la hauteur de l'écran : les boutons des maps doivent rester visibles sans défiler) */
+.cm-frame {
+  position: relative; width: min(100%, calc(46vh * 16 / 9)); margin: 0 auto; aspect-ratio: 16 / 9; overflow: hidden;
+  border-radius: var(--radius); border: 3px solid var(--border); background: #000; box-shadow: var(--shadow);
+}
+.cm-frame img { width: 100%; height: 100%; object-fit: cover; display: block; user-select: none; will-change: transform; }
+
+/* Révélation par-dessus l'image */
+.cm-reveal {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.75)); padding: 16px;
+}
+.cm-reveal-map {
+  font-size: clamp(30px, 6vw, 56px); font-weight: 900; color: white; text-shadow: 0 4px 20px rgba(0,0,0,0.8);
+  animation: popIn 0.4s cubic-bezier(.2,1.4,.4,1) both;
+}
+.cm-reveal-list { list-style: none; display: flex; flex-direction: column; gap: 6px; width: min(460px, 100%); }
+.cm-reveal-list li {
+  display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-radius: 10px;
+  background: rgba(15, 20, 30, 0.85); color: white; font-size: 15px;
+}
+.cm-reveal-list li.ok { border-left: 4px solid var(--ok); }
+.cm-reveal-list li.ko { border-left: 4px solid var(--danger); }
+.cm-reveal-list .name { flex: 1; font-weight: 700; }
+.cm-reveal-list .gain { color: var(--ok); font-weight: 900; min-width: 44px; text-align: right; }
+
+/* Qui a répondu */
+.cm-answered { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 10px 0; min-height: 30px; }
+.cm-who { display: flex; align-items: center; gap: 6px; font-size: 14px; padding: 3px 10px 3px 4px; border-radius: 999px; background: var(--surface-2); opacity: 0.5; }
+.cm-who.done { opacity: 1; box-shadow: 0 0 0 2px var(--ok); }
+
+/* Les boutons des maps */
+.cm-maps { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.cm-map {
+  padding: 12px 8px; border-radius: 12px; cursor: pointer; font-size: 17px; font-weight: 800;
+  background: var(--surface); border: 2px solid var(--border); color: var(--text);
+  transition: transform 0.1s, border-color 0.2s;
+}
+.cm-map:hover:not(:disabled) { transform: translateY(-3px); border-color: var(--accent); }
+.cm-map:disabled { cursor: default; opacity: 0.45; }
+.cm-map.mine { opacity: 1; border-color: var(--accent); background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: white; }
+.cm-map.good { opacity: 1; border-color: var(--ok); background: var(--ok); color: #05210f; }
+.cm-map.bad { opacity: 1; border-color: var(--danger); background: rgba(255, 77, 109, 0.25); }
+
+/* Fin de série */
+.cm-over-card { max-width: 900px; margin: 0 auto; text-align: center; }
+.cm-recap-title { margin: 18px 0 10px; text-transform: uppercase; letter-spacing: 1px; font-size: 13px; }
+.cm-recap { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 18px; text-align: left; }
+.cm-recap figure { background: var(--surface-2); border-radius: 10px; overflow: hidden; }
+.cm-recap img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; }
+.cm-recap figcaption { padding: 6px 8px; font-size: 13px; }

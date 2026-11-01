@@ -217,6 +217,50 @@ Option votable en plus : **Cartes véhicules** — « les mêmes pour tous » / 
 - Chocs un peu plus « costauds » qu'à Patate si besoin, pour que pousser soit satisfaisant (à régler en jouant).
 - Caméra + mini-carte côté navigateur ; prédiction de sa voiture comme Patate (zéro retard).
 
+## 7 quater. Devine la map 🗺️ (CS2) — validé
+
+**Principe** : un screenshot pris dans une map de Counter-Strike 2 s'affiche chez tout le monde ;
+chacun clique sur la map qu'il pense reconnaître. Les plus rapides marquent le plus.
+**Pas de catégories facile/difficile** : les screenshots sont tirés au hasard, la difficulté dépend
+seulement de ce que les joueurs connaissent (c'est la même image pour tout le monde).
+
+### Une partie
+- Une série d'**images** (10 par défaut), **20 s** par image, jamais deux fois la même image dans la partie.
+- On répond en cliquant parmi **la liste de toutes les maps** du jeu.
+  **Une seule réponse** par image (pas le droit de se corriger).
+- **Zoom qui recule** sur toutes les images : l'image commence zoomée ×4 sur un détail (le même pour
+  tout le monde) et se dézoome petit à petit jusqu'à l'image entière à la fin du chrono.
+- Quand tout le monde a répondu (ou à 0) : **révélation** 5 s — l'image entière, le nom de la map,
+  qui a trouvé et combien de points. Puis image suivante.
+
+### Points
+- Bonne réponse : **100 points × rapidité** (100 si tu réponds tout de suite, 40 si tu réponds à la dernière seconde).
+  Mauvaise réponse ou pas de réponse : 0.
+- À la fin : classement → points de soirée (comme les autres jeux).
+
+### Maps
+Active Duty + classiques : **Mirage, Inferno, Nuke, Ancient, Anubis, Dust2, Train, Overpass, Vertigo, Office, Italy**.
+Seules les maps qui ont au moins un screenshot apparaissent dans la liste.
+
+### Les screenshots (c'est toi qui les prends)
+- Pas d'images récupérées sur internet : elles sont prises par toi dans CS2.
+- Astuce : partie privée/entraînement, `sv_cheats 1`, `noclip`, **`cl_drawhud 0`** (sinon le radar donne la réponse !),
+  `r_drawviewmodel 0` (cache l'arme), puis **F12** (capture Steam).
+- Tu ranges tes images dans `screenshots-cs2/<map>/` (ex. `screenshots-cs2/mirage/`), n'importe quel nom de fichier.
+  Ce dossier n'est pas envoyé sur GitHub (trop lourd) : seules les versions réduites le sont.
+- Un outil (`npm run images`) les redimensionne (1280 px, JPEG léger) et les ajoute au jeu.
+  Les fichiers publiés ont des **noms au hasard** (sinon un malin lirait « mirage_03.jpg » dans le navigateur) ;
+  la réponse reste uniquement sur le serveur.
+- Objectif de départ : ~10 screenshots par map (≈ 100 images), mais le jeu marche avec moins.
+
+### Réglages
+- Mode « Un jeu » : nombre d'images (5 / 10 / 15 / 20), temps par image (15 / 20 / 30 s),
+  zoom de départ (×2 / **×4** / ×6).
+- Playlist (vote) : zoom de départ (Facile ×2 / Normal ×4 / Difficile ×6), nombre d'images (**5** / 10 / 15).
+
+### Bots
+Ils répondent après un petit délai au hasard, justes environ une fois sur deux.
+
 ## 8. Feuille de route
 
 | Phase | Contenu | Objectif |

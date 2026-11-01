@@ -6,7 +6,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/test-hub.js"
+    "test": "node test/test-hub.js",
+    "images": "node tools/images-cs2.mjs"
   },
   "engines": {
     "node": ">=20"
@@ -17,5 +18,8 @@
   },
   "devDependencies": {
     "socket.io-client": "^4.8.3"
+  },
+  "optionalDependencies": {
+    "sharp": "^0.35.5"
   }
 }

@@ -1,3 +1,5 @@
 node_modules/
+# Screenshots CS2 d'origine (trop lourds) : seules les versions réduites partent sur GitHub.
+screenshots-cs2/
 .claude/
 *.log
