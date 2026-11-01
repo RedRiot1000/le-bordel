@@ -21,7 +21,7 @@ export const meta = {
   emoji: "🤼",
   family: "Action",
   minPlayers: 3,
-  maxPlayers: 6,
+  maxPlayers: 8,
   description: "Pousse les autres voitures dans le vide !",
 };
 

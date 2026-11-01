@@ -61,10 +61,13 @@ export function islandsMap(nPlayers) {
   // Départs : les joueurs sont répartis sur les îles au hasard.
   const spawns = [];
   const order = shuffle(islands.map((_, i) => i));
+  const base = islands.map(() => rand(0, Math.PI * 2));          // angle de départ de chaque île
+  const perIsland = Math.ceil(nPlayers / order.length);          // joueurs max sur une même île
   for (let p = 0; p < nPlayers; p++) {
-    const isl = islands[order[p % order.length]];
+    const n = order[p % order.length];
+    const isl = islands[n];
     const k = Math.floor(p / order.length);
-    const t = rand(0, Math.PI * 2) + k * 2.1;
+    const t = base[n] + (k * Math.PI * 2) / perIsland;
     const x = isl.x + Math.cos(t) * isl.r * 0.45, y = isl.y + Math.sin(t) * isl.r * 0.45;
     spawns.push({ x, y, a: Math.atan2(isl.y - y, isl.x - x) });
   }

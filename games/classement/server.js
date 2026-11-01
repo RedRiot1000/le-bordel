@@ -16,7 +16,7 @@ export const meta = {
   emoji: "📊",
   family: "Ambiance",
   minPlayers: 3,
-  maxPlayers: 6,
+  maxPlayers: 8,
   description: "Devine comment ton pote classe 5 trucs. Tu le connais si bien que ça ?",
 };
 

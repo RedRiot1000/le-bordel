@@ -36,9 +36,9 @@ app.get("/health", (_, res) => res.json({ ok: true, version: VERSION }));
 // ===================================================================
 //  RÉGLAGES DU HUB
 // ===================================================================
-const MAX_PLAYERS = 6;
+const MAX_PLAYERS = 8;
 const POINTS = [10, 7, 5, 3, 2, 1];          // points de soirée par place
-const COLORS = ["#7c5cff", "#ff5c9d", "#38e8c8", "#ffb547", "#4ade80", "#2e9dff"];
+const COLORS = ["#7c5cff", "#ff5c9d", "#38e8c8", "#ffb547", "#4ade80", "#2e9dff", "#ff4d4d", "#e5e7eb"];
 const HOST_GRACE_MS = 15_000;                // délai avant de passer l'hôte à un autre
 const ROOM_EMPTY_MS = 10 * 60_000;           // salon vide supprimé après 10 min
 const BOT_NAMES = ["Bernard", "Ginette", "Michel", "Josiane", "Gérard", "Huguette", "Roger", "Monique"];

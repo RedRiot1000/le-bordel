@@ -16,7 +16,7 @@ export const meta = {
   emoji: "🔟",
   family: "Ambiance",
   minPlayers: 3,
-  maxPlayers: 6,
+  maxPlayers: 8,
   description: "Ta note est secrète, ton indice la trahit. Les autres devinent.",
 };
 

@@ -14,7 +14,7 @@ export const meta = {
   emoji: "🕵️",
   family: "Bluff",
   minPlayers: 3,
-  maxPlayers: 6,
+  maxPlayers: 8,
   description: "Un mot secret, un intrus. Démasquez-le !",
 };
 

@@ -20,7 +20,7 @@ export const meta = {
   emoji: "🏍️",
   family: "Action",
   minPlayers: 2,
-  maxPlayers: 6,
+  maxPlayers: 8,
   description: "Ta moto laisse un mur de lumière. Touche un mur : BOUM. Dernier en vie gagne !",
 };
 

@@ -1,6 +1,6 @@
 # 🎉 Le Bordel
 
-Compil de mini-jeux 2D entre potes, dans le navigateur, de 3 à 6 joueurs.
+Compil de mini-jeux 2D entre potes, dans le navigateur, de 3 à 8 joueurs.
 Le design complet est dans [DESIGN.md](DESIGN.md).
 
 ## Jouer en local

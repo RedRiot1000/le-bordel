@@ -14,7 +14,7 @@ On ouvre **un lien**, on rejoint le salon avec un code, et l'hôte enchaîne des
 
 | Sujet | Décision |
 |---|---|
-| Joueurs | **3 à 6** |
+| Joueurs | **3 à 8** (passé de 6 à 8 le 01/11) |
 | Support | **PC uniquement** (clavier / souris) |
 | Accès | Lien web, sans compte, sans installation |
 | Vocal | Pas de chat dans le jeu → on parle sur **Discord** |
@@ -297,7 +297,7 @@ Ils écrivent une question de la banque et votent au hasard (parfois pour eux-m�
 
 ## 7 sexies. Néon 🏍️ (style « Tron ») — validé
 > Idée du user : chaque moto laisse un mur de lumière, toucher un mur = éliminé, dernier en vie gagne.
-> Simple, très tendu, manches courtes. Nom provisoire « Néon » (on peut le renommer). 2 à 6 joueurs (en duel aussi).
+> Simple, très tendu, manches courtes. Nom provisoire « Néon » (on peut le renommer). 2 à 8 joueurs (en duel aussi).
 
 ### Une manche
 - **Motos uniquement**, physique de la Patate (`P.VEHICLES.moto`) : **virages libres**, la moto peut glisser.
@@ -336,7 +336,7 @@ Mur = suite de points (un toutes les ~6 px) avec l'heure de création ; collisio
 > Réutilise la physique, la prédiction et les bots de la Patate.
 
 ### Un match
-- **2 équipes** (🔵 Bleus / 🔴 Rouges) tirées au hasard à chaque match, équilibrées (3 contre 2 si impair). 2 à 6 joueurs.
+- **2 équipes** (🔵 Bleus / 🔴 Rouges) tirées au hasard à chaque match, équilibrées (3 contre 2 si impair). 2 à 8 joueurs (jusqu’à 4 contre 4).
 - Tout le monde en **Sportive** à la couleur de son équipe (sa propre couleur sur le toit).
 - Commandes de la Patate : ZQSD, Espace frein à main, Shift **nitro**.
 - **Ballon** : léger, rebondit sur les murs, les voitures le frappent (plus tu vas vite, plus il part fort).

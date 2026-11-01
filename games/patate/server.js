@@ -19,7 +19,7 @@ export const meta = {
   emoji: "💣",
   family: "Action",
   minPlayers: 3,
-  maxPlayers: 6,
+  maxPlayers: 8,
   description: "Petites voitures, une bombe : refile-la avant qu'elle explose !",
 };
 

@@ -16,7 +16,7 @@ export const meta = {
   emoji: "🗺️",
   family: "Quiz",
   minPlayers: 2,
-  maxPlayers: 6,
+  maxPlayers: 8,
   description: "Un screenshot de CS2 : de quelle map vient-il ?",
 };
 

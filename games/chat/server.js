@@ -18,7 +18,7 @@ export const meta = {
   emoji: "🐱",
   family: "Action",
   minPlayers: 3,
-  maxPlayers: 6,
+  maxPlayers: 8,
   description: "Le chat attrape une souris ? Elle devient chat. Tiens jusqu'au bout !",
 };
 

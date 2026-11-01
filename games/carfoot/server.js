@@ -18,7 +18,7 @@ export const meta = {
   emoji: "⚽",
   family: "Action",
   minPlayers: 2,
-  maxPlayers: 6,
+  maxPlayers: 8,
   description: "Du foot avec les petites voitures : 2 équipes, un gros ballon, nitro !",
 };
 
@@ -61,6 +61,7 @@ const SPOTS = {
   1: [[0.28, 0.5]],
   2: [[0.24, 0.32], [0.24, 0.68]],
   3: [[0.3, 0.5], [0.16, 0.26], [0.16, 0.74]],
+  4: [[0.32, 0.36], [0.32, 0.64], [0.14, 0.24], [0.14, 0.76]],
 };
 
 // ===================================================================
@@ -154,7 +155,7 @@ export function createGame(ctx) {
   function kickoff() {
     for (const tm of ["blue", "red"]) {
       const ids = g.teams[tm].filter((id) => g.cars[id]);
-      const spots = SPOTS[Math.min(3, ids.length)] || [];
+      const spots = SPOTS[Math.min(4, ids.length)] || [];
       ids.forEach((id, i) => {
         const [fx, fy] = spots[i] || [0.2, (i + 1) / (ids.length + 1)];
         const x = tm === "blue" ? B.GD + B.FW * fx : B.GD + B.FW * (1 - fx);

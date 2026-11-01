@@ -205,7 +205,7 @@ $("btn-copy").addEventListener("click", async () => {
 
 function renderLobby() {
   $("room-code").textContent = hub.code;
-  $("player-count").textContent = `${hub.players.length}/6`;
+  $("player-count").textContent = `${hub.players.length}/8`;
 
   // --- Joueurs (triés par score de soirée) ---
   const list = $("player-list");
@@ -230,7 +230,7 @@ function renderLobby() {
   // --- Bouton "Ajouter un bot" (hôte) ---
   const n = hub.players.length;
   const host = isHost();
-  $("btn-add-bot").classList.toggle("hidden", !host || n >= 6);
+  $("btn-add-bot").classList.toggle("hidden", !host || n >= 8);
 
   // --- Mode : un jeu / playlist ---
   const playlistMode = hub.lobbyMode === "playlist";

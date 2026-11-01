@@ -14,7 +14,7 @@ export const meta = {
   emoji: "👉",
   family: "Quiz",
   minPlayers: 3,
-  maxPlayers: 6,
+  maxPlayers: 8,
   description: "« Qui finirait en prison en premier ? » Votez… et assumez.",
 };
 
