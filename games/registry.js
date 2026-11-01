@@ -9,6 +9,7 @@ import * as patate from "./patate/server.js";
 import * as sumo from "./sumo/server.js";
 import * as cs2map from "./cs2map/server.js";
 import * as quidenous from "./quidenous/server.js";
+import * as neon from "./neon/server.js";
 
 // Les jeux jouables.
 export const GAMES = {
@@ -17,6 +18,7 @@ export const GAMES = {
   [sumo.meta.id]: sumo,
   [cs2map.meta.id]: cs2map,
   [quidenous.meta.id]: quidenous,
+  [neon.meta.id]: neon,
 };
 
 // Les jeux prévus (affichés grisés "bientôt" dans le menu).

@@ -289,11 +289,47 @@ Partie rapide : ~2 min à 5 joueurs.
 Égalité en tête : voter pour n'importe lequel des premiers compte. À la fin → points de soirée.
 
 ### Réglages
-- Un jeu : questions par joueur (1 / 2 / 3), temps d'écriture (30 / **45** / 60 s), temps de vote (**10** / 15 / 20 s).
+- Un jeu : questions par joueur (1 / 2 / 3), temps d'écriture (30 / **45** / 60 s), temps de vote (10 / **15** / 20 s).
 - Playlist (vote) : questions par joueur (**1** / 2 / 3).
 
 ### Bots
 Ils écrivent une question de la banque et votent au hasard (parfois pour eux-mêmes).
+
+## 7 sexies. Néon 🏍️ (style « Tron ») — validé
+> Idée du user : chaque moto laisse un mur de lumière, toucher un mur = éliminé, dernier en vie gagne.
+> Simple, très tendu, manches courtes. Nom provisoire « Néon » (on peut le renommer). 2 à 6 joueurs (en duel aussi).
+
+### Une manche
+- **Motos uniquement**, physique de la Patate (`P.VEHICLES.moto`) : **virages libres**, la moto peut glisser.
+- **Toujours en mouvement** : la moto avance seule à une **vitesse minimum**. Z / ↑ accélère,
+  S / ↓ ralentit jusqu'à ce minimum (jamais en dessous), pas de marche arrière.
+  Si la vitesse tombe sous le minimum (obstacle, choc entre motos…) → **explosion**.
+- **Mur de lumière** derrière chaque moto, à sa couleur. Il **s'efface au bout de ~8 s**
+  (traînée de longueur limitée). Toucher un mur (même le sien), un obstacle ou le bord = **éliminé**.
+- **Saut** (Espace) : la moto passe au-dessus des murs pendant ~0,5 s, recharge 5 s (jauge affichée).
+- **Zone qui rétrécit** : après ~40 s, le bord de l'arène se resserre pour finir la manche.
+- Départ : compte à rebours 3 s, motos réparties sur le bord, tournées vers le centre.
+  Les 0,5 premières secondes, pas de mur (le temps de s'écarter).
+- Dernier en vie = gagnant de la manche. Plusieurs manches (3 / **5** / 7).
+
+### Maps
+Aléatoires comme la Patate : sol, **quelques obstacles** (moins que la Patate),
+arène **plus grande quand il y a plus de joueurs** (3 joueurs = petite, 6 = grande, la caméra suit / dézoome).
+
+### Points
+- Survie : 1 point par joueur éliminé avant toi (comme la Patate), le gagnant a n-1.
+- **+1 point par kill** : celui dont le mur t'a tué marque 1 point (pas si c'est ton propre mur).
+
+### Réglages
+- Un jeu : manches (3 / **5** / 7), durée des murs (5 / **8** / 12 s), saut on/off, zone qui rétrécit on/off.
+- Playlist (vote) : manches, durée des murs.
+
+### Bots
+Ils évitent les murs (regardent devant eux à gauche/droite et tournent vers le côté le plus libre), sautent quand c'est bouché.
+
+### Technique (pour moi)
+Le serveur fait foi (murs + collisions) ; ma moto est prédite chez moi comme à la Patate.
+Mur = suite de points (un toutes les ~6 px) avec l'heure de création ; collision = distance moto ↔ segments.
 
 ## 8. Feuille de route
 

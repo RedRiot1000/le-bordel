@@ -1,0 +1,11 @@
+/* NÉON — styles (le reste vient de patate.css : .pt-setup-grid, .pt-arena-wrap, .pt-over…) */
+#ne-canvas {
+  display: block; width: 100%; height: auto; max-height: 78vh; object-fit: contain;
+  border-radius: var(--radius); border: 2px solid rgba(90, 200, 255, 0.5);
+  box-shadow: 0 0 30px rgba(90, 200, 255, 0.25);
+}
+.pt-arena-wrap.over #ne-canvas { display: none; }
+.ne-jump { color: #9affc8; }
+.ne-jump .bar i { background: linear-gradient(90deg, #2ad18a, #9affc8); }
+.ne-jump .bar.on i { background: linear-gradient(90deg, #4cff9a, #eaffd0); }
+.ne-kills { font-size: 13px; color: #ff9aa8; font-weight: 800; }
