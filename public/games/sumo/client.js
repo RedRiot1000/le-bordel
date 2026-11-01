@@ -64,7 +64,7 @@
             <li><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> / flèches · <kbd>Espace</kbd> frein à main · <kbd>Shift</kbd> nitro</li>
             <li>🌊 Si tu sors du sol, tu tombes : éliminé !</li>
             <li>🔴 <b>Arène</b> : la plateforme rétrécit, pousse les autres dehors.</li>
-            <li>🏝️ <b>Îles</b> : une île s'allume, rejoins-la. Le dernier arrivé explose, et à 0 tous ceux dehors explosent.</li>
+            <li>🏝️ <b>Îles</b> : une île s'allume, rejoins-la avant la fin du chrono. À 0, tous ceux qui ne sont pas dessus explosent.</li>
             <li>👥 Nombre pair : parfois en <b>2 équipes</b> (rouges contre bleus).</li>
             <li>🏆 1 pt par joueur éliminé avant toi, <b>+1 par voiture éjectée</b>.</li>
           </ul>
@@ -390,16 +390,19 @@
     if (mineCar) { cam.x = mineCar.x; cam.y = mineCar.y; }
   }
 
+  // Traces de pneus des roues ARRIÈRE, placées selon la taille du véhicule.
+  // La moto n'a qu'une roue arrière (au milieu) : une seule trace.
   function drawSkids(id, c) {
+    const V = P.spec(c);
     const fx = Math.cos(c.a), fy = Math.sin(c.a), rx = -fy, ry = fx;
     const lat = Math.abs(c.vx * rx + c.vy * ry);
-    const wheels = [
-      { x: c.x - fx * 14 + rx * 9, y: c.y - fy * 14 + ry * 9 },
-      { x: c.x - fx * 14 - rx * 9, y: c.y - fy * 14 - ry * 9 },
-    ];
+    const back = V.L / 2 - 8, side = c.type === "moto" ? 0 : V.W / 2 - 3;
+    const wheels = (c.type === "moto" ? [0] : [1, -1]).map((s) => ({
+      x: c.x - fx * back + rx * side * s, y: c.y - fy * back + ry * side * s,
+    }));
     const prev = lastWheels[id];
-    if (prev && (lat > 70 || c.slide) && !c.falling) {
-      for (let i = 0; i < 2; i++) {
+    if (prev && prev.length === wheels.length && (lat > 70 || c.slide) && !c.falling) {
+      for (let i = 0; i < wheels.length; i++) {
         if (Math.hypot(prev[i].x - wheels[i].x, prev[i].y - wheels[i].y) > 40) continue;
         if (!G.onGround(st.map, wheels[i].x, wheels[i].y, st.arenaR)) continue;
         skidCtx.beginPath(); skidCtx.moveTo(prev[i].x, prev[i].y); skidCtx.lineTo(wheels[i].x, wheels[i].y); skidCtx.stroke();

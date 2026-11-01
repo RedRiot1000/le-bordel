@@ -32,7 +32,6 @@ const FALL_MS = 1000;          // durée de la chute avant d'être éliminé
 const EJECT_WINDOW = 3000;     // dernier contact compté comme une éjection (ms)
 const ARENA_DELAY = 10000;     // l'arène commence à rétrécir après 10 s
 const ARENA_MIN_R = 40;        // ...jusqu'à presque rien (la manche finit forcément)
-const ZONE_GRACE = 3000;       // la règle "dernier arrivé" ne compte qu'après 3 s
 const ZONE_PAUSE = 5000;       // pause entre deux zones sûres
 const FIRST_ZONE = 3000;       // première zone 3 s après le départ
 const FINISH_DELAY = 15000;    // playlist : temps pour lire les résultats
@@ -164,7 +163,7 @@ export function createGame(ctx) {
       teamColors: TEAM_COLORS,
       arenaR: arenaR(t),
       shrinking: g.map?.kind === "arena" && g.phase === "play" && t - g.playStart > ARENA_DELAY,
-      zone: g.zone && { island: g.zone.island, left: Math.max(0, g.zone.end - t), total: g.zone.end - g.zone.start, grace: t - g.zone.start < ZONE_GRACE },
+      zone: g.zone && { island: g.zone.island, left: Math.max(0, g.zone.end - t), total: g.zone.end - g.zone.start },
       zoneNextIn: !g.zone && g.map?.kind === "islands" && g.phase === "play" ? Math.max(0, g.zonePauseUntil - t) : null,
       // Phase "cartes" : les véhicules proposés à chacun et ceux déjà choisis.
       cards: g.phase === "pick" ? g.cards : null,
@@ -385,16 +384,13 @@ export function createGame(ctx) {
       }
       return;
     }
-    const st = standing();
+    // On n'élimine qu'à la FIN du chrono : tous ceux qui ne sont pas sur l'île explosent.
+    if (t < g.zone.end) return;
     const isl = g.map.islands[g.zone.island];
-    const outside = st.filter((id) => Math.hypot(g.cars[id].car.x - isl.x, g.cars[id].car.y - isl.y) > isl.r);
-    let boom = [];
-    if (t >= g.zone.end) boom = outside;                                         // chrono fini : tous ceux dehors
-    else if (t - g.zone.start >= ZONE_GRACE && st.length >= 2 && outside.length === 1) boom = outside;   // le dernier
-    if (!boom.length && t < g.zone.end) return;
+    const outside = standing().filter((id) => Math.hypot(g.cars[id].car.x - isl.x, g.cars[id].car.y - isl.y) > isl.r);
     g.zone = null;
     g.zonePauseUntil = t + ZONE_PAUSE;
-    for (const id of boom) if (g.phase === "play") explode(id);
+    for (const id of outside) if (g.phase === "play") explode(id);
   }
 
   // =================================================================

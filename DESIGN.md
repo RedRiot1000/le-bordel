@@ -153,9 +153,8 @@ sont 1ers ex æquo et tous les perdants sont derniers ex æquo.
   (assez larges pour 2 voitures). Tomber = éliminé.
 - **Caméra qui suit ta voiture** + **mini-carte** en coin (îles, couloirs, joueurs, zone sûre).
 - **Zone sûre** : une île est tirée **au hasard parmi toutes les îles** (même si des joueurs y sont déjà) et s'allume.
-  - **Chrono de 15 s.** Dès que **tous les survivants sauf un** sont sur l'île, **le dernier explose** tout de suite
-    (règle active seulement après 3 s de chrono, pour ne pas exploser quelqu'un sans lui laisser une chance).
-  - Si le chrono arrive à 0 : **tous ceux qui sont dehors explosent**.
+  - **Chrono de 15 s.** Quand il arrive à 0, **tous ceux qui ne sont pas sur l'île explosent** (et seulement eux).
+    (Changé le 01/11 : plus de « dernier arrivé explose », jugé nul en jeu.)
   - Pause de 5 s, puis une nouvelle île s'allume, et ainsi de suite.
 - On peut aussi pousser les autres dans le vide pendant la course (dans les couloirs, c'est le chaos 😈).
 
