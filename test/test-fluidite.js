@@ -22,7 +22,7 @@ const stats = { msgs: 0, ok: 0, diff: 0, maxErr: 0, sumErr: 0, crashes: 0 };
 
 function env() {
   const m = game.map;
-  return { w: m.w, h: m.h, grip: m.grip, oils: m.oils, obstacles: m.obstacles, nitro: game.settings.nitro };
+  return { w: m.w, h: m.h, grip: m.grip, oils: m.oils, obstacles: m.obstacles, nitro: game.settings.nitro, holderNitro: game.settings.holderNitro };
 }
 
 socket.on("game", ({ state }) => {

@@ -203,7 +203,7 @@
   // ===================================================================
   function env() {
     const m = st.map;
-    return { w: m.w, h: m.h, grip: m.grip, oils: m.oils, obstacles: m.obstacles, nitro: st.settings.nitro };
+    return { w: m.w, h: m.h, grip: m.grip, oils: m.oils, obstacles: m.obstacles, nitro: st.settings.nitro, holderNitro: st.settings.holderNitro };
   }
   const myBonus = () => (st.holderId === me() ? P.HOLDER_BONUS : 1);
 
@@ -475,6 +475,7 @@
         </div>
       </div>
       <div class="setting"><label>Nitro (Shift)</label><div class="val">${toggle("nitro", s.nitro)}</div></div>
+      <div class="setting"><label>💣 Nitro boosté pour celui qui a la bombe</label><div class="val">${toggle("holderNitro", s.holderNitro)}</div></div>
       <div class="setting"><label>Sols glissants (terre, neige)</label><div class="val">${toggle("slippery", s.slippery)}</div></div>
       <div class="setting-block">
         <label>Véhicule (le même pour tous)</label>

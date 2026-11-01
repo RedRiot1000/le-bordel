@@ -85,6 +85,8 @@
   const NITRO_REGEN = 0.12;   // jauge rechargée par seconde
   const E_WALL = 0.3;         // rebond contre les murs / obstacles
   P.HOLDER_BONUS = 1.08;      // le porteur de bombe a un moteur un poil plus fort
+  const HOLDER_NITRO_USE = 0.6;   // réglage "nitro du porteur" : sa jauge dure ~1,7× plus longtemps…
+  const HOLDER_NITRO_REGEN = 2.5; // … et se recharge 2,5× plus vite
 
   // Touches (combinées en un seul nombre).
   P.K = { UP: 1, DOWN: 2, LEFT: 4, RIGHT: 8, HB: 16, NITRO: 32 };
@@ -117,8 +119,11 @@
     c.st = steer;
 
     // Nitro : se vide quand on l'utilise, se recharge sinon.
+    // (bonus > 1 = c'est le porteur de la bombe : avec env.holderNitro, son nitro est boosté)
+    const hn = env.holderNitro && bonus > 1;
     c.boost = !!(env.nitro && (k & P.K.NITRO) && up && c.nitro > 0.02);
-    c.nitro = c.boost ? Math.max(0, c.nitro - NITRO_USE * dt) : Math.min(1, c.nitro + NITRO_REGEN * dt);
+    c.nitro = c.boost ? Math.max(0, c.nitro - NITRO_USE * (hn ? HOLDER_NITRO_USE : 1) * dt)
+                      : Math.min(1, c.nitro + NITRO_REGEN * (hn ? HOLDER_NITRO_REGEN : 1) * dt);
 
     // Moteur / freins (moins de motricité sur sol glissant).
     const tract = 0.55 + 0.45 * Math.min(1, surf);

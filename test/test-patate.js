@@ -1,6 +1,8 @@
 // Test automatique : Patate chaude (voitures) avec 1 humain + 2 bots.
 // Lance le serveur AVANT (node server.js), puis : node test/test-patate.js
 import { io } from "socket.io-client";
+import "../public/games/patate/physics.js";
+const P = globalThis.PatatePhysics;
 
 const URL = process.env.URL || "http://localhost:3000";
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -35,6 +37,20 @@ async function run() {
 
   console.log("\n— Manche 1 —");
   check(game.settings.vehicle === "vote", "Par défaut : on vote pour le véhicule");
+  check(game.settings.holderNitro === true, "Par défaut : nitro boosté pour celui qui a la bombe");
+
+  // Physique : 1 s de nitro puis 2 s de recharge, porteur de bombe vs les autres.
+  const jauge = (holderNitro, bonus) => {
+    const env = { w: P.W, h: P.H, grip: 1, oils: [], obstacles: [], nitro: true, holderNitro };
+    const c = P.newCar(200, 300, 0);
+    for (let i = 0; i < 30; i++) P.simulate(c, P.K.UP | P.K.NITRO, env, bonus);
+    const apresNitro = c.nitro;
+    for (let i = 0; i < 60; i++) P.simulate(c, 0, env, bonus);
+    return [apresNitro, c.nitro];
+  };
+  const [aN, aR] = jauge(true, 1), [bN, bR] = jauge(true, P.HOLDER_BONUS), [oN, oR] = jauge(false, P.HOLDER_BONUS);
+  check(bN > aN && bR > aR, `Porteur : jauge après 1 s de nitro ${(bN * 100).toFixed(0)} % (autres ${(aN * 100).toFixed(0)} %), après 2 s de recharge ${(bR * 100).toFixed(0)} % (autres ${(aR * 100).toFixed(0)} %)`);
+  check(oN === aN && oR === aR, "Réglage désactivé : le porteur a le même nitro que les autres");
   await act("settings", { settings: { fuse: "test", slippery: true } });
   await act("start");
   await wait(200);

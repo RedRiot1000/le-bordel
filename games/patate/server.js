@@ -38,7 +38,8 @@ const FUSES = { courte: [12, 20], normale: [18, 30], longue: [28, 42], test: [4,
 
 function defaultSettings() {
   // vehicle : "vote" (on vote entre 2 véhicules) ou "hasard" (tiré au sort) — le même pour tout le monde.
-  return { fuse: "normale", nitro: true, slippery: true, vehicle: "vote" };
+  // holderNitro : celui qui a la bombe a plus de nitro, qui se recharge plus vite (pour l'aider).
+  return { fuse: "normale", nitro: true, slippery: true, vehicle: "vote", holderNitro: true };
 }
 
 // ===================================================================
@@ -171,7 +172,7 @@ export function createGame(ctx) {
     const players = ctx.players().filter((p) => p.connected);
     g.roundNum++;
     g.map = generateMap({ W: P.W, H: P.H, players: players.length, slippery: g.settings.slippery });
-    g.env = { w: P.W, h: P.H, grip: g.map.grip, oils: g.map.oils, obstacles: g.map.obstacles, nitro: g.settings.nitro };
+    g.env = { w: P.W, h: P.H, grip: g.map.grip, oils: g.map.oils, obstacles: g.map.obstacles, nitro: g.settings.nitro, holderNitro: g.settings.holderNitro };
     g.cars = {};
     g.elimOrder = [];
     g.lastBoom = null;
