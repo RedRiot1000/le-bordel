@@ -14,6 +14,7 @@ import * as carfoot from "./carfoot/server.js";
 import * as sur10 from "./sur10/server.js";
 import * as classement from "./classement/server.js";
 import * as chat from "./chat/server.js";
+import * as police from "./police/server.js";
 
 // Les jeux jouables.
 export const GAMES = {
@@ -27,6 +28,7 @@ export const GAMES = {
   [sur10.meta.id]: sur10,
   [classement.meta.id]: classement,
   [chat.meta.id]: chat,
+  [police.meta.id]: police,
 };
 
 // Les jeux prévus (affichés grisés "bientôt" dans le menu).

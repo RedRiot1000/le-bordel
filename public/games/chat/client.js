@@ -515,6 +515,11 @@
   function drawMini(view, cam) {
     if (!mini) return;
     const c = g2d, x0 = canvas.width - mini.width - 12, y0 = 12;
+    // Ma voiture passe sous la mini-carte : elle devient transparente.
+    const mv = view.find((v) => v.id === me());
+    const sx = mv && cam ? mv.x - cam.x : -1, sy = mv && cam ? mv.y - cam.y : -1;
+    c.save();
+    if (sx > x0 - 40 && sy < y0 + mini.height + 40) c.globalAlpha = 0.25;
     c.drawImage(mini, x0, y0);
     for (const v of view) {
       c.fillStyle = v.role === "cat" ? CAT_COL : MOUSE_COL;
@@ -522,6 +527,7 @@
       if (v.id === me()) { c.strokeStyle = "#fff"; c.lineWidth = 2; c.beginPath(); c.arc(x0 + v.x * MINI, y0 + v.y * MINI, 8, 0, Math.PI * 2); c.stroke(); }
     }
     if (cam) { c.strokeStyle = "rgba(255,255,255,0.6)"; c.lineWidth = 1; c.strokeRect(x0 + cam.x * MINI, y0 + cam.y * MINI, canvas.width * MINI, canvas.height * MINI); }
+    c.restore();
   }
 
   function band(big, small, color) {

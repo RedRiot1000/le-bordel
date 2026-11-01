@@ -1,0 +1,11 @@
+/* AVIS DE RECHERCHE — styles (le reste vient de patate.css, carfoot.css et chat.css : .pt-*, .cf-clock, .ch-*) */
+#po-canvas {
+  display: block; width: 100%; height: auto; max-height: 72vh; object-fit: contain;
+  border-radius: var(--radius); border: 3px solid rgba(255, 255, 255, 0.25); box-shadow: var(--shadow);
+}
+.pt-arena-wrap.over #po-canvas { display: none; }
+.po-stars { font-size: 22px; letter-spacing: 1px; white-space: nowrap; }
+.po-stars .off { opacity: 0.18; filter: grayscale(1); }
+.ch-role.free { color: #ffcf5c; }
+.ch-role.cop { color: #7fa8ff; }
+.po-copcount { margin-left: 8px; }

@@ -52,6 +52,7 @@ const GAMES = {
   sur10: () => game.who?.length === 8,
   classement: () => game.rounds === 8,
   chat: () => game.cars?.length === 8 && game.cars.filter((c) => c.role === "cat").length === 2,
+  police: () => game.cars?.length === 8 && game.cars.every((c) => c.type === "f1"),
 };
 
 async function run() {

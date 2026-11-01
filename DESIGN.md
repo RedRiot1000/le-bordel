@@ -415,6 +415,23 @@ Un chat chasse les souris ; une souris touchée devient chat (« infection »).
 - À surveiller en jouant : en test bots contre bots, les souris tombent vite (7 à 30 s). Si c'est pareil entre humains :
   réduire encore le boost du chat ou allonger l'avance des souris.
 
+## 7 undecies. Avis de recherche 🚨 — validé (« go »)
+
+Idée de Scotty : tout le monde en **F1**, la police (IA) arrive de plus en plus nombreuse dans une ville aléatoire.
+- **Ville** (`public/games/police/city.js`, partagée serveur/navigateur, tirée d'une seed) : quadrillage de pâtés de 250 px,
+  rues de 150 px, 12 % de places (fontaine, arbres), 28 % de pâtés coupés par une ruelle de 80 px, quelques rues barrées.
+  Taille selon le nombre de joueurs (7×4 pâtés à 2 joueurs → 9×6 à 8). Caméra qui suit sa voiture + mini-carte.
+- **Police IA** : Sportives (chassent) et vans (visent devant le joueur pour couper la route). Elles suivent les rues grâce à
+  une grille de navigation (cases de 40 px, distances recalculées 3 fois/s). Apparaissent à plus de 700 px des fugitifs.
+- **Niveau de recherche** ⭐→⭐⭐⭐⭐⭐ (5 paliers sur la durée) : max 1/2/2/3/4 flics par fugitif libre, moteur ×0,92 → ×1,2
+  (toujours moins rapide qu'une F1 en ligne droite), plus de vans. **Hélico** à ⭐⭐⭐⭐ : suit un fugitif, la moitié des flics le vise.
+- **Arrestation** : vitesse < 45 px/s pendant 1 s avec ≥ 2 véhicules de police à moins de 95 px (jauge rouge visible).
+  Arrêté → **flic** (van de police), il compte pour la règle des 2.
+- **Points** : +1 par 20 s de liberté, +3 si libre à la fin, +2 par arrestation pour un joueur-flic.
+- Réglages : manches 2/3/5 (défaut 3), durée 1 min 30 / 2 min / 3 min (défaut 2 min). Playlist : 2/3 manches.
+- Bots fugitifs : choisissent un point loin des flics (par la route) et y vont ; arrêtés, ils deviennent flics IA.
+- Simulation bots contre police (2 min) : 4 joueurs → arrestations entre 30 s et 110 s, 1-2 survivants ; 8 joueurs → 2-3 survivants.
+
 ## 8. Feuille de route
 
 | Phase | Contenu | Objectif |

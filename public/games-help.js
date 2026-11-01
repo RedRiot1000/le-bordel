@@ -186,5 +186,24 @@
       ],
       example: "Tu es souris. Le chat Bob fonce sur toi : tu tournes sec derrière un bloc, il dérape tout droit. Mais Alice se fait attraper et devient chat… Maintenant ils sont deux ! Le chrono tombe à 0 et tu es encore libre : 1 souris a été attrapée, donc tu prends <b>1 + 2 = 3 points</b>.",
     },
+    police: {
+      goal: "Échapper à la police en F1 jusqu'à la fin du chrono. Si tu te fais arrêter, deviens flic et coince les autres !",
+      steps: [
+        "Tout le monde démarre en <b>F1</b>, éparpillé dans une <b>ville</b> générée au hasard (rues, ruelles, places, rues barrées). La caméra suit ta voiture, la <b>mini-carte</b> en haut à droite montre la ville, la police et les autres.",
+        "La <b>police</b> arrive au bout de 5 s : des <b>Sportives</b> qui te chassent et des <b>vans</b> qui essaient de te couper la route. Ils apparaissent toujours loin de toi.",
+        "Le <b>niveau de recherche</b> ⭐ monte pendant la manche jusqu'à ⭐⭐⭐⭐⭐ : de plus en plus de flics (jusqu'à 4 par fugitif), de plus en plus rapides.",
+        "À ⭐⭐⭐⭐, l'<b>hélico</b> 🚁 arrive : il suit un fugitif avec son projecteur, et la moitié des flics fonce sur lui.",
+        "<b>Arrestation</b> : si tu es presque à l'arrêt pendant <b>1 seconde</b> avec <b>au moins 2 véhicules de police</b> collés à toi, tu es arrêté. Un cercle rouge se remplit autour de toi : <b>bouge</b> avant qu'il soit plein !",
+        "Arrêté ? Tu deviens <b>flic</b> : tu conduis un van de police et tu aides à coincer les autres (tu comptes comme un véhicule de police).",
+        "La manche s'arrête à la fin du chrono (2 min par défaut), ou quand tout le monde est arrêté.",
+      ],
+      controls: DRIVE,
+      points: [
+        "<b>+1</b> par tranche de 20 s passées en liberté.",
+        "Encore libre à la fin : <b>+3</b> de bonus (en plus des 20 s).",
+        "Flic : <b>+2</b> par arrestation à laquelle tu participes.",
+      ],
+      example: "Tu fonces dans une grande avenue avec le nitro, deux Sportives au cul. Tu prends une ruelle étroite à droite… un van te bloque la sortie ! Tu recules, le cercle rouge commence à se remplir, tu repars en marche avant en frottant le mur : sauvé. À ⭐⭐⭐⭐⭐ Bob se fait coincer contre une rue barrée et devient flic… et c'est lui qui t'arrête à 10 s de la fin (+2 pour lui).",
+    },
   };
 })();
