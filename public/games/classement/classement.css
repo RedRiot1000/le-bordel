@@ -46,3 +46,18 @@
 .s10-rround h3 { display: flex; align-items: center; gap: 6px; }
 
 @media (max-width: 700px) { .cl-board { grid-template-columns: 1fr; } }
+
+/* Glisser-déposer */
+.cl-item, .cl-slot:not(.empty) { cursor: grab; }
+.cl-item:active, .cl-slot:not(.empty):active { cursor: grabbing; }
+.dragging { opacity: 0.35; }
+.cl-slot.over { border-color: var(--accent-3); border-style: solid; background: rgba(56, 232, 200, 0.15); transform: scale(1.02); }
+.cl-pool.over { outline: 3px dashed var(--accent-3); outline-offset: 6px; border-radius: 14px; }
+.cl-pool { min-height: 120px; }
+.cl-grip { color: var(--muted); font-size: 18px; line-height: 1; }
+.cl-slot { transition: transform 0.1s, background 0.1s, border-color 0.1s; }
+.cl-ghost {
+  position: fixed; z-index: 2000; pointer-events: none; padding: 14px 16px; border-radius: 14px;
+  background: var(--surface); border: 3px solid var(--accent-3); color: var(--text); font-size: 18px; font-weight: 800;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5); transform: rotate(-2deg) scale(1.04);
+}

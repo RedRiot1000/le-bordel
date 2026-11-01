@@ -10,7 +10,7 @@
   let rafId = null;
   let endLocal = 0, finishEndLocal = 0;
   let shownPhase = null, shownKey = null;
-  let order = [];               // mon classement en cours (indices des choses)
+  let order = [];               // mon classement en cours : 5 places (indice de la chose, ou null si vide)
   let sent = false;
 
   const $ = (id) => document.getElementById(id);
@@ -151,14 +151,14 @@
     const playing = st.who.includes(me());
     const isJudge = st.judge === me();
     if (shownKey !== key) {
-      shownKey = key; order = []; sent = false;
+      shownKey = key; order = Array(N).fill(null); sent = false;
       box.innerHTML = `
         ${topHtml("📋 " + roundLabel())}
         ${judgeHtml()}
         <div class="s10-theme"><div class="s10-theme-title">${esc(st.theme.title)}</div></div>
         ${playing ? `
           <p class="cl-ask">${isJudge ? "🤫 Classe ces 5 choses <b>selon TES goûts</b>." : `🔮 Comment <b>${esc(pseudoOf(st.judge))}</b> les a classées ?`}
-            <span class="muted">Clique dans l'ordre, du 1er au 5e.</span></p>
+            <span class="muted">Glisse les réponses sur l'échelle (ou clique-les dans l'ordre, du 1er au 5e).</span></p>
           <div class="cl-board">
             <div class="cl-pool" id="cl-pool"></div>
             <ol class="cl-ladder" id="cl-ladder"></ol>
@@ -171,7 +171,7 @@
         <div id="cl-done"></div>`;
       if (playing) {
         $("cl-send").onclick = () => {
-          if (order.length !== N) return;
+          if (order.includes(null)) return;
           api.action("rank", { list: order }).then((r) => {
             sent = !r.error;
             const msg = $("cl-msg");
@@ -185,25 +185,92 @@
   }
 
   // Les choses à classer (à gauche) et l'échelle 1 → 5 (à droite).
+  // On peut CLIQUER (la chose va à la première place libre / retourne dans la liste)
+  // ou GLISSER-DÉPOSER (sur une place, entre deux places pour échanger, ou dans la liste pour l'enlever).
   function drawBoard() {
     const t = st.theme;
     $("cl-pool").innerHTML = st.items.map((txt, i) => order.includes(i) ? ""
       : `<button class="cl-item" data-i="${i}">${esc(txt)}</button>`).join("") || '<p class="muted">Tout est classé 👍</p>';
     $("cl-ladder").innerHTML = Array.from({ length: N }, (_, k) => {
       const i = order[k];
+      const empty = i === null;
       const end = k === 0 ? `<span class="cl-end">${esc(t.top)}</span>` : k === N - 1 ? `<span class="cl-end">${esc(t.bottom)}</span>` : "";
-      return `<li class="cl-slot ${i === undefined ? "empty" : ""}" data-k="${k}"><span class="cl-pos">${k + 1}</span>
-        ${i === undefined ? '<span class="muted">…</span>' : `<span class="cl-txt">${esc(st.items[i])}</span><span class="cl-x">✕</span>`}${end}</li>`;
+      return `<li class="cl-slot ${empty ? "empty" : ""}" data-k="${k}"><span class="cl-pos">${k + 1}</span>
+        ${empty ? '<span class="muted">glisse ici…</span>' : `<span class="cl-grip">⠿</span><span class="cl-txt">${esc(st.items[i])}</span><span class="cl-x">✕</span>`}${end}</li>`;
     }).join("");
+
+    // --- Clic ---
     $("cl-pool").querySelectorAll(".cl-item").forEach((b) => {
-      b.onclick = () => { order.push(Number(b.dataset.i)); drawBoard(); };
+      b.onclick = () => { const k = order.indexOf(null); if (k >= 0) { order[k] = Number(b.dataset.i); drawBoard(); } };
     });
-    $("cl-ladder").querySelectorAll(".cl-slot:not(.empty)").forEach((s) => {
-      s.onclick = () => { order.splice(Number(s.dataset.k), 1); drawBoard(); };
+    $("cl-ladder").querySelectorAll(".cl-slot:not(.empty)").forEach((sl) => {
+      sl.onclick = () => { order[Number(sl.dataset.k)] = null; drawBoard(); };
     });
+
+    // --- Glisser-déposer (fait maison : marche à la souris comme au doigt) ---
+    $("cl-pool").querySelectorAll(".cl-item").forEach((b) => grab(b, { i: Number(b.dataset.i), k: null }));
+    $("cl-ladder").querySelectorAll(".cl-slot:not(.empty)").forEach((sl) => grab(sl, { i: order[Number(sl.dataset.k)], k: Number(sl.dataset.k) }));
+
     const btn = $("cl-send");
-    btn.disabled = order.length !== N;
+    btn.disabled = order.includes(null);
     btn.textContent = sent ? "Renvoyer" : "Valider";
+  }
+
+  // On appuie sur une chose : si on bouge de plus de 6 px, on la porte (une copie suit le pointeur).
+  // On lâche sur une place = elle y va (si la place était prise : échange, ou l'ancienne retourne dans la liste).
+  // On lâche sur la liste = elle sort du classement. Sans bouger = c'est un simple clic.
+  let drag = null;
+  function grab(el, from) {
+    el.style.touchAction = "none";
+    el.onpointerdown = (e) => {
+      if (e.button !== 0) return;
+      drag = { el, from, x0: e.clientX, y0: e.clientY, ghost: null, moved: false };
+      document.addEventListener("pointermove", onDragMove);
+      document.addEventListener("pointerup", onDragEnd, { once: true });
+    };
+  }
+  function dropTarget(x, y) {
+    const under = document.elementFromPoint(x, y);
+    return under?.closest(".cl-slot") || under?.closest("#cl-pool") || null;
+  }
+  function onDragMove(e) {
+    if (!drag) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 6) return;
+    if (!drag.moved) {
+      drag.moved = true;
+      const r = drag.el.getBoundingClientRect();
+      drag.dx = drag.x0 - r.left; drag.dy = drag.y0 - r.top;
+      drag.ghost = document.createElement("div");
+      drag.ghost.className = "cl-ghost";
+      drag.ghost.textContent = st.items[drag.from.i];
+      drag.ghost.style.width = r.width + "px";
+      document.body.appendChild(drag.ghost);
+      drag.el.classList.add("dragging");
+    }
+    drag.ghost.style.left = e.clientX - drag.dx + "px";
+    drag.ghost.style.top = e.clientY - drag.dy + "px";
+    document.querySelectorAll(".cl-board .over").forEach((el) => el.classList.remove("over"));
+    dropTarget(e.clientX, e.clientY)?.classList.add("over");
+  }
+  function onDragEnd(e) {
+    document.removeEventListener("pointermove", onDragMove);
+    const d = drag;
+    drag = null;
+    if (!d || !d.moved) return;   // pas bougé : le clic normal s'en occupe
+    d.ghost.remove();
+    // Le clic qui suit le lâcher ne doit rien faire.
+    const stop = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+    document.addEventListener("click", stop, { capture: true, once: true });
+    setTimeout(() => document.removeEventListener("click", stop, { capture: true }), 50);
+    const target = dropTarget(e.clientX, e.clientY);
+    if (target?.classList.contains("cl-slot")) {
+      const k = Number(target.dataset.k), there = order[k];
+      if (d.from.k !== null) order[d.from.k] = there;   // échange entre deux places
+      order[k] = d.from.i;
+    } else if (target?.id === "cl-pool" && d.from.k !== null) {
+      order[d.from.k] = null;
+    }
+    if ($("cl-pool")) drawBoard();
   }
 
   // ===================================================================

@@ -158,7 +158,7 @@
         "À chaque manche, un joueur est le <b>juge</b> ⚖️ (chacun son tour). Il choisit un <b>thème</b> parmi 3, comme « Un fast-food ».",
         "<b>5 choses</b> du thème s'affichent (McDo, KFC, Five Guys…).",
         "Le juge les <b>classe selon SES goûts</b>, du 1er au 5e. En même temps, les autres essaient de <b>deviner son classement</b>.",
-        "Pour classer : <b>clique les choses dans l'ordre</b>, du 1er au 5e. Tu t'es trompé ? Clique sur une case de l'échelle pour la retirer. Puis <b>Valider</b> (tu peux encore changer et renvoyer).",
+        "Pour classer : <b>glisse</b> chaque chose sur sa place (1er à 5e). Glisse une place sur une autre pour les <b>échanger</b>, ou sur la liste pour la retirer. Tu peux aussi juste cliquer les choses dans l'ordre. Puis <b>Valider</b> (tu peux encore changer et renvoyer).",
         "<b>Révélation</b> : le classement du juge à côté de celui de chaque joueur. Vert = bonne place, jaune = à une place près.",
       ],
       points: [
