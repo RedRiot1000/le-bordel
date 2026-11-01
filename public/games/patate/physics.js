@@ -14,32 +14,72 @@
 (function (root) {
   const P = {};
 
-  // --- Arène et voiture ---
+  // --- Arène ---
   P.W = 1280;                 // largeur de l'arène
   P.H = 800;                  // hauteur de l'arène
-  P.CAR_L = 44;               // longueur d'une voiture
-  P.CAR_W = 24;               // largeur d'une voiture
-  P.CR = 12;                  // la voiture = 2 ronds de ce rayon (avant + arrière)
-  P.COFF = 10;                // décalage des 2 ronds depuis le centre
-  P.MASS = 1;
-  // Résistance à la rotation (volontairement faible : les chocs font bien tourner).
-P.INERTIA = 0.55 * (P.CAR_L * P.CAR_L + P.CAR_W * P.CAR_W) / 12;
   P.TICK = 1 / 30;            // un calcul = 1/30 s...
   P.SUB = 3;                  // ...découpé en 3 petits pas (évite de traverser)
 
-  // --- Réglages de conduite (à ajuster pour le "feeling") ---
-  const ENGINE = 520;         // accélération moteur
-  const DRAG = 1.35;          // frottement de l'air -> vitesse max ≈ ENGINE / DRAG ≈ 385
-  const BRAKE = 950;          // freinage
-  const REVERSE = 320;        // marche arrière
+  // ===================================================================
+  //  LES VÉHICULES : chacun sa taille, son poids et sa conduite.
+  //  (la Sportive = la voiture d'origine, utilisée par Patate chaude)
+  //   L, W     : longueur, largeur (px)        mass   : poids (1 = sportive)
+  //   engine   : accélération                  drag   : frottement -> vitesse max ≈ engine / drag
+  //   brake    : freinage    reverse : marche arrière
+  //   steer    : braquage (rad/s)              steerLoss : braquage perdu à pleine vitesse (0 à 1)
+  //   grip     : adhérence     slideIn : glisse latérale avant de décrocher
+  //   stars    : les étoiles affichées sur les cartes (1 à 5)
+  // ===================================================================
+  P.VEHICLES = {
+    sport: {
+      name: "Sportive", emoji: "🚗", desc: "L'équilibrée : bonne en tout.",
+      L: 44, W: 24, mass: 1, engine: 520, drag: 1.35, brake: 950, reverse: 320,
+      steer: 3.3, steerLoss: 0.3, grip: 10, slideIn: 115,
+      stars: { speed: 4, accel: 4, weight: 3, handling: 4, push: 3 },
+    },
+    f1: {
+      name: "Formule 1", emoji: "🏎️", desc: "La plus rapide, colle à la route… mais légère.",
+      L: 52, W: 22, mass: 0.9, engine: 650, drag: 1.35, brake: 1150, reverse: 300,
+      steer: 3.0, steerLoss: 0.12, grip: 15, slideIn: 160,
+      stars: { speed: 5, accel: 4, weight: 2, handling: 3, push: 2 },
+    },
+    minivan: {
+      name: "Minivan", emoji: "🚐", desc: "Lourd et costaud, mais lent à tourner.",
+      L: 50, W: 28, mass: 1.7, engine: 400, drag: 1.25, brake: 800, reverse: 280,
+      steer: 2.6, steerLoss: 0.35, grip: 9, slideIn: 110,
+      stars: { speed: 3, accel: 3, weight: 4, handling: 2, push: 4 },
+    },
+    truck: {
+      name: "Camion", emoji: "🚚", desc: "Un bulldozer : lent, mais rien ne l'arrête.",
+      L: 66, W: 32, mass: 3, engine: 300, drag: 1.15, brake: 600, reverse: 220,
+      steer: 2.0, steerLoss: 0.35, grip: 8.5, slideIn: 105,
+      stars: { speed: 2, accel: 1, weight: 5, handling: 1, push: 5 },
+    },
+    moto: {
+      name: "Moto", emoji: "🏍️", desc: "Vire très court, esquive tout… mais ne pousse rien.",
+      L: 34, W: 12, mass: 0.4, engine: 700, drag: 1.65, brake: 1000, reverse: 250,
+      steer: 4.6, steerLoss: 0.25, grip: 13, slideIn: 145,
+      stars: { speed: 4, accel: 5, weight: 1, handling: 5, push: 1 },
+    },
+  };
+  P.TYPES = Object.keys(P.VEHICLES);
+  for (const v of Object.values(P.VEHICLES)) {
+    // Résistance à la rotation (volontairement faible : les chocs font bien tourner).
+    v.inertia = 0.55 * v.mass * (v.L * v.L + v.W * v.W) / 12;
+  }
+  const spec = (c) => P.VEHICLES[c.type] || P.VEHICLES.sport;
+  P.spec = spec;
+
+  // Valeurs de la Sportive (gardées pour le code qui dessine / Patate chaude).
+  P.CAR_L = P.VEHICLES.sport.L;
+  P.CAR_W = P.VEHICLES.sport.W;
+
+  // --- Réglages communs à tous les véhicules ---
   const ROLL = 110;           // ralentissement quand on lâche tout
   const HANDBRAKE = 260;      // ralentissement du frein à main
-  const STEER = 3.3;          // vitesse de braquage (radians / s)
-  const GRIP = 10;            // adhérence normale
   const GRIP_SLIDE = 2.4;     // adhérence pendant un dérapage
   const GRIP_HB = 1.1;        // adhérence au frein à main
-  const SLIDE_IN = 115;       // on part en dérapage au-delà de cette glisse latérale...
-  const SLIDE_OUT = 55;       // ...et on se rattrape en dessous de celle-ci
+  const SLIDE_OUT = 55;       // on se rattrape d'un dérapage en dessous de cette glisse
   const NITRO_MULT = 1.9;     // puissance du nitro
   const NITRO_USE = 0.45;     // jauge consommée par seconde
   const NITRO_REGEN = 0.12;   // jauge rechargée par seconde
@@ -49,8 +89,8 @@ P.INERTIA = 0.55 * (P.CAR_L * P.CAR_L + P.CAR_W * P.CAR_W) / 12;
   // Touches (combinées en un seul nombre).
   P.K = { UP: 1, DOWN: 2, LEFT: 4, RIGHT: 8, HB: 16, NITRO: 32 };
 
-  P.newCar = (x, y, a) => ({ x, y, a, vx: 0, vy: 0, w: 0, nitro: 1, slide: false, st: 0, boost: false });
-  P.copyCar = (c) => ({ x: c.x, y: c.y, a: c.a, vx: c.vx, vy: c.vy, w: c.w, nitro: c.nitro, slide: c.slide, st: c.st, boost: c.boost });
+  P.newCar = (x, y, a, type = "sport") => ({ x, y, a, vx: 0, vy: 0, w: 0, nitro: 1, slide: false, st: 0, boost: false, type });
+  P.copyCar = (c) => ({ x: c.x, y: c.y, a: c.a, vx: c.vx, vy: c.vy, w: c.w, nitro: c.nitro, slide: c.slide, st: c.st, boost: c.boost, type: c.type });
 
   // Adhérence du sol à un endroit (les flaques d'huile la divisent).
   function gripAt(env, x, y) {
@@ -66,6 +106,7 @@ P.INERTIA = 0.55 * (P.CAR_L * P.CAR_L + P.CAR_W * P.CAR_W) / 12;
   //  CONDUITE : un petit pas de temps pour une voiture (sans les chocs)
   // ===================================================================
   P.drive = function (c, k, dt, env, bonus = 1) {
+    const V = spec(c);                                // la fiche du véhicule
     const fx = Math.cos(c.a), fy = Math.sin(c.a);   // direction avant
     const rx = -fy, ry = fx;                          // direction droite
     let vF = c.vx * fx + c.vy * fy;                   // vitesse avant
@@ -82,24 +123,24 @@ P.INERTIA = 0.55 * (P.CAR_L * P.CAR_L + P.CAR_W * P.CAR_W) / 12;
     // Moteur / freins (moins de motricité sur sol glissant).
     const tract = 0.55 + 0.45 * Math.min(1, surf);
     let acc = 0;
-    if (up) acc += ENGINE * bonus * (c.boost ? NITRO_MULT : 1) * tract;
-    if (down) acc -= vF > 20 ? BRAKE * tract : REVERSE * tract;
+    if (up) acc += V.engine * bonus * (c.boost ? NITRO_MULT : 1) * tract;
+    if (down) acc -= vF > 20 ? V.brake * tract : V.reverse * tract;
     if (!up && !down) acc -= Math.sign(vF) * Math.min(Math.abs(vF) / dt, ROLL);
     if (hb) acc -= Math.sign(vF) * Math.min(Math.abs(vF) / dt, HANDBRAKE);
     vF += acc * dt;
-    vF -= vF * DRAG * dt;
+    vF -= vF * V.drag * dt;
 
     // Adhérence latérale : c'est ici que naît le dérapage.
     const absR = Math.abs(vR);
-    if (absR > SLIDE_IN) c.slide = true;
+    if (absR > V.slideIn) c.slide = true;
     else if (absR < SLIDE_OUT) c.slide = false;
-    const grip = (hb ? GRIP_HB : c.slide ? GRIP_SLIDE : GRIP) * surf;
+    const grip = (hb ? GRIP_HB : c.slide ? GRIP_SLIDE : V.grip) * surf;
     vR *= Math.exp(-grip * dt);
 
     // Direction : il faut rouler pour tourner, et on tourne moins vite à fond.
     const speed = Math.abs(vF);
-    const steerFactor = Math.min(1, speed / 110) * (1 - 0.3 * Math.min(1, speed / 650));
-    let targetW = steer * STEER * steerFactor * (vF < -5 ? -1 : 1);
+    const steerFactor = Math.min(1, speed / 110) * (1 - V.steerLoss * Math.min(1, speed / 650));
+    let targetW = steer * V.steer * steerFactor * (vF < -5 ? -1 : 1);
     // Frein à main : l'arrière pivote d'un coup.
     if (hb) targetW *= 1.8;
     // En dérapage (ou après un choc), on contrôle mal la rotation : ça part en toupie.
@@ -113,12 +154,14 @@ P.INERTIA = 0.55 * (P.CAR_L * P.CAR_L + P.CAR_W * P.CAR_W) / 12;
     c.y += c.vy * dt;
   };
 
-  // Les 2 ronds qui servent aux collisions (avant et arrière).
+  // Les 2 ronds qui servent aux chocs contre les murs (avant et arrière).
+  // Rayon = demi-largeur, placés pour couvrir toute la longueur.
   P.circles = function (c) {
+    const V = spec(c), R = V.W / 2, off = V.L / 2 - R;
     const fx = Math.cos(c.a), fy = Math.sin(c.a);
     return [
-      { x: c.x + fx * P.COFF, y: c.y + fy * P.COFF },
-      { x: c.x - fx * P.COFF, y: c.y - fy * P.COFF },
+      { x: c.x + fx * off, y: c.y + fy * off, r: R },
+      { x: c.x - fx * off, y: c.y - fy * off, r: R },
     ];
   };
 
@@ -133,18 +176,19 @@ P.INERTIA = 0.55 * (P.CAR_L * P.CAR_L + P.CAR_W * P.CAR_W) / 12;
     const vn = vpx * nx + vpy * ny;
     if (vn >= 0) return 0;                                  // on s'éloigne déjà
     const rn = rx * ny - ry * nx;
-    const j = -(1 + E_WALL) * vn / (1 / P.MASS + (rn * rn) / P.INERTIA);
-    c.vx += (j * nx) / P.MASS;
-    c.vy += (j * ny) / P.MASS;
-    c.w += (rn * j) / P.INERTIA;
+    const V = spec(c);
+    const j = -(1 + E_WALL) * vn / (1 / V.mass + (rn * rn) / V.inertia);
+    c.vx += (j * nx) / V.mass;
+    c.vy += (j * ny) / V.mass;
+    c.w += (rn * j) / V.inertia;
     if (-vn > 160) c.slide = true;                          // gros choc = on perd l'adhérence
     return -vn;
   }
 
   P.collideStatic = function (c, env) {
     let impact = 0;
-    const R = P.CR;
     for (const s of P.circles(c)) {
+      const R = s.r;
       // Murs de l'arène (pas de murs au Sumo : autour, c'est le vide !).
       if (env.walls !== false) {
         if (s.x < R) impact = Math.max(impact, hitStatic(c, s.x - R, s.y, 1, 0, R - s.x));
@@ -189,10 +233,11 @@ P.INERTIA = 0.55 * (P.CAR_L * P.CAR_L + P.CAR_W * P.CAR_W) / 12;
   const E_CAR_BOX = 0.3;      // rebond entre voitures (bas = on reste au contact pour pousser)
   const FRICTION = 0.45;      // frottement carrosserie contre carrosserie
 
-  // Les 4 coins d'une voiture.
+  // Les 4 coins d'un véhicule (selon sa taille).
   P.corners = function (c) {
+    const V = spec(c);
     const fx = Math.cos(c.a), fy = Math.sin(c.a), rx = -fy, ry = fx;
-    const hl = P.CAR_L / 2, hw = P.CAR_W / 2;
+    const hl = V.L / 2, hw = V.W / 2;
     return [
       [c.x + fx * hl + rx * hw, c.y + fy * hl + ry * hw],
       [c.x + fx * hl - rx * hw, c.y + fy * hl - ry * hw],
@@ -203,9 +248,10 @@ P.INERTIA = 0.55 * (P.CAR_L * P.CAR_L + P.CAR_W * P.CAR_W) / 12;
 
   // Le point (x, y) est-il dans la voiture c (avec une marge) ?
   function insideCar(c, x, y, margin = 0) {
+    const V = spec(c);
     const fx = Math.cos(c.a), fy = Math.sin(c.a);
     const dx = x - c.x, dy = y - c.y;
-    return Math.abs(dx * fx + dy * fy) <= P.CAR_L / 2 + margin && Math.abs(-dx * fy + dy * fx) <= P.CAR_W / 2 + margin;
+    return Math.abs(dx * fx + dy * fy) <= V.L / 2 + margin && Math.abs(-dx * fy + dy * fx) <= V.W / 2 + margin;
   }
 
   // maxPush : séparation maximale par petit pas (utilisé par la prédiction
@@ -213,7 +259,8 @@ P.INERTIA = 0.55 * (P.CAR_L * P.CAR_L + P.CAR_W * P.CAR_W) / 12;
   P.collideCars = function (A, B, bStatic = false, maxPush = Infinity) {
     const none = { touch: false, impact: 0, x: 0, y: 0 };
     // Trop loin pour se toucher : on ne calcule rien.
-    if (Math.hypot(B.x - A.x, B.y - A.y) > P.CAR_L + 6) return none;
+    const SA = spec(A), SB = spec(B);
+    if (Math.hypot(B.x - A.x, B.y - A.y) > (SA.L + SB.L) / 2 + 6) return none;
 
     // 1. Sur quel axe se chevauchent-elles le moins ?
     const ca = P.corners(A), cb = P.corners(B);
@@ -237,8 +284,9 @@ P.INERTIA = 0.55 * (P.CAR_L * P.CAR_L + P.CAR_W * P.CAR_W) / 12;
     if (n) { px /= n; py /= n; } else { px = (A.x + B.x) / 2; py = (A.y + B.y) / 2; }
 
     // 3. On les sépare complètement (plus jamais à moitié l'une dans l'autre).
-    const invMA = 1 / P.MASS, invIA = 1 / P.INERTIA;
-    const invMB = bStatic ? 0 : 1 / P.MASS, invIB = bStatic ? 0 : 1 / P.INERTIA;
+    //    Le plus léger recule plus (c'est ici que le camion "gagne").
+    const invMA = 1 / SA.mass, invIA = 1 / SA.inertia;
+    const invMB = bStatic ? 0 : 1 / SB.mass, invIB = bStatic ? 0 : 1 / SB.inertia;
     const share = invMA / (invMA + invMB);
     const push = Math.min(pen, maxPush);
     A.x -= nx * push * share; A.y -= ny * push * share;

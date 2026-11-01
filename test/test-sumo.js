@@ -43,12 +43,26 @@ async function run() {
   check(picked.ok && game?.phase === "setup", "Sumo lancé, écran de réglages");
 
   console.log("\n— Manche Arène —");
-  await act("settings", { settings: { variant: "arena", shrink: "rapide" } });
+  await act("settings", { settings: { variant: "arena", shrink: "rapide", cards: "same" } });
   await act("start");
   await wait(200);
   check(game.map.kind === "arena" && game.mode === "ffa", "Arène, chacun pour soi (3 joueurs = impair)");
   check(game.cars.every((c) => G.onGround(game.map, c.x, c.y, game.arenaR)), "Toutes les voitures démarrent sur la plateforme");
+
+  // Cartes de véhicules.
+  check(game.phase === "pick" && game.cards[me]?.length === 3, "3 cartes de véhicules proposées : " + game.cards[me]?.join(", "));
+  check(new Set(Object.values(game.cards).map((c) => c.join())).size === 1, "Les mêmes cartes pour tout le monde");
+  const bad = await act("pick", { type: "pas-un-vehicule" });
+  check(!!bad.error, "Une carte bidon est refusée");
+  const allCards = game.cards;   // (les cartes ne sont plus envoyées après la phase de choix)
+  const choice = allCards[me][1];
+  await act("pick", { type: choice });
+  check(await waitFor(() => game.phase === "countdown", 1500), "Tout le monde a choisi → compte à rebours sans attendre");
+  check(game.cars.find((c) => c.id === me).type === choice, `Je conduis le véhicule choisi (${choice})`);
+  check(game.cars.every((c) => allCards[c.id].includes(c.type)), "Les bots ont un véhicule parmi les cartes");
   await waitFor(() => game.phase === "play", 5000);
+  check(await waitFor(() => game.power, 7000), "Un power-up 🎁 apparaît sur la map");
+  check(G.onGround(game.map, game.power.x, game.power.y, game.arenaR), "Le power-up est sur le sol");
   const start = game.cars.find((c) => c.id === me);
   drive();
   await wait(700);
@@ -64,9 +78,14 @@ async function run() {
 
   console.log("\n— Manche Îles —");
   await act("setup");
-  await act("settings", { settings: { variant: "islands", zoneTime: 10 } });
+  await act("settings", { settings: { variant: "islands", zoneTime: 10, cards: "different" } });
   await act("start");
   await wait(200);
+  check(game.phase === "pick", "Phase des cartes (cette fois différentes pour chacun)");
+  // Je ne choisis pas : au bout de 10 s, une de mes cartes est prise au hasard.
+  const myCards = game.cards[me];
+  check(await waitFor(() => game.phase === "countdown", 12000), "Sans choix, la manche part au bout de 10 s");
+  check(myCards.includes(game.cars.find((c) => c.id === me).type), "J'ai reçu une de mes 3 cartes au hasard");
   check(game.map.kind === "islands" && game.map.islands.length >= 4 && game.map.corridors.length >= game.map.islands.length - 1,
     `Map d'îles : ${game.map.islands.length} îles, ${game.map.corridors.length} couloirs`);
   check(await waitFor(() => game.zone, 10000), "Une zone sûre s'allume");

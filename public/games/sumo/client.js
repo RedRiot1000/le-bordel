@@ -88,6 +88,8 @@
       <div class="pt-arena-wrap">
         <canvas id="sm-canvas" width="${VIEW_W}" height="${VIEW_H}"></canvas>
         <div id="sm-zone" class="sm-zone hidden"></div>
+        <div id="sm-power" class="sm-power hidden"></div>
+        <div id="sm-pick" class="sm-pick hidden"></div>
         <ul id="sm-feed" class="sm-feed"></ul>
         <div id="sm-overlay" class="pt-overlay hidden"></div>
       </div>
@@ -190,7 +192,7 @@
     return { ...pred, x: prevPred.x + (pred.x - prevPred.x) * f, y: prevPred.y + (pred.y - prevPred.y) * f, a: prevPred.a + angDiff(pred.a, prevPred.a) * f };
   }
   function same(a, b) {
-    return Math.abs(a.x - b.x) < 0.05 && Math.abs(a.y - b.y) < 0.05 && Math.abs(angDiff(a.a, b.a)) < 0.002 &&
+    return a.type === b.type && Math.abs(a.x - b.x) < 0.05 && Math.abs(a.y - b.y) < 0.05 && Math.abs(angDiff(a.a, b.a)) < 0.002 &&
            Math.abs(a.vx - b.vx) < 0.05 && Math.abs(a.vy - b.vy) < 0.05 && Math.abs(a.w - b.w) < 0.05;
   }
   function reconcile() {
@@ -301,6 +303,13 @@
         }
         particles.push({ x: f.x, y: f.y, vx: 0, vy: 0, life: 0.5, max: 0.5, kind: "flash" });
         shake = Math.max(shake, f.cars.includes(me()) ? 22 : 8);
+      } else if (f.kind === "swap") {
+        // Changement de véhicule : nuage de fumée colorée + éclat.
+        for (let i = 0; i < 40; i++) {
+          const a = Math.random() * Math.PI * 2, v = 30 + Math.random() * 160;
+          particles.push({ x: f.x, y: f.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.6 + Math.random() * 0.5, max: 1.1, kind: i % 2 ? "puff" : "star" });
+        }
+        particles.push({ x: f.x, y: f.y, vx: 0, vy: 0, life: 0.35, max: 0.35, kind: "flash" });
       } else {
         const n = Math.min(30, 6 + f.s / 25);
         for (let i = 0; i < n; i++) {
@@ -415,6 +424,7 @@
       <p class="settings-note">Équipes seulement avec un nombre pair de joueurs (sinon chacun pour soi).</p>
       <div class="setting-block"><label>Arène : vitesse de rétrécissement</label>${chips("shrink", [["lent", "Lente"], ["normal", "Normale"], ["rapide", "Rapide"]])}</div>
       <div class="setting-block"><label>Îles : chrono de la zone</label>${chips("zoneTime", [[10, "10 s"], [15, "15 s"], [20, "20 s"]])}</div>
+      <div class="setting-block"><label>Cartes véhicules (début de manche)</label>${chips("cards", [["same", "🃏 Les mêmes pour tous"], ["different", "🎲 Différentes pour chacun"]])}</div>
       <div class="setting"><label>Nitro (Shift)</label><div class="val">
         <label class="switch"><input type="checkbox" data-toggle="nitro" ${s.nitro ? "checked" : ""} ${host ? "" : "disabled"} /><span class="track"></span></label>
       </div></div>
@@ -447,8 +457,10 @@
   function renderHud() {
     $("sm-round").textContent = "Manche " + st.roundNum + (st.playlist ? "/" + st.playlist.rounds : "");
     const myTeam = carOf(me())?.team;
-    $("sm-variant").textContent = `${VARIANT_LABEL[st.map?.kind] || ""} · ${st.mode === "teams" ? "👥 Équipes" : "Chacun pour soi"}`;
     const mine = carOf(me());
+    const myV = mine && st.phase !== "pick" ? P.VEHICLES[mine.type] : null;
+    $("sm-variant").textContent = `${VARIANT_LABEL[st.map?.kind] || ""} · ${st.mode === "teams" ? "👥 Équipes" : "Chacun pour soi"}` +
+      (myV ? ` · ${myV.emoji} ${myV.name}` : "");
     const status = $("sm-status");
     status.className = "phase-label";
     if (st.phase === "countdown" || st.phase === "play") {
@@ -461,11 +473,76 @@
 
     $("sm-nitro").classList.toggle("hidden", !(st.settings.nitro && mine?.alive && st.phase !== "roundOver"));
 
-    // Fil d'info (éjections, chutes, explosions).
+    // Fil d'info (éjections, chutes, explosions, changements de véhicule).
     $("sm-feed").innerHTML = (st.feed || []).slice(-5).map((f) => `<li>${esc(f.text)}</li>`).join("");
 
+    // Power-up : prêt, ou dans combien de secondes.
+    const pw = $("sm-power");
+    if (st.phase === "play" && mine?.alive && !mine.falling) {
+      pw.classList.remove("hidden");
+      const sec = Math.ceil((mine.powerIn || 0) / 1000);
+      pw.className = "sm-power" + (sec ? " wait" : "");
+      pw.innerHTML = sec ? `🎁 dans <b>${sec}</b> s` : `🎁 Power-up <b>prêt</b>`;
+    } else pw.classList.add("hidden");
+
+    renderPick();
     renderZone();
     renderRoundOver();
+  }
+
+  // ===================================================================
+  //  CARTES DE VÉHICULES (10 s au début de chaque manche)
+  // ===================================================================
+  const STAT_LABELS = [["speed", "Vitesse"], ["accel", "Accélération"], ["weight", "Poids"], ["handling", "Maniabilité"], ["push", "Poussée"]];
+  let pickEndLocal = 0;
+
+  function cardHtml(type, chosen, voters) {
+    const V = P.VEHICLES[type];
+    return `
+      <button class="sm-card ${chosen ? "chosen" : ""}" data-type="${type}">
+        <canvas class="sm-card-art" width="160" height="90" data-type="${type}"></canvas>
+        <div class="sm-card-name">${V.emoji} ${V.name}</div>
+        <div class="sm-card-desc">${esc(V.desc)}</div>
+        <div class="sm-card-stats">
+          ${STAT_LABELS.map(([k, label]) => `
+            <div class="sm-stat"><span>${label}</span>
+              <span class="sm-bars">${[1, 2, 3, 4, 5].map((i) => `<i class="${i <= V.stars[k] ? "on" : ""}"></i>`).join("")}</span>
+            </div>`).join("")}
+        </div>
+        <div class="sm-card-voters">${voters}</div>
+        ${chosen ? '<div class="sm-card-ok">✅ Ton choix</div>' : ""}
+      </button>`;
+  }
+
+  function renderPick() {
+    const box = $("sm-pick");
+    const myCards = st.cards?.[me()];
+    if (st.phase !== "pick" || !st.cards) { box.classList.add("hidden"); return; }
+    pickEndLocal = Date.now() + st.phaseLeft;
+    const myPick = st.picks?.[me()];
+    // Qui a choisi quoi (avatars sous chaque carte, si les cartes sont les mêmes pour tous).
+    const votersOf = (type) => Object.entries(st.picks || {}).filter(([, t]) => t === type).map(([id]) => api.avatar(playerOf(id))).join("");
+    const waiting = st.players.filter((p) => p.connected && st.cards[p.id] && !st.picks[p.id]).map((p) => esc(p.pseudo));
+    const key = JSON.stringify([myCards, st.picks]);
+    if (box.dataset.key === key && !box.classList.contains("hidden")) return;   // rien n'a changé
+    box.dataset.key = key;
+    box.classList.remove("hidden");
+    box.innerHTML = `
+      <div class="sm-pick-inner">
+        <h2>🃏 Choisis ton véhicule <span class="sm-pick-sec" id="sm-pick-sec">${Math.ceil(st.phaseLeft / 1000)}</span></h2>
+        ${myCards ? `<div class="sm-cards">${myCards.map((t) => cardHtml(t, t === myPick, st.settings.cards === "same" ? votersOf(t) : "")).join("")}</div>`
+          : `<p class="muted">Tu regardes cette manche.</p>`}
+        <p class="muted">${waiting.length ? `En attente de : ${waiting.join(", ")}` : "Tout le monde a choisi !"} · Pas de choix = une carte au hasard.</p>
+      </div>`;
+    box.querySelectorAll(".sm-card").forEach((b) => { b.onclick = () => api.action("pick", { type: b.dataset.type }); });
+    // Petit dessin du véhicule sur chaque carte.
+    box.querySelectorAll(".sm-card-art").forEach((cv) => {
+      const c = cv.getContext("2d");
+      const V = P.VEHICLES[cv.dataset.type];
+      const scale = Math.min(2.2, 120 / V.L);
+      c.translate(80, 45); c.scale(scale, scale);
+      paintVehicle(c, cv.dataset.type, playerOf(me())?.color || "#7c5cff", null, 0, false);
+    });
   }
 
   function renderZone() {
@@ -556,6 +633,8 @@
     lastTs = ts;
     const fin = document.getElementById("sm-fin-sec");
     if (fin) fin.textContent = Math.max(0, Math.ceil((finishEndLocal - Date.now()) / 1000));
+    const ps = document.getElementById("sm-pick-sec");
+    if (ps) ps.textContent = Math.max(0, Math.ceil((pickEndLocal - Date.now()) / 1000));
     if (!st || st.phase === "setup" || !g2d || !world) return;
     driveLocal(dt);
     const decay = Math.pow(0.82, dt * 60);
@@ -613,22 +692,26 @@
     if (m.kind === "arena") drawArena(ts);
     else drawZoneIsland(ts);
     g2d.drawImage(skid, 0, 0);
+    drawPower(ts);
 
+    // Pendant le choix des cartes, les véhicules ne sont pas encore connus : on ne les dessine pas.
+    const showCars = st.phase !== "pick";
     // Voitures qui tombent (sous les autres), puis les autres.
-    for (const v of view) if (v.alive && v.falling) drawCar(v);
-    for (const v of view) if (v.alive && !v.falling) drawCar(v);
-    // Noms
-    for (const v of view) {
+    if (showCars) for (const v of view) if (v.alive && v.falling) drawCar(v);
+    if (showCars) for (const v of view) if (v.alive && !v.falling) drawCar(v);
+    // Noms (au-dessus du véhicule, plus haut pour les gros).
+    for (const v of showCars ? view : []) {
       if (!v.alive || v.falling) continue;
       const p = playerOf(v.id);
+      const up = Math.max(34, P.spec(v).L / 2 + 12);
       g2d.font = "bold 13px Segoe UI, sans-serif";
       g2d.textAlign = "center"; g2d.textBaseline = "middle";
       g2d.lineWidth = 3; g2d.strokeStyle = "rgba(0,0,0,0.75)";
-      g2d.strokeText(p?.pseudo || "?", v.x, v.y - 34);
+      g2d.strokeText(p?.pseudo || "?", v.x, v.y - up);
       g2d.fillStyle = "#fff";
-      g2d.fillText(p?.pseudo || "?", v.x, v.y - 34);
+      g2d.fillText(p?.pseudo || "?", v.x, v.y - up);
       if (v.id === me()) {
-        g2d.beginPath(); g2d.moveTo(v.x - 6, v.y - 52); g2d.lineTo(v.x + 6, v.y - 52); g2d.lineTo(v.x, v.y - 45); g2d.fill();
+        g2d.beginPath(); g2d.moveTo(v.x - 6, v.y - up - 18); g2d.lineTo(v.x + 6, v.y - up - 18); g2d.lineTo(v.x, v.y - up - 11); g2d.fill();
       }
     }
     drawParticles(dt);
@@ -646,8 +729,11 @@
       g2d.font = "bold 72px Segoe UI, sans-serif";
       g2d.fillText(left > 0 ? left : "GO !", VIEW_W / 2, VIEW_H / 2 - 14);
       g2d.font = "22px Segoe UI, sans-serif";
-      const myTeam = carOf(me())?.team;
-      g2d.fillText(`${VARIANT_LABEL[m.kind]} · ${st.mode === "teams" ? `Équipes — tu es chez les ${TEAM_LABEL[myTeam] || "?"}` : "Chacun pour soi"}`, VIEW_W / 2, VIEW_H / 2 + 46);
+      const myCar = carOf(me());
+      const myTeam = myCar?.team;
+      const myV = myCar && P.VEHICLES[myCar.type];
+      g2d.fillText(`${VARIANT_LABEL[m.kind]} · ${st.mode === "teams" ? `Équipes — tu es chez les ${TEAM_LABEL[myTeam] || "?"}` : "Chacun pour soi"}` +
+        (myV ? ` · tu conduis : ${myV.emoji} ${myV.name}` : ""), VIEW_W / 2, VIEW_H / 2 + 46);
     }
 
     if (pred) {
@@ -730,8 +816,12 @@
       g2d.font = "bold 12px Segoe UI, sans-serif"; g2d.textAlign = "center"; g2d.textBaseline = "middle";
       g2d.fillText(String.fromCharCode(65 + i), x0 + I.x * s, y0 + I.y * s);
     });
+    if (st.power && st.phase === "play") {   // le power-up sur la mini-carte
+      g2d.fillStyle = "#ffcf3a";
+      g2d.fillRect(x0 + st.power.x * s - 4, y0 + st.power.y * s - 4, 8, 8);
+    }
     for (const v of view) {
-      if (!v.alive || v.falling) continue;
+      if (!v.alive || v.falling || st.phase === "pick") continue;
       g2d.fillStyle = colorOf(v);
       g2d.beginPath(); g2d.arc(x0 + v.x * s, y0 + v.y * s, v.id === me() ? 5 : 4, 0, Math.PI * 2); g2d.fill();
       if (v.id === me()) { g2d.strokeStyle = "#fff"; g2d.lineWidth = 2; g2d.stroke(); }
@@ -744,8 +834,8 @@
 
   const colorOf = (v) => (st.mode === "teams" && v.team ? st.teamColors[v.team] : playerOf(v.id)?.color || "#888");
 
+  // Un véhicule dans l'arène (avec la chute qui le fait rétrécir en tournant).
   function drawCar(v) {
-    const L = P.CAR_L, Wd = P.CAR_W;
     const fall = v.falling ? v.fall || 0 : 0;
     g2d.save();
     g2d.translate(v.x, v.y);
@@ -753,31 +843,104 @@
     const sc = 1 - fall * 0.8;
     g2d.scale(sc, sc);
     g2d.globalAlpha = 1 - fall * 0.6;
-    if (v.boost && !v.falling) {
+    const roof = st.mode === "teams" ? playerOf(v.id)?.color || "#fff" : null;   // en équipe : couleur du joueur sur le toit
+    paintVehicle(g2d, v.type, colorOf(v), roof, v.st || 0, v.id === me(), v.boost && !v.falling, !v.falling);
+    g2d.restore();
+  }
+
+  // ===================================================================
+  //  DESSIN DES 5 VÉHICULES (vus de dessus, l'avant vers la droite)
+  //  c = où dessiner (l'arène ou une carte), color = couleur du joueur,
+  //  roof = couleur du toit en équipe, steer = volant (-1/0/1).
+  // ===================================================================
+  function paintVehicle(c, type, color, roof, steer, isMe, boost, shadow = true) {
+    const V = P.VEHICLES[type] || P.VEHICLES.sport;
+    const L = V.L, W = V.W, hl = L / 2, hw = W / 2;
+    const glass = "rgba(20,30,50,0.85)", tire = "#111", light = "#fff6b0";
+    const wheel = (x, y, w, h, turn = 0) => { c.save(); c.translate(x, y); c.rotate(turn * 0.45); c.fillStyle = tire; c.fillRect(-w / 2, -h / 2, w, h); c.restore(); };
+
+    // Flamme du nitro.
+    if (boost) {
       const len = 18 + Math.random() * 14;
-      const gr = g2d.createLinearGradient(-L / 2, 0, -L / 2 - len, 0);
+      const gr = c.createLinearGradient(-hl, 0, -hl - len, 0);
       gr.addColorStop(0, "rgba(120,200,255,0.95)"); gr.addColorStop(0.4, "rgba(255,170,40,0.9)"); gr.addColorStop(1, "rgba(255,60,20,0)");
-      g2d.fillStyle = gr;
-      g2d.beginPath(); g2d.moveTo(-L / 2 + 2, -6); g2d.lineTo(-L / 2 - len, 0); g2d.lineTo(-L / 2 + 2, 6); g2d.fill();
+      c.fillStyle = gr;
+      c.beginPath(); c.moveTo(-hl + 2, -5); c.lineTo(-hl - len, 0); c.lineTo(-hl + 2, 5); c.fill();
     }
-    if (!v.falling) { g2d.fillStyle = "rgba(0,0,0,0.35)"; rr(g2d, -L / 2 + 3, -Wd / 2 + 4, L, Wd, 7); g2d.fill(); }
-    g2d.fillStyle = "#111";
-    for (const sy of [-1, 1]) {
-      g2d.fillRect(-L / 2 + 5, sy * (Wd / 2) - 3, 11, 6);
-      g2d.save(); g2d.translate(L / 2 - 10, sy * (Wd / 2)); g2d.rotate((v.st || 0) * 0.45); g2d.fillRect(-5.5, -3, 11, 6); g2d.restore();
+    // Ombre.
+    if (shadow) { c.fillStyle = "rgba(0,0,0,0.35)"; rr(c, -hl + 3, -hw + 4, L, W, 6); c.fill(); }
+
+    if (type === "moto") {
+      // Deux roues dans l'axe, un cadre fin, le pilote au milieu.
+      wheel(hl - 7, 0, 12, 5, steer); wheel(-hl + 7, 0, 12, 5);
+      c.fillStyle = color; rr(c, -hl + 6, -4, L - 12, 8, 4); c.fill();
+      c.strokeStyle = "#222"; c.lineWidth = 2.5;
+      c.beginPath(); c.moveTo(hl - 11, -hw - 1); c.lineTo(hl - 11, hw + 1); c.stroke();      // guidon
+      c.fillStyle = "#333"; c.beginPath(); c.ellipse(-2, 0, 6, hw + 1, 0, 0, Math.PI * 2); c.fill();   // épaules
+      c.fillStyle = roof || "#f2f2f2"; c.beginPath(); c.arc(1, 0, 4.5, 0, Math.PI * 2); c.fill();     // casque
+      c.fillStyle = light; c.fillRect(hl - 3, -1.5, 3, 3);
+    } else if (type === "f1") {
+      // Grosses roues à l'air, nez pointu, ailerons, cockpit ouvert.
+      for (const s of [-1, 1]) { wheel(hl - 12, s * (hw + 1), 11, 7, steer); wheel(-hl + 9, s * (hw + 1), 13, 8); }
+      c.fillStyle = "#1b1b1b"; c.fillRect(hl - 5, -hw - 4, 5, W + 8);            // aileron avant
+      c.fillRect(-hl, -hw - 2, 6, W + 4);                                          // aileron arrière
+      c.fillStyle = color;
+      c.beginPath(); c.moveTo(hl - 2, 0); c.lineTo(hl - 18, -5); c.lineTo(-hl + 8, -hw + 2); c.lineTo(-hl + 8, hw - 2); c.lineTo(hl - 18, 5); c.closePath(); c.fill();
+      c.lineWidth = 1.5; c.strokeStyle = "rgba(0,0,0,0.45)"; c.stroke();
+      c.fillStyle = "#111"; c.beginPath(); c.ellipse(-3, 0, 7, 4.5, 0, 0, Math.PI * 2); c.fill();   // cockpit
+      c.fillStyle = roof || "#ffd23f"; c.beginPath(); c.arc(-3, 0, 3.2, 0, Math.PI * 2); c.fill();  // casque
+    } else if (type === "truck") {
+      // Cabine à l'avant, grande remorque à l'arrière.
+      const cab = 18;
+      for (const s of [-1, 1]) { wheel(hl - 9, s * hw, 11, 6, steer); wheel(-hl + 8, s * hw, 12, 6); wheel(-hl + 22, s * hw, 12, 6); }
+      c.fillStyle = "#c9ced8"; rr(c, -hl, -hw, L - cab - 2, W, 3); c.fill();      // remorque
+      c.lineWidth = 2; c.strokeStyle = "rgba(0,0,0,0.4)"; c.stroke();
+      c.fillStyle = color; c.fillRect(-hl + 2, -hw + 3, L - cab - 6, 5); c.fillRect(-hl + 2, hw - 8, L - cab - 6, 5);   // bandes
+      if (roof) { c.fillStyle = roof; c.fillRect(-hl + 10, -5, L - cab - 22, 10); }
+      c.fillStyle = color; rr(c, hl - cab, -hw + 1, cab, W - 2, 4); c.fill();      // cabine
+      c.strokeStyle = "rgba(0,0,0,0.45)"; c.stroke();
+      c.fillStyle = glass; rr(c, hl - 7, -hw + 4, 5, W - 8, 2); c.fill();
+      c.fillStyle = light; c.fillRect(hl - 2, -hw + 3, 2, 5); c.fillRect(hl - 2, hw - 8, 2, 5);
+    } else if (type === "minivan") {
+      // Grosse boîte arrondie, long pare-brise, barres de toit.
+      for (const s of [-1, 1]) { wheel(hl - 11, s * hw, 11, 6, steer); wheel(-hl + 10, s * hw, 11, 6); }
+      c.fillStyle = color; rr(c, -hl, -hw, L, W, 6); c.fill();
+      c.lineWidth = 2; c.strokeStyle = "rgba(0,0,0,0.45)"; c.stroke();
+      c.fillStyle = roof || "rgba(255,255,255,0.15)"; rr(c, -hl + 9, -hw + 5, L - 24, W - 10, 3); c.fill();   // toit
+      c.strokeStyle = "rgba(0,0,0,0.35)"; c.lineWidth = 1.5;
+      c.beginPath(); c.moveTo(-hl + 9, -hw + 4); c.lineTo(hl - 15, -hw + 4); c.moveTo(-hl + 9, hw - 4); c.lineTo(hl - 15, hw - 4); c.stroke();
+      c.fillStyle = glass; rr(c, hl - 14, -hw + 4, 9, W - 8, 2); c.fill(); rr(c, -hl + 3, -hw + 5, 4, W - 10, 2); c.fill();
+      c.fillStyle = light; c.fillRect(hl - 3, -hw + 3, 3, 5); c.fillRect(hl - 3, hw - 8, 3, 5);
+    } else {
+      // Sportive (la voiture d'origine).
+      for (const s of [-1, 1]) { wheel(-hl + 10.5, s * hw, 11, 6); wheel(hl - 10, s * hw, 11, 6, steer); }
+      c.fillStyle = color; rr(c, -hl, -hw, L, W, 7); c.fill();
+      c.lineWidth = 2; c.strokeStyle = "rgba(0,0,0,0.45)"; c.stroke();
+      c.fillStyle = roof || "rgba(255,255,255,0.18)"; c.fillRect(-8, -hw + 4, 14, W - 8);
+      c.fillStyle = glass; rr(c, hl - 18, -hw + 4, 8, W - 8, 2); c.fill(); rr(c, -hl + 6, -hw + 5, 5, W - 10, 2); c.fill();
+      c.fillStyle = light; c.fillRect(hl - 3, -hw + 3, 3, 5); c.fillRect(hl - 3, hw - 8, 3, 5);
     }
-    g2d.fillStyle = colorOf(v);
-    rr(g2d, -L / 2, -Wd / 2, L, Wd, 7); g2d.fill();
-    g2d.lineWidth = 2; g2d.strokeStyle = "rgba(0,0,0,0.45)"; g2d.stroke();
-    // En équipe : bande de la couleur du joueur sur le toit.
-    g2d.fillStyle = st.mode === "teams" ? playerOf(v.id)?.color || "#fff" : "rgba(255,255,255,0.18)";
-    g2d.fillRect(-8, -Wd / 2 + 4, 14, Wd - 8);
-    g2d.fillStyle = "rgba(20,30,50,0.8)";
-    rr(g2d, L / 2 - 18, -Wd / 2 + 4, 8, Wd - 8, 2); g2d.fill();
-    rr(g2d, -L / 2 + 6, -Wd / 2 + 5, 5, Wd - 10, 2); g2d.fill();
-    g2d.fillStyle = "#fff6b0";
-    g2d.fillRect(L / 2 - 3, -Wd / 2 + 3, 3, 5); g2d.fillRect(L / 2 - 3, Wd / 2 - 8, 3, 5);
-    if (v.id === me()) { g2d.lineWidth = 2; g2d.strokeStyle = "#fff"; rr(g2d, -L / 2 - 2, -Wd / 2 - 2, L + 4, Wd + 4, 8); g2d.stroke(); }
+    // Contour blanc autour de MA voiture.
+    if (isMe) { c.lineWidth = 2; c.strokeStyle = "#fff"; rr(c, -hl - 3, -hw - 3, L + 6, W + 6, 8); c.stroke(); }
+  }
+
+  // Le power-up 🎁 : une caisse lumineuse qui tourne et flotte.
+  function drawPower(ts) {
+    const pw = st.power;
+    if (!pw || st.phase !== "play") return;
+    const bob = Math.sin(ts / 300) * 3;
+    const glow = (Math.sin(ts / 200) + 1) / 2;
+    g2d.save();
+    g2d.translate(pw.x, pw.y + bob);
+    g2d.fillStyle = `rgba(255,210,80,${0.18 + glow * 0.2})`;
+    g2d.beginPath(); g2d.arc(0, 0, 30 + glow * 6, 0, Math.PI * 2); g2d.fill();
+    g2d.rotate(ts / 700);
+    g2d.fillStyle = "#ffcf3a"; rr(g2d, -14, -14, 28, 28, 6); g2d.fill();
+    g2d.strokeStyle = "#a86b00"; g2d.lineWidth = 3; g2d.stroke();
+    g2d.fillStyle = "#ff4d6d"; g2d.fillRect(-3, -14, 6, 28); g2d.fillRect(-14, -3, 28, 6);
+    g2d.rotate(-ts / 700);
+    g2d.fillStyle = "#fff"; g2d.font = "bold 16px Segoe UI, sans-serif"; g2d.textAlign = "center"; g2d.textBaseline = "middle";
+    g2d.fillText("?", 0, 1);
     g2d.restore();
   }
 
@@ -799,6 +962,12 @@
       } else if (p.kind === "flash") {
         g2d.fillStyle = `rgba(255,240,200,${f * 0.8})`;
         g2d.beginPath(); g2d.arc(p.x, p.y, 40 + (1 - f) * 160, 0, Math.PI * 2); g2d.fill();
+      } else if (p.kind === "puff") {
+        g2d.fillStyle = `rgba(200,180,255,${f * 0.55})`;
+        g2d.beginPath(); g2d.arc(p.x, p.y, 8 + (1 - f) * 18, 0, Math.PI * 2); g2d.fill();
+      } else if (p.kind === "star") {
+        g2d.fillStyle = `rgba(255,220,90,${f})`;
+        g2d.fillRect(p.x - 2, p.y - 2, 4, 4);
       }
     }
   }

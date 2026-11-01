@@ -38,9 +38,14 @@ const FIRST_ZONE = 3000;       // première zone 3 s après le départ
 const FINISH_DELAY = 15000;    // playlist : temps pour lire les résultats
 const TEAM_COLORS = { red: "#ff4d4d", blue: "#3d8bff" };
 const SHRINK = { lent: 90000, normal: 60000, rapide: 40000 };   // durée du rétrécissement
+const PICK_MS = 10000;         // temps pour choisir sa carte de véhicule
+const POWER_FIRST = 5000;      // premier power-up 5 s après le départ
+const POWER_RESPAWN = 10000;   // un nouveau réapparaît 10 s après avoir été pris
+const POWER_COOLDOWN = 35000;  // un joueur ne peut en reprendre un qu'après 35 s
+const POWER_REACH = 18;        // distance de ramassage (en plus de la demi-longueur du véhicule)
 
 function defaultSettings() {
-  return { variant: "random", mode: "auto", shrink: "normal", zoneTime: 15, nitro: true };
+  return { variant: "random", mode: "auto", shrink: "normal", zoneTime: 15, nitro: true, cards: "same" };
 }
 
 // ===================================================================
@@ -64,12 +69,17 @@ export const playlist = {
       key: "nitro", label: "Nitro", default: "oui",
       choices: [{ v: "oui", label: "Oui" }, { v: "non", label: "Non" }],
     },
+    {
+      key: "cards", label: "Cartes véhicules", default: "same",
+      choices: [{ v: "same", label: "Les mêmes pour tous" }, { v: "different", label: "Différentes" }],
+    },
   ],
   settingsFor(c) {
     const s = defaultSettings();
     if (c.difficulty === "facile") { s.shrink = "lent"; s.zoneTime = 20; }
     if (c.difficulty === "difficile") { s.shrink = "rapide"; s.zoneTime = 10; }
     s.nitro = c.nitro !== "non";
+    s.cards = c.cards === "different" ? "different" : "same";
     return s;
   },
 };
@@ -88,7 +98,12 @@ const shuffle = (arr) => {
 // ===================================================================
 export function createGame(ctx) {
   const g = {
-    phase: "setup",       // setup | countdown | play | roundOver
+    phase: "setup",       // setup | pick (cartes) | countdown | play | roundOver
+    cards: {},            // id -> les 3 véhicules proposés
+    picks: {},            // id -> véhicule choisi
+    power: null,          // power-up sur la map : { id, x, y }
+    powerId: 0,
+    powerNextAt: 0,
     settings: ctx.savedSettings ? { ...defaultSettings(), ...ctx.savedSettings } : defaultSettings(),
     scores: {},
     roundNum: 0,
@@ -151,8 +166,14 @@ export function createGame(ctx) {
       shrinking: g.map?.kind === "arena" && g.phase === "play" && t - g.playStart > ARENA_DELAY,
       zone: g.zone && { island: g.zone.island, left: Math.max(0, g.zone.end - t), total: g.zone.end - g.zone.start, grace: t - g.zone.start < ZONE_GRACE },
       zoneNextIn: !g.zone && g.map?.kind === "islands" && g.phase === "play" ? Math.max(0, g.zonePauseUntil - t) : null,
+      // Phase "cartes" : les véhicules proposés à chacun et ceux déjà choisis.
+      cards: g.phase === "pick" ? g.cards : null,
+      picks: g.phase === "pick" ? g.picks : null,
+      power: g.power,
+      powerCooldown: POWER_COOLDOWN,
       cars: Object.entries(g.cars).map(([id, s]) => ({
-        id, alive: s.alive, seq: s.seq, team: s.team,
+        id, alive: s.alive, seq: s.seq, team: s.team, type: s.car.type,
+        powerIn: Math.max(0, (s.powerReadyAt || 0) - t),   // ms avant de pouvoir reprendre un power-up
         falling: s.falling, fall: s.falling ? Math.min(1, (t - s.fallAt) / FALL_MS) : 0,
         x: s.car.x, y: s.car.y, a: s.car.a, vx: s.car.vx, vy: s.car.vy, w: s.car.w,
         nitro: s.car.nitro, slide: s.car.slide, st: s.car.st, boost: s.car.boost,
@@ -198,10 +219,69 @@ export function createGame(ctx) {
     g.feed = [];
     g.fx = [];
     g.zone = null;
+    g.power = null;
     g.lastRound = null;
+
+    // Les cartes : 3 véhicules au hasard (les mêmes pour tous, ou différents par joueur).
+    g.cards = {};
+    g.picks = {};
+    const draw3 = () => shuffle(P.TYPES).slice(0, 3);
+    const shared = draw3();
+    for (const p of players) {
+      g.cards[p.id] = g.settings.cards === "different" ? draw3() : shared;
+      if (p.bot) g.picks[p.id] = pick(g.cards[p.id]);   // les bots choisissent tout de suite
+    }
+    g.phase = "pick";
+    g.phaseEnd = now() + PICK_MS;
+    startLoop();
+  }
+
+  // Fin du choix des cartes : chacun reçoit son véhicule, puis compte à rebours.
+  function endPick() {
+    for (const [id, s] of Object.entries(g.cars)) {
+      const type = g.picks[id] || pick(g.cards[id] || P.TYPES);   // pas choisi : au hasard parmi ses cartes
+      g.picks[id] = type;
+      s.car.type = type;
+    }
     g.phase = "countdown";
     g.phaseEnd = now() + COUNTDOWN_MS;
-    startLoop();
+  }
+
+  // =================================================================
+  //  POWER-UP 🎁 : change de véhicule au hasard (recharge 35 s par joueur)
+  // =================================================================
+  function randomGroundPoint() {
+    if (g.map.kind === "arena") {
+      const r = arenaR() * 0.65 * Math.sqrt(Math.random()), a = Math.random() * Math.PI * 2;
+      return { x: g.map.cx + Math.cos(a) * r, y: g.map.cy + Math.sin(a) * r };
+    }
+    const I = pick(g.map.islands);
+    const r = I.r * 0.7 * Math.sqrt(Math.random()), a = Math.random() * Math.PI * 2;
+    return { x: I.x + Math.cos(a) * r, y: I.y + Math.sin(a) * r };
+  }
+
+  function powerTick(t) {
+    if (!g.power) {
+      if (t >= g.powerNextAt) g.power = { id: ++g.powerId, ...randomGroundPoint() };
+      return;
+    }
+    // L'arène a rétréci sous lui ? Il réapparaît ailleurs.
+    if (!G.onGround(g.map, g.power.x, g.power.y, arenaR(t) - 25)) { g.power = { id: ++g.powerId, ...randomGroundPoint() }; return; }
+    for (const id of standing()) {
+      const s = g.cars[id];
+      if (t < (s.powerReadyAt || 0)) continue;                           // encore en recharge
+      if (Math.hypot(s.car.x - g.power.x, s.car.y - g.power.y) > P.spec(s.car).L / 2 + POWER_REACH) continue;
+      const old = s.car.type;
+      const type = pick(P.TYPES.filter((ty) => ty !== old));             // toujours un AUTRE véhicule
+      s.car.type = type;
+      s.powerReadyAt = t + POWER_COOLDOWN;
+      addFx(s.car.x, s.car.y, 0, "swap", [id]);
+      const V = P.VEHICLES[type];
+      say(`🎁 ${pseudo(id)} devient ${V.emoji} ${V.name} !`);
+      g.power = null;
+      g.powerNextAt = t + POWER_RESPAWN;
+      return;
+    }
   }
 
   function say(text) { g.feed.push({ id: ++g.feedId, t: now(), text }); }
@@ -373,8 +453,25 @@ export function createGame(ctx) {
     return d;
   }
 
+  // Le bot va-t-il chercher le power-up ? (proche, disponible, et pas de zone à rejoindre)
+  function botWantsPower(s) {
+    const pw = g.power, c = s.car;
+    if (!pw || now() < (s.powerReadyAt || 0)) return false;
+    if (Math.hypot(pw.x - c.x, pw.y - c.y) > 380) return false;
+    if (g.map.kind === "islands") {
+      const here = G.islandAt(g.map, c.x, c.y);
+      if (here < 0 || here !== G.islandAt(g.map, pw.x, pw.y)) return false;   // seulement sur la même île
+      if (g.zone && g.zone.island !== here) return false;                       // la zone d'abord !
+    }
+    return true;
+  }
+
   function botKeys(id, s) {
     const c = s.car;
+    if (botWantsPower(s)) {
+      const safe = g.map.kind === "arena" ? { x: g.map.cx, y: g.map.cy } : g.map.islands[G.islandAt(g.map, c.x, c.y)];
+      return driveTo(s, g.power.x, g.power.y, safe, { careful: true });
+    }
     if (g.map.kind === "arena") {
       const R = arenaR();
       const center = { x: g.map.cx, y: g.map.cy };
@@ -481,13 +578,18 @@ export function createGame(ctx) {
       if (g.phase !== "play") return;
     }
     zoneTick(t);
+    if (g.phase === "play") powerTick(t);
   }
 
   function tick() {
     const t = now();
-    if (g.phase === "countdown") {
+    if (g.phase === "pick") {
+      // Fin des 10 s, ou tous les humains connectés ont choisi : on y va.
+      const humans = ctx.players().filter((p) => p.connected && !p.bot && g.cards[p.id]);
+      if (t >= g.phaseEnd || humans.every((p) => g.picks[p.id])) endPick();
+    } else if (g.phase === "countdown") {
       if (t >= g.phaseEnd) {
-        g.phase = "play"; g.playStart = t; g.zonePauseUntil = t + FIRST_ZONE;
+        g.phase = "play"; g.playStart = t; g.zonePauseUntil = t + FIRST_ZONE; g.powerNextAt = t + POWER_FIRST;
         checkEnd();   // quelqu'un est parti pendant le compte à rebours ?
         if (g.phase === "roundOver") return;
       }
@@ -510,8 +612,8 @@ export function createGame(ctx) {
   // Quelqu'un part en pleine manche : il est éliminé.
   function leave(id) {
     const s = g.cars[id];
-    if (!s?.alive || !["countdown", "play"].includes(g.phase)) return;
-    if (g.phase === "countdown") { s.alive = false; g.elimOrder.push(id); return; }
+    if (!s?.alive || !["pick", "countdown", "play"].includes(g.phase)) return;
+    if (g.phase !== "play") { s.alive = false; g.elimOrder.push(id); return; }
     eliminate(id, "left");
   }
 
@@ -526,6 +628,7 @@ export function createGame(ctx) {
       if (!["auto", "ffa", "teams"].includes(s.mode)) s.mode = "auto";
       if (!SHRINK[s.shrink]) s.shrink = "normal";
       if (![10, 15, 20].includes(s.zoneTime)) s.zoneTime = 15;
+      if (!["same", "different"].includes(s.cards)) s.cards = "same";
       s.nitro = !!s.nitro;
       g.settings = s;
       ctx.saveSettings({ ...g.settings });
@@ -537,6 +640,13 @@ export function createGame(ctx) {
       const n = ctx.players().filter((p) => p.connected).length;
       if (n < meta.minPlayers) return { error: `Il faut au moins ${meta.minPlayers} joueurs connectés.` };
       startRound();
+      ctx.update();
+    },
+
+    // Choix d'une carte de véhicule (pendant les 10 s du début).
+    pick(pid, { type }) {
+      if (g.phase !== "pick" || !g.cards[pid]?.includes(type)) return { error: "Carte invalide." };
+      g.picks[pid] = type;
       ctx.update();
     },
 

@@ -177,8 +177,44 @@ sont 1ers ex æquo et tous les perdants sont derniers ex æquo.
 - Arène : ils foncent sur le plus proche en évitant le bord, et fuient quand ils sont près du vide.
 - Îles : ils calculent le chemin d'île en île par les couloirs pour rejoindre la zone sûre, et poussent en passant.
 
+### Véhicules (v2 — validé, codé)
+5 véhicules, chacun avec sa **taille réelle** (ça change les chocs) et sa conduite.
+La **poussée** vient du poids et du moteur : un camion lourd déplace tout, une moto légère rebondit sur tout le monde.
+
+| Véhicule | Vitesse | Accélération | Poids | Maniabilité | Poussée | Taille | En bref |
+|---|---|---|---|---|---|---|---|
+| 🏎️ Formule 1 | ★★★★★ | ★★★★☆ | ★★☆☆☆ | ★★★☆☆ | ★★☆☆☆ | longue et basse | La plus rapide, colle à la route, mais se fait sortir si on la tape |
+| 🚗 Sportive | ★★★★☆ | ★★★★☆ | ★★★☆☆ | ★★★★☆ | ★★★☆☆ | normale (actuelle) | L'équilibrée, la voiture d'aujourd'hui |
+| 🚐 Minivan | ★★★☆☆ | ★★★☆☆ | ★★★★☆ | ★★☆☆☆ | ★★★★☆ | large | Lourde et costaude, lente à tourner |
+| 🚚 Camion | ★★☆☆☆ | ★☆☆☆☆ | ★★★★★ | ★☆☆☆☆ | ★★★★★ | très grand | Un bulldozer : lent mais rien ne l'arrête |
+| 🏍️ Moto | ★★★★☆ | ★★★★★ | ★☆☆☆☆ | ★★★★★ | ★☆☆☆☆ | toute fine | Vire très court, esquive tout… mais ne pousse presque rien |
+
+Réglages physiques de départ (à ajuster en jouant) : la Sportive garde ceux d'aujourd'hui ;
+Camion ≈ 3× plus lourd, vitesse max ≈ 260 ; Minivan ≈ 1,7× ; F1 vitesse max ≈ 480 et très grosse adhérence ;
+Moto ≈ 0,4× le poids, braquage ≈ 1,4× plus serré.
+
+### Cartes de véhicules (début de chaque manche)
+- **10 s** : 3 cartes tirées au hasard s'affichent chez tout le monde, avec les **étoiles des stats** et la silhouette.
+  Chacun clique sur sa carte. Pas de choix au bout de 10 s → une des 3 au hasard. Ensuite le compte à rebours 3-2-1.
+- Réglage de l'hôte : **les mêmes 3 cartes pour tout le monde** (défaut) ou **3 cartes différentes par joueur**.
+- Les bots choisissent au hasard parmi leurs cartes.
+
+### Power-up 🎁 « Changement de véhicule »
+- **Un seul à la fois** sur la map, à un endroit au hasard (sur le sol). Premier 5 s après le départ ;
+  quand quelqu'un le prend, un nouveau réapparaît ailleurs **~10 s** plus tard.
+- Le prendre = tu changes **au hasard pour un autre véhicule** (jamais le même), tu ne choisis pas. Petite explosion de fumée.
+- **Recharge de 35 s par joueur** : pendant ce temps tu passes dessus sans le prendre (il reste là pour les autres).
+  Ton écran affiche « 🎁 dans 23 s ».
+- Si l'arène rétrécit sous lui, il réapparaît ailleurs.
+- Les bots vont le chercher s'il est proche et qu'ils peuvent le prendre.
+
+### Playlist
+Option votable en plus : **Cartes véhicules** — « les mêmes pour tous » / « différentes ».
+
 ### Technique (pour moi)
 - Réutilise `physics.js` (même conduite) + un test « est-ce qu'il y a du sol sous la voiture ? ».
+- v2 : chaque voiture porte son type ; la physique lit taille, poids, moteur, braquage, adhérence de ce type
+  (côté serveur ET navigateur, pour garder la prédiction exacte). Patate chaude garde la Sportive.
 - Chocs un peu plus « costauds » qu'à Patate si besoin, pour que pousser soit satisfaisant (à régler en jouant).
 - Caméra + mini-carte côté navigateur ; prédiction de sa voiture comme Patate (zéro retard).
 
