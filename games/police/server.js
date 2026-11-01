@@ -34,7 +34,18 @@ const END_DELAY = 1500;            // on voit la dernière arrestation avant les
 const ROUND_OVER_MS = 7000;        // playlist : manche suivante toute seule
 const FINISH_DELAY = 15000;
 const SPAWN_MIN_DIST = 700;        // un flic n'apparaît jamais sous le nez d'un joueur
-export const MAX_COPS = [1, 2, 2, 3, 4];   // flics par joueur libre, selon les étoiles
+export const MAX_COPS = [2, 3, 4, 5, 6];   // flics par joueur libre, selon les étoiles
+export const MAX_TOTAL = 40;              // et jamais plus de 40 en tout (pour que ça reste fluide)
+// Les véhicules de police selon les étoiles (chances sur 100).
+//   sport = chasse · moto = rapide et agile mais ne bloque rien · minivan = coupe la route
+//   supercar = très rapide (⭐⭐⭐) · truck = bulldozer qui bloque tout (⭐⭐⭐)
+export const COP_MIX = [
+  { sport: 60, moto: 40 },
+  { sport: 45, moto: 25, minivan: 30 },
+  { sport: 30, moto: 20, minivan: 20, supercar: 15, truck: 15 },
+  { sport: 25, moto: 15, minivan: 20, supercar: 20, truck: 20 },
+  { sport: 20, moto: 15, minivan: 20, supercar: 25, truck: 20 },
+];
 export const COP_POWER = (stars) => 0.85 + 0.07 * stars;   // moteur des flics (⭐ 0,92 → ⭐⭐⭐⭐⭐ 1,2)
 const HELI_STARS = 4;
 export const SURVIVE_BONUS = 3, PER_20S = 1, COP_ARREST = 2;
@@ -270,10 +281,11 @@ export function createGame(ctx) {
     if (t < g.playAt + COPS_DELAY) return;
     // Apparitions : une toutes les quelques secondes, jusqu'au maximum.
     const free = freeIds();
-    const max = MAX_COPS[g.stars - 1] * free.length;
+    const max = Math.min(MAX_TOTAL, MAX_COPS[g.stars - 1] * free.length);
     if (free.length && g.cops.length < max && t >= g.nextSpawnAt) {
       spawnCop(free);
-      g.nextSpawnAt = t + (3600 - g.stars * 500) * rand(0.7, 1.2);
+      // Plus il y a de fugitifs, plus ça arrive vite.
+      g.nextSpawnAt = t + Math.max(350, ((3000 - g.stars * 400) / Math.max(1, free.length / 2)) * rand(0.7, 1.2));
     }
     // L'hélico : à partir de ⭐⭐⭐⭐, il suit un joueur libre.
     if (g.stars >= HELI_STARS && free.length) {
@@ -301,8 +313,10 @@ export function createGame(ctx) {
       spot = c;
     }
     if (!spot) return;
-    const van = Math.random() < (g.stars >= 4 ? 0.4 : g.stars >= 2 ? 0.3 : 0.15);
-    const car = P.newCar(spot.x, spot.y, roadAngle(spot), van ? "minivan" : "sport");
+    const mix = COP_MIX[g.stars - 1];
+    let r = Math.random() * 100, type = "sport";
+    for (const [ty, w] of Object.entries(mix)) { if ((r -= w) < 0) { type = ty; break; } }
+    const car = P.newCar(spot.x, spot.y, roadAngle(spot), type);
     g.cops.push({ id: "cop" + ++g.copId, car, ai: {} });
   }
 
@@ -364,13 +378,15 @@ export function createGame(ctx) {
     if (!ai.target || !g.fields[ai.target]) return steerTo(c, ai, null);
     const t = g.cars[ai.target].car;
     const d = dist(c, t);
-    // Les vans visent devant le joueur (pour lui couper la route), les sportives le percutent.
-    const lead = c.type === "minivan" ? 0.8 : 0.35;
+    // Vans et camions visent devant le joueur (pour lui couper la route), les autres le percutent.
+    const lead = c.type === "minivan" || c.type === "truck" ? 0.8 : 0.35;
     let target;
     if (d < 230) target = { x: t.x + t.vx * lead * (d / 230), y: t.y + t.vy * lead * (d / 230) };
     else target = C.lookAhead(nav, g.fields[ai.target], c.x, c.y, 3);
-    return steerTo(c, ai, target, { corner: 210, nitro: false });
+    return steerTo(c, ai, target, { corner: CORNER[c.type] || 210, nitro: false });
   }
+  // Vitesse max dans un virage serré, selon le véhicule.
+  const CORNER = { moto: 270, supercar: 240, sport: 210, minivan: 190, truck: 160 };
 
   // Un bot fugitif : il choisit un point loin des flics et y va par les rues.
   function fleeKeys(id, s) {

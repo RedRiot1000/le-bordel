@@ -61,8 +61,15 @@
       steer: 4.6, steerLoss: 0.25, grip: 13, slideIn: 145,
       stars: { speed: 4, accel: 5, weight: 1, handling: 5, push: 1 },
     },
+    // Réservée à la police d'Avis de recherche (pas proposée dans la Patate ni au Sumo).
+    supercar: {
+      name: "Supercar", emoji: "🏎️", desc: "Plus rapide qu'une Sportive, colle à la route.", special: true,
+      L: 48, W: 24, mass: 1.1, engine: 590, drag: 1.35, brake: 1100, reverse: 300,
+      steer: 3.2, steerLoss: 0.2, grip: 13, slideIn: 140,
+      stars: { speed: 5, accel: 5, weight: 3, handling: 4, push: 3 },
+    },
   };
-  P.TYPES = Object.keys(P.VEHICLES);
+  P.TYPES = Object.keys(P.VEHICLES).filter((t) => !P.VEHICLES[t].special);
   for (const v of Object.values(P.VEHICLES)) {
     // Résistance à la rotation (volontairement faible : les chocs font bien tourner).
     v.inertia = 0.55 * v.mass * (v.L * v.L + v.W * v.W) / 12;

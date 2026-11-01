@@ -190,8 +190,8 @@
       goal: "Échapper à la police en F1 jusqu'à la fin du chrono. Si tu te fais arrêter, deviens flic et coince les autres !",
       steps: [
         "Tout le monde démarre en <b>F1</b>, éparpillé dans une <b>ville</b> générée au hasard (rues, ruelles, places, rues barrées). La caméra suit ta voiture, la <b>mini-carte</b> en haut à droite montre la ville, la police et les autres.",
-        "La <b>police</b> arrive au bout de 5 s : des <b>Sportives</b> qui te chassent et des <b>vans</b> qui essaient de te couper la route. Ils apparaissent toujours loin de toi.",
-        "Le <b>niveau de recherche</b> ⭐ monte pendant la manche jusqu'à ⭐⭐⭐⭐⭐ : de plus en plus de flics (jusqu'à 4 par fugitif), de plus en plus rapides.",
+        "La <b>police</b> arrive au bout de 5 s, toujours loin de toi : des <b>Sportives</b> et des <b>motos</b> qui te chassent, des <b>vans</b> qui essaient de te couper la route.",
+        "Le <b>niveau de recherche</b> ⭐ monte pendant la manche jusqu'à ⭐⭐⭐⭐⭐ : de plus en plus de flics (jusqu'à 6 par fugitif), de plus en plus rapides. À ⭐⭐⭐ arrivent les <b>supercars</b> (presque aussi rapides que ta F1) et les <b>camions</b> qui bloquent tout.",
         "À ⭐⭐⭐⭐, l'<b>hélico</b> 🚁 arrive : il suit un fugitif avec son projecteur, et la moitié des flics fonce sur lui.",
         "<b>Arrestation</b> : si tu es presque à l'arrêt pendant <b>1 seconde</b> avec <b>au moins 2 véhicules de police</b> collés à toi, tu es arrêté. Un cercle rouge se remplit autour de toi : <b>bouge</b> avant qu'il soit plein !",
         "Arrêté ? Tu deviens <b>flic</b> : tu conduis un van de police et tu aides à coincer les autres (tu comptes comme un véhicule de police).",

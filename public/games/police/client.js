@@ -55,7 +55,7 @@
         <div class="card">
           <h2>🎮 Règles & commandes</h2>
           <ul class="pt-help">
-            <li>🏎️ Vous êtes en <b>F1</b> dans une ville. La police arrive après 5 s, de plus en plus nombreuse (⭐ → ⭐⭐⭐⭐⭐).</li>
+            <li>🏎️ Vous êtes en <b>F1</b> dans une ville. La police arrive après 5 s, de plus en plus nombreuse (⭐ → ⭐⭐⭐⭐⭐) : sportives, motos, vans, puis supercars et camions.</li>
             <li>🚔 Presque à l'arrêt pendant <b>1 s</b> avec <b>2 véhicules de police</b> autour = <b>ARRÊTÉ</b>. Tu deviens flic (un van) et tu aides à coincer les autres !</li>
             <li>🚁 À ⭐⭐⭐⭐, l'hélico suit un fugitif : la moitié des flics fonce sur lui.</li>
             <li><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> / flèches · <kbd>Espace</kbd> frein à main · <kbd>Shift</kbd> nitro</li>
@@ -287,7 +287,7 @@
     $("po-start").style.display = host ? "" : "none";
     $("po-start").disabled = n < 2;
     $("po-finish-setup").classList.toggle("hidden", !host);
-    $("po-hint").textContent = !host ? "En attente que l'hôte lance la cavale…" : n < 2 ? "Il faut au moins 2 joueurs." : `${n} fugitifs · jusqu'à ${4 * n} voitures de police`;
+    $("po-hint").textContent = !host ? "En attente que l'hôte lance la cavale…" : n < 2 ? "Il faut au moins 2 joueurs." : `${n} fugitifs · jusqu'à ${Math.min(40, 6 * n)} véhicules de police`;
   }
 
   // ===================================================================

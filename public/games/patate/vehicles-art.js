@@ -67,6 +67,18 @@
       c.beginPath(); c.moveTo(-hl + 9, -hw + 4); c.lineTo(hl - 15, -hw + 4); c.moveTo(-hl + 9, hw - 4); c.lineTo(hl - 15, hw - 4); c.stroke();
       c.fillStyle = glass; rr(c, hl - 14, -hw + 4, 9, W - 8, 2); c.fill(); rr(c, -hl + 3, -hw + 5, 4, W - 10, 2); c.fill();
       c.fillStyle = light; c.fillRect(hl - 3, -hw + 3, 3, 5); c.fillRect(hl - 3, hw - 8, 3, 5);
+    } else if (type === "supercar") {
+      // Basse et pointue, grosses entrées d'air, aileron arrière.
+      for (const s of [-1, 1]) { wheel(-hl + 11, s * hw, 12, 7); wheel(hl - 11, s * hw, 11, 6, steer); }
+      c.fillStyle = color;
+      c.beginPath(); c.moveTo(hl, -hw + 6); c.lineTo(hl - 10, -hw); c.lineTo(-hl + 4, -hw); c.lineTo(-hl, -hw + 4);
+      c.lineTo(-hl, hw - 4); c.lineTo(-hl + 4, hw); c.lineTo(hl - 10, hw); c.lineTo(hl, hw - 6); c.closePath(); c.fill();
+      c.lineWidth = 2; c.strokeStyle = "rgba(0,0,0,0.5)"; c.stroke();
+      c.fillStyle = "rgba(0,0,0,0.45)"; c.fillRect(-6, -hw + 1, 12, 4); c.fillRect(-6, hw - 5, 12, 4);   // entrées d'air
+      c.fillStyle = glass; c.beginPath(); c.moveTo(hl - 12, -hw + 5); c.lineTo(hl - 20, 0); c.lineTo(hl - 12, hw - 5); c.lineTo(-4, hw - 5); c.lineTo(-4, -hw + 5); c.closePath(); c.fill();
+      c.fillStyle = roof || "rgba(255,255,255,0.15)"; c.fillRect(-12, -hw + 6, 8, W - 12);
+      c.fillStyle = "#151515"; c.fillRect(-hl - 1, -hw - 1, 5, W + 2);                                   // aileron
+      c.fillStyle = light; c.fillRect(hl - 3, -hw + 5, 3, 4); c.fillRect(hl - 3, hw - 9, 3, 4);
     } else {
       // Sportive (la voiture d'origine).
       for (const s of [-1, 1]) { wheel(-hl + 10.5, s * hw, 11, 6); wheel(hl - 10, s * hw, 11, 6, steer); }

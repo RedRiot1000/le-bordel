@@ -423,8 +423,9 @@ Idée de Scotty : tout le monde en **F1**, la police (IA) arrive de plus en plus
   Taille selon le nombre de joueurs (7×4 pâtés à 2 joueurs → 9×6 à 8). Caméra qui suit sa voiture + mini-carte.
 - **Police IA** : Sportives (chassent) et vans (visent devant le joueur pour couper la route). Elles suivent les rues grâce à
   une grille de navigation (cases de 40 px, distances recalculées 3 fois/s). Apparaissent à plus de 700 px des fugitifs.
-- **Niveau de recherche** ⭐→⭐⭐⭐⭐⭐ (5 paliers sur la durée) : max 1/2/2/3/4 flics par fugitif libre, moteur ×0,92 → ×1,2
-  (toujours moins rapide qu'une F1 en ligne droite), plus de vans. **Hélico** à ⭐⭐⭐⭐ : suit un fugitif, la moitié des flics le vise.
+- **Niveau de recherche** ⭐→⭐⭐⭐⭐⭐ (5 paliers sur la durée) : max 2/3/4/5/6 flics par fugitif libre (40 en tout au maximum),
+  moteur ×0,92 → ×1,2. Véhicules (demande de Scotty) : Sportive + moto dès ⭐, van à ⭐⭐, **Supercar** (nouveau véhicule réservé à la
+  police, presque aussi rapide qu'une F1) et **camion** à ⭐⭐⭐ (tableau COP_MIX dans le serveur). **Hélico** à ⭐⭐⭐⭐ : suit un fugitif, la moitié des flics le vise.
 - **Arrestation** : vitesse < 45 px/s pendant 1 s avec ≥ 2 véhicules de police à moins de 95 px (jauge rouge visible).
   Arrêté → **flic** (van de police), il compte pour la règle des 2.
 - **Points** : +1 par 20 s de liberté, +3 si libre à la fin, +2 par arrestation pour un joueur-flic.
