@@ -33,5 +33,6 @@ export const GAMES = {
 
 // Les jeux prévus (affichés grisés "bientôt" dans le menu).
 export const UPCOMING = [
-  { name: "Le plus proche", emoji: "🎯", family: "Quiz" },
+  { name: "2 vérités, 1 mensonge", emoji: "🤥", family: "Ambiance" },
+  { name: "Pense pareil", emoji: "🧠", family: "Ambiance" },
 ];
