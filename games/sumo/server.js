@@ -30,6 +30,7 @@ const TICK_MS = 1000 / 30;
 const COUNTDOWN_MS = 3000;
 const FALL_MS = 1000;          // durée de la chute avant d'être éliminé
 const EJECT_WINDOW = 3000;     // dernier contact compté comme une éjection (ms)
+const END_DELAY = 1500;        // on regarde encore la fin (la chute, le gagnant) avant le tableau des scores
 const ARENA_DELAY = 10000;     // l'arène commence à rétrécir après 10 s
 const ARENA_MIN_R = 40;        // ...jusqu'à presque rien (la manche finit forcément)
 const ZONE_PAUSE = 5000;       // pause entre deux zones sûres
@@ -215,6 +216,7 @@ export function createGame(ctx) {
       g.scores[p.id] = g.scores[p.id] || 0;
     });
     g.elimOrder = [];
+    g.endAt = 0;
     g.feed = [];
     g.fx = [];
     g.zone = null;
@@ -328,7 +330,7 @@ export function createGame(ctx) {
     if (g.phase !== "play") return;
     const alive = Object.keys(g.cars).filter((id) => g.cars[id].alive);
     const sides = new Set(alive.map((id) => (g.mode === "teams" ? g.cars[id].team : id)));
-    if (sides.size <= 1) endRound();
+    if (sides.size <= 1 && !g.endAt) g.endAt = now() + END_DELAY;
   }
 
   // Points de la manche.
@@ -592,6 +594,7 @@ export function createGame(ctx) {
     } else if (g.phase === "play") {
       step();
       if (g.phase === "roundOver") return;   // endRound a déjà tout envoyé
+      if (g.endAt && t >= g.endAt) return endRound();
     }
     ctx.update();
   }

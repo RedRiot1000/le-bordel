@@ -27,10 +27,15 @@ const COUNTDOWN_MS = 3000;     // compte à rebours (tout le monde figé)
 export const HEAD_START = 2000; // les souris partent 2 s avant le chat
 const NEW_CAT_MS = 1500;       // une souris qui vient de devenir chat ne peut pas attraper tout de suite
 export const CAT_BONUS = 1.1;  // moteur du chat (+10 %) et nitro boosté
+const END_DELAY = 1500;        // on voit la dernière souris se transformer avant le tableau des scores
 const ROUND_OVER_MS = 6000;    // écran de fin de manche (playlist : enchaîne tout seul)
 const FINISH_DELAY = 15000;
 
 export const ROLES = { cat: { type: "sport" }, mouse: { type: "moto" } };
+
+// La map : 2 fois plus large et plus haute que celle de la Patate (caméra qui suit sa voiture).
+export const W = P.W * 2, H = P.H * 2;
+export const ASPHALT_CHANCE = 0.75;   // 75 % d'asphalte, sinon terre ou neige
 
 function defaultSettings() {
   return { rounds: 5, duration: 90 };
@@ -69,7 +74,8 @@ export function createGame(ctx) {
     gains: {},            // points de la manche
     starters: [],         // les chats du début de manche
     playAt: 0,            // début de la chasse
-    endAt: 0,
+    endAt: 0,             // fin de manche décidée : on laisse tourner jusqu'à ce moment
+    timeUpAt: 0,          // fin du chrono
     phaseEnd: 0,
     lastRound: null,
     loop: null,
@@ -97,7 +103,7 @@ export function createGame(ctx) {
       players: players().map((p) => ({ ...p, score: g.scores[p.id] || 0 })),
       map: g.map && {
         id: g.map.id, surface: g.map.surface, grip: g.map.grip, seed: g.map.seed,
-        obstacles: g.map.obstacles, oils: g.map.oils, w: P.W, h: P.H,
+        obstacles: g.map.obstacles, oils: g.map.oils, w: W, h: H,
       },
       cars: Object.entries(g.cars).map(([id, s]) => ({
         id, role: s.role, seq: s.seq, type: s.car.type, fresh: s.role === "cat" && t - s.catSince < NEW_CAT_MS,
@@ -109,7 +115,7 @@ export function createGame(ctx) {
       phaseLeft: Math.max(0, g.phaseEnd - t),
       // Avant la chasse : temps avant que le chat parte. Pendant : temps restant.
       catWait: g.phase === "play" ? Math.max(0, g.playAt + HEAD_START - t) : HEAD_START,
-      timeLeft: g.phase === "play" ? Math.max(0, g.endAt - t) : g.settings.duration * 1000,
+      timeLeft: g.phase === "play" ? Math.max(0, g.timeUpAt - t) : g.settings.duration * 1000,
       lastRound: g.lastRound,
       fx: g.fx.filter((f) => t - f.t < 600),
       playlist: ctx.playlist && { final: g.final },
@@ -131,8 +137,8 @@ export function createGame(ctx) {
   function startRound() {
     const list = players().filter((p) => p.connected);
     g.round++;
-    g.map = generateMap({ W: P.W, H: P.H, players: list.length, slippery: true });
-    g.env = { w: P.W, h: P.H, grip: g.map.grip, oils: g.map.oils, obstacles: g.map.obstacles, nitro: true, holderNitro: true };
+    g.map = generateMap({ W, H, players: list.length, slippery: true, size: 4, asphaltChance: ASPHALT_CHANCE });
+    g.env = { w: W, h: H, grip: g.map.grip, oils: g.map.oils, obstacles: g.map.obstacles, nitro: true, holderNitro: true };
     // Les chats : ceux qui l'ont été le moins souvent (au hasard entre eux). 2 chats à partir de 5 joueurs.
     const nCats = list.length >= 5 ? 2 : 1;
     const order = [...list].sort((a, b) => (g.catCount[a.id] || 0) - (g.catCount[b.id] || 0) + (Math.random() - 0.5) * 0.5);
@@ -147,6 +153,7 @@ export function createGame(ctx) {
     });
     g.caught = [];
     g.gains = {};
+    g.endAt = 0;
     g.fx = [];
     g.lastRound = null;
     g.phase = "countdown";
@@ -166,7 +173,7 @@ export function createGame(ctx) {
     m.role = "cat";
     m.catSince = t;
     addFx(c.x, c.y, 400, true);
-    if (mice().length === 0) endRound();
+    if (mice().length === 0) g.endAt = t + END_DELAY;
   }
 
   function endRound() {
@@ -216,10 +223,9 @@ export function createGame(ctx) {
         const o = g.cars[oid];
         const res = P.collideCars(s.car, o.car);
         if (res.impact > 120) addFx(res.x, res.y, res.impact);
-        if (!res.touch || g.phase !== "play") continue;
+        if (!res.touch || g.phase !== "play" || g.endAt) continue;
         if (s.role === "mouse" && catReady(o, t)) catchMouse(id, oid);
         else if (o.role === "mouse" && catReady(s, t)) catchMouse(oid, id);
-        if (g.phase !== "play") return;
       }
     }
   }
@@ -263,7 +269,7 @@ export function createGame(ctx) {
         if (!ai.target || ai.flee <= 0 || near < 170 || Math.hypot(ai.target.x - c.x, ai.target.y - c.y) < 60) {
           let best = null, bestScore = -Infinity;
           for (let i = 0; i < 14; i++) {
-            const p = { x: rand(90, P.W - 90), y: rand(90, P.H - 90) };
+            const p = { x: rand(90, W - 90), y: rand(90, H - 90) };
             if (g.map.obstacles.some((o) => p.x > o.x - 40 && p.x < o.x + o.w + 40 && p.y > o.y - 40 && p.y < o.y + o.h + 40)) continue;
             let danger = Infinity;
             for (const h of hunters) danger = Math.min(danger, Math.hypot(p.x - h.x, p.y - h.y));
@@ -299,7 +305,7 @@ export function createGame(ctx) {
       if (t >= g.phaseEnd) {
         g.phase = "play";
         g.playAt = t;
-        g.endAt = t + HEAD_START + g.settings.duration * 1000;
+        g.timeUpAt = t + HEAD_START + g.settings.duration * 1000;
       }
     } else if (g.phase === "play") {
       for (const [id, s] of Object.entries(g.cars)) {
@@ -307,7 +313,9 @@ export function createGame(ctx) {
         else if (t - s.lastInputAt > 200) advanceCar(id, 0);   // onglet en pause : roue libre
         if (g.phase !== "play") return;
       }
-      if (t >= g.endAt) return endRound();
+      // Fin du chrono : les souris encore libres ont gagné (on regarde encore 1,5 s).
+      if (!g.endAt && t >= g.timeUpAt) g.endAt = t + END_DELAY;
+      if (g.endAt && t >= g.endAt) return endRound();
     }
     ctx.update();
   }

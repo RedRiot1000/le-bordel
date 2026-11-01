@@ -37,16 +37,18 @@ export function spawnPoints(n, W, H) {
   });
 }
 
-export function generateMap({ W, H, players, slippery }) {
-  const surface = slippery ? pick(["asphalte", "asphalte", "terre", "neige"]) : "asphalte";
+// size = combien de fois plus de surface que la map de base (plus d'obstacles et d'huile).
+// asphaltChance = chance d'avoir de l'asphalte quand les sols glissants sont permis.
+export function generateMap({ W, H, players, slippery, size = 1, asphaltChance = 0.5 }) {
+  const surface = !slippery || Math.random() < asphaltChance ? "asphalte" : pick(["terre", "neige"]);
   const spawns = spawnPoints(players, W, H);
   const MARGIN = 100;     // route libre le long des bords
   const GAP = 100;        // passage minimum entre deux obstacles
 
   // --- Obstacles ---
   const obstacles = [];
-  const wanted = Math.floor(rand(5, 10));
-  for (let tries = 0; tries < 400 && obstacles.length < wanted; tries++) {
+  const wanted = Math.floor(rand(5, 10) * size);
+  for (let tries = 0; tries < 400 * size && obstacles.length < wanted; tries++) {
     const kind = pick(["bloc", "bloc", "mur-h", "mur-v", "pilier"]);
     let w, h;
     if (kind === "bloc") { w = rand(70, 160); h = rand(70, 150); }
@@ -65,8 +67,8 @@ export function generateMap({ W, H, players, slippery }) {
 
   // --- Flaques d'huile (elles ne bloquent pas, elles font glisser) ---
   const oils = [];
-  const nOils = Math.floor(rand(1, 4));
-  for (let tries = 0; tries < 100 && oils.length < nOils; tries++) {
+  const nOils = Math.floor(rand(1, 4) * size);
+  for (let tries = 0; tries < 100 * size && oils.length < nOils; tries++) {
     const o = { x: Math.round(rand(150, W - 150)), y: Math.round(rand(150, H - 150)), r: Math.round(rand(45, 80)) };
     if (spawns.some((s) => Math.hypot(s.x - o.x, s.y - o.y) < o.r + 60)) continue;
     if (oils.some((p) => Math.hypot(p.x - o.x, p.y - o.y) < p.r + o.r)) continue;

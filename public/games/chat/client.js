@@ -14,7 +14,8 @@
   let st = null;
   let phaseEndLocal = 0, finishEndLocal = 0, timeEndLocal = 0, catGoLocal = 0;
   let rafId = null, lastTs = 0;
-  let canvas = null, g2d = null, bg = null, mapId = null;
+  let canvas = null, g2d = null, bg = null, mini = null, mapId = null;
+  const MINI = 0.1;             // échelle de la mini-carte
 
   // Prédiction de MA voiture
   let pred = null, prevPred = null;
@@ -376,18 +377,19 @@
     mapId = m.id;
     const look = LOOK[m.surface] || LOOK.asphalte;
     const rnd = seeded(m.seed);
+    const W = m.w, H = m.h;
     bg = document.createElement("canvas");
-    bg.width = P.W; bg.height = P.H;
+    bg.width = W; bg.height = H;
     const c = bg.getContext("2d");
-    c.fillStyle = look.ground; c.fillRect(0, 0, P.W, P.H);
-    for (let i = 0; i < 2500; i++) {
+    c.fillStyle = look.ground; c.fillRect(0, 0, W, H);
+    for (let i = 0; i < 10000; i++) {
       c.fillStyle = look.dots[i % 2];
       const s = 1 + rnd() * 3;
-      c.fillRect(rnd() * P.W, rnd() * P.H, s, s);
+      c.fillRect(rnd() * W, rnd() * H, s, s);
     }
     if (look.line) {
       c.strokeStyle = look.line; c.lineWidth = 4; c.setLineDash([30, 26]);
-      c.strokeRect(60, 60, P.W - 120, P.H - 120); c.setLineDash([]);
+      c.strokeRect(60, 60, W - 120, H - 120); c.setLineDash([]);
     }
     for (const o of m.oils) {
       const gr = c.createRadialGradient(o.x - o.r * 0.3, o.y - o.r * 0.3, 2, o.x, o.y, o.r);
@@ -402,7 +404,15 @@
       rr(c, o.x + 2, o.y + 2, o.w - 4, o.h - 4, 5); c.stroke(); c.setLineDash([]);
     }
     c.lineWidth = 10; c.strokeStyle = "#111"; c.setLineDash([16, 8]);
-    c.strokeRect(5, 5, P.W - 10, P.H - 10); c.setLineDash([]);
+    c.strokeRect(5, 5, W - 10, H - 10); c.setLineDash([]);
+    // Mini-carte : le fond (obstacles) dessiné une fois.
+    mini = document.createElement("canvas");
+    mini.width = Math.round(W * MINI); mini.height = Math.round(H * MINI);
+    const mc = mini.getContext("2d");
+    mc.fillStyle = "rgba(10,10,16,0.72)"; mc.fillRect(0, 0, mini.width, mini.height);
+    mc.fillStyle = "rgba(255,255,255,0.35)";
+    for (const o of m.obstacles) mc.fillRect(o.x * MINI, o.y * MINI, Math.max(2, o.w * MINI), Math.max(2, o.h * MINI));
+    mc.strokeStyle = "rgba(255,255,255,0.5)"; mc.lineWidth = 2; mc.strokeRect(1, 1, mini.width - 2, mini.height - 2);
   }
 
   // ===================================================================
@@ -436,8 +446,6 @@
     c.save();
     if (shake > 0.3) { c.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake); shake *= Math.pow(0.86, dt * 60); }
     else shake = 0;
-    c.drawImage(bg, 0, 0);
-
     const view = st.cars.map((car) => {
       if (car.id === me() && pred) {
         const o = ownView();
@@ -445,6 +453,16 @@
       }
       return { ...shownCar(car), role: car.role, fresh: car.fresh };
     });
+    // La caméra suit ma voiture (sans sortir de la map). Pas de voiture : on voit toute la map en petit.
+    const mv = view.find((v) => v.id === me());
+    const W = st.map.w, H = st.map.h;
+    c.fillStyle = "#111"; c.fillRect(0, 0, canvas.width, canvas.height);
+    let cam = null;
+    if (mv) {
+      cam = { x: Math.max(0, Math.min(W - canvas.width, mv.x - canvas.width / 2)), y: Math.max(0, Math.min(H - canvas.height, mv.y - canvas.height / 2)) };
+      c.translate(-cam.x, -cam.y);
+    } else c.scale(canvas.width / W, canvas.height / H);
+    c.drawImage(bg, 0, 0);
 
     // Halo orange sous les chats (qui clignote pour un chat tout neuf).
     for (const v of view) {
@@ -468,6 +486,13 @@
 
     drawParticles(dt);
 
+    if (mv) window.VehicleArt.markMe(c, mv.x, mv.y, ts, mv.role === "cat" ? CAT_COL : MOUSE_COL,
+      roleFlash > 0 ? 1 : window.VehicleArt.markAlpha(st.phase === "countdown" ? "countdown" : st.phase, playSeenAt),
+      Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)));
+    c.restore();
+
+    drawMini(view, cam);
+
     // Compte à rebours / avance des souris / attrapé !
     if (st.phase === "countdown") {
       const left = Math.ceil((phaseEndLocal - Date.now()) / 1000);
@@ -481,15 +506,22 @@
       band("🐱 ATTRAPÉ !", "Tu es un chat maintenant : attrape les autres !", CAT_COL);
     }
 
-    const mv = view.find((v) => v.id === me());
-    if (mv) window.VehicleArt.markMe(c, mv.x, mv.y, ts, mv.role === "cat" ? CAT_COL : MOUSE_COL,
-      roleFlash > 0 ? 1 : window.VehicleArt.markAlpha(st.phase === "countdown" ? "countdown" : st.phase, playSeenAt),
-      Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)));
-    c.restore();
-
     const mine = pred || carOf(me());
     const bar = document.querySelector("#ch-nitro i");
     if (bar && mine) { bar.style.width = Math.round(mine.nitro * 100) + "%"; bar.parentElement.classList.toggle("on", !!mine.boost); }
+  }
+
+  // Mini-carte en haut à droite : obstacles, chats (orange), souris (bleu), moi (cerclé), la zone visible.
+  function drawMini(view, cam) {
+    if (!mini) return;
+    const c = g2d, x0 = canvas.width - mini.width - 12, y0 = 12;
+    c.drawImage(mini, x0, y0);
+    for (const v of view) {
+      c.fillStyle = v.role === "cat" ? CAT_COL : MOUSE_COL;
+      c.beginPath(); c.arc(x0 + v.x * MINI, y0 + v.y * MINI, v.role === "cat" ? 5 : 4, 0, Math.PI * 2); c.fill();
+      if (v.id === me()) { c.strokeStyle = "#fff"; c.lineWidth = 2; c.beginPath(); c.arc(x0 + v.x * MINI, y0 + v.y * MINI, 8, 0, Math.PI * 2); c.stroke(); }
+    }
+    if (cam) { c.strokeStyle = "rgba(255,255,255,0.6)"; c.lineWidth = 1; c.strokeRect(x0 + cam.x * MINI, y0 + cam.y * MINI, canvas.width * MINI, canvas.height * MINI); }
   }
 
   function band(big, small, color) {
