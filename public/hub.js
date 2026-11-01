@@ -139,12 +139,47 @@ $("btn-abort").addEventListener("click", () => {
   if (confirm(`Arrêter ${what} ? Personne ne gagnera de points.`)) socket.emit("abortGame");
 });
 
+$("btn-help").addEventListener("click", () => { if (hub?.gameId) showHelp(hub.gameId); });
+
+// ===================================================================
+//  AIDE D'UN JEU (fenêtre ❓) — le texte est dans games-help.js
+// ===================================================================
+function showHelp(gameId) {
+  const h = window.GAME_HELP?.[gameId];
+  const g = catalogue?.games.find((x) => x.id === gameId);
+  if (!h || !g) return;
+  const list = (items) => `<ul>${items.map((t) => `<li>${t}</li>`).join("")}</ul>`;
+  const box = document.createElement("div");
+  box.className = "help-overlay";
+  box.innerHTML = `
+    <div class="help-card card" role="dialog" aria-modal="true">
+      <button class="help-close" title="Fermer">✕</button>
+      <h2><span class="help-emoji">${g.emoji}</span> ${escapeHtml(g.name)}</h2>
+      <p class="help-goal">🎯 ${h.goal}</p>
+      <h3>📜 Comment on joue</h3>
+      <ol>${h.steps.map((t) => `<li>${t}</li>`).join("")}</ol>
+      ${h.controls ? `<h3>🎮 Les touches</h3>${list(h.controls)}` : ""}
+      <h3>🏆 Les points</h3>${list(h.points)}
+      <h3>💡 Exemple</h3>
+      <p class="help-example">${h.example}</p>
+      <button class="btn btn-primary help-ok">J'ai compris !</button>
+    </div>`;
+  const close = () => { box.remove(); document.removeEventListener("keydown", onKey); };
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  box.onclick = (e) => { if (e.target === box) close(); };
+  box.querySelector(".help-close").onclick = close;
+  box.querySelector(".help-ok").onclick = close;
+  document.addEventListener("keydown", onKey);
+  document.body.appendChild(box);
+}
+
 function renderBar() {
   $("hub-bar").classList.remove("hidden");
   $("bar-code").textContent = hub.code;
   const online = hub.players.filter((p) => p.connected).length;
   $("bar-online").textContent = `👥 ${online}/${hub.players.length} en ligne`;
   $("btn-abort").classList.toggle("hidden", !(isHost() && ["game", "next"].includes(hub.phase)));
+  $("btn-help").classList.toggle("hidden", !(hub.phase === "game" && window.GAME_HELP?.[hub.gameId]));
   $("btn-abort").textContent = hub.playlist ? "⏹ Arrêter la playlist" : "⏹ Arrêter le jeu";
   $("bar-playlist").classList.toggle("hidden", !hub.playlist);
   if (hub.playlist) $("bar-playlist").textContent = `🎲 Jeu ${hub.playlist.num}/${hub.playlist.total}`;
@@ -218,14 +253,16 @@ function renderLobby() {
     const why = n < g.minPlayers ? ` · il manque ${g.minPlayers - n} joueur(s)` : "";
     const picked = playlistMode && draft.games.includes(g.id);
     // L'hôte peut toujours cliquer : s'il manque du monde, un message l'explique.
-    return `
+    return `<div class="gt-wrap">
       <button class="game-tile ${ok ? "" : "locked"} ${playlistMode ? "pickable" : ""} ${picked ? "picked" : ""}" data-id="${g.id}" ${host ? "" : "disabled"}>
         ${playlistMode ? `<span class="gt-check">${picked ? "✓" : ""}</span>` : ""}
         <span class="gt-emoji">${g.emoji}</span>
         <span class="gt-name">${escapeHtml(g.name)}</span>
         <span class="gt-meta">${g.family} · ${g.minPlayers}-${g.maxPlayers} joueurs${why}</span>
         <span class="gt-desc">${escapeHtml(g.description)}</span>
-      </button>`;
+      </button>
+      ${window.GAME_HELP?.[g.id] ? `<button class="gt-help" data-help="${g.id}" title="Comment on joue ?">?</button>` : ""}
+    </div>`;
   });
   const soon = catalogue.upcoming.map((g) => `
       <button class="game-tile soon" disabled>
@@ -235,6 +272,9 @@ function renderLobby() {
       </button>`);
   $("game-tiles").innerHTML = tiles.concat(soon).join("");
 
+  $("game-tiles").querySelectorAll(".gt-help").forEach((b) => {
+    b.onclick = () => showHelp(b.dataset.help);
+  });
   $("game-tiles").querySelectorAll(".game-tile:not(.soon)").forEach((b) => {
     b.onclick = () => {
       $("lobby-error").textContent = "";

@@ -1,0 +1,156 @@
+// ===================================================================
+//  LE BORDEL — Aide détaillée de chaque jeu (bouton ❓)
+//  Une entrée par jeu (même id que le jeu) :
+//    goal     : le but en une phrase
+//    steps    : comment se passe une partie, étape par étape
+//    controls : (facultatif) les touches
+//    points   : comment on gagne des points
+//    example  : un petit exemple de partie
+//  👉 Le texte peut contenir du HTML simple (<b>, <i>, <kbd>).
+// ===================================================================
+
+(() => {
+  const DRIVE = [
+    "<kbd>Z</kbd> / <kbd>↑</kbd> accélérer · <kbd>S</kbd> / <kbd>↓</kbd> freiner puis reculer",
+    "<kbd>Q</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd> tourner",
+    "<kbd>Espace</kbd> frein à main → dérapage",
+    "<kbd>Shift</kbd> nitro (la jauge se recharge toute seule)",
+  ];
+
+  window.GAME_HELP = {
+    imposter: {
+      goal: "Trouver qui n'a pas le même mot que les autres… ou, si c'est toi, ne pas te faire griller.",
+      steps: [
+        "Chacun reçoit un <b>mot secret</b>. Les <b>civils</b> ont tous le même mot. L'<b>Undercover</b> a un mot proche mais différent (selon les réglages, il ne sait même pas qu'il est l'imposteur !). <b>Mr White</b>, lui, n'a <b>aucun mot</b>.",
+        "<b>Tour d'indices</b> : chacun son tour, tu donnes <b>un mot</b> en rapport avec ton mot secret. Pas trop précis (sinon l'imposteur devine), pas trop vague (sinon on te soupçonne).",
+        "Après les tours d'indices : <b>vote</b>. Clique sur la carte de celui que tu soupçonnes. Le plus voté est éliminé et son rôle est dévoilé.",
+        "Si Mr White est éliminé, il a une dernière chance : <b>deviner le mot des civils</b>. S'il trouve, il gagne tout seul !",
+        "On recommence (indices → vote) jusqu'à ce qu'un camp gagne : les civils quand tous les imposteurs sont dehors, les imposteurs quand ils sont aussi nombreux que les civils.",
+      ],
+      points: [
+        "Civils gagnants : <b>+2</b> chacun.",
+        "Undercover gagnant : <b>+6</b>.",
+        "Mr White qui devine le mot : <b>+8</b> · Mr White qui survit jusqu'au bout : <b>+6</b>.",
+        "(L'hôte peut changer ces valeurs dans les réglages.)",
+      ],
+      example: "Les civils ont <b>« Pizza »</b>, l'Undercover a <b>« Burger »</b>. Alice dit « fromage », Bob (l'Undercover) dit « pain »… tout le monde le regarde bizarrement. Mr White, qui n'a aucun mot, entend « fromage », « four », « Italie » et dit « garniture » pour se fondre dans la masse. Au vote, Bob est éliminé : c'était bien l'Undercover !",
+    },
+
+    patate: {
+      goal: "Ne pas avoir la bombe quand elle explose. Le dernier en vie gagne la manche.",
+      steps: [
+        "Au début de la manche, on vote pour le <b>véhicule</b> (ou il est tiré au hasard) : tout le monde a le même.",
+        "Une voiture reçoit la <b>bombe 💣</b>. Pour t'en débarrasser, <b>touche une autre voiture</b> : elle la récupère.",
+        "La mèche est <b>cachée</b>, mais la bombe clignote de plus en plus vite. Quand elle explose, celui qui l'a est <b>éliminé</b> et son épave reste sur la map comme obstacle.",
+        "Une nouvelle bombe part, et ainsi de suite jusqu'au dernier survivant.",
+        "Celui qui a la bombe va un peu plus vite et a plus de nitro (réglage), pour pouvoir chasser.",
+        "Attention à la map : terre, neige et flaques d'huile glissent. Taper l'arrière d'une voiture la fait partir en tête-à-queue !",
+      ],
+      controls: DRIVE,
+      points: ["<b>1 point par joueur éliminé avant toi</b> : le dernier survivant prend le plus de points."],
+      example: "Tu as la bombe 💣 et elle clignote vite. Tu mets un coup de nitro, tu fonces sur Bob qui dérape sur la neige… <b>contact !</b> La bombe passe chez lui. Il essaie de te la rendre, mais tu tournes derrière un rocher. BOUM : Bob est éliminé.",
+    },
+
+    sumo: {
+      goal: "Rester sur le sol le plus longtemps possible et faire tomber les autres dans le vide.",
+      steps: [
+        "Au début de la manche, tu choisis ton <b>véhicule</b> parmi 3 cartes : le camion pousse fort mais tourne mal, la moto est agile mais légère…",
+        "La version est tirée au hasard : 🔴 <b>Arène</b> (une plateforme ronde qui rétrécit petit à petit) ou 🏝️ <b>Îles</b> (plusieurs îles reliées par des couloirs).",
+        "En Arène : <b>pousse les autres dehors</b> avant que la plateforme devienne minuscule.",
+        "En Îles : une île s'allume avec un <b>chrono</b>. À 0, <b>tous ceux qui ne sont pas dessus explosent</b>. Puis une autre île s'allume…",
+        "Si tu sors du sol, tu tombes : éliminé. Ramasse le 🎁 pour changer de véhicule au hasard.",
+        "Avec un nombre pair de joueurs, la manche peut se jouer en <b>2 équipes</b> (rouges contre bleus).",
+      ],
+      controls: DRIVE,
+      points: [
+        "<b>1 point par joueur éliminé avant toi</b>.",
+        "<b>+1</b> par voiture que tu as éjectée (la dernière à l'avoir touchée avant sa chute).",
+        "En équipes : chaque membre de l'équipe gagnante prend <b>3 points</b> (+1 s'il est encore en vie).",
+      ],
+      example: "Tu prends le <b>camion</b>. L'arène rétrécit, Alice en moto te tourne autour. Tu fonces, elle esquive… mais tu touches Bob qui part en arrière et tombe dans le vide : « 💥 Toi as éjecté Bob ! » +1 pour toi.",
+    },
+
+    cs2map: {
+      goal: "Reconnaître le plus vite possible de quelle map de Counter-Strike 2 vient une image.",
+      steps: [
+        "Une image prise dans une map de CS2 s'affiche, mais <b>cachée</b> : très zoomée, dans un trou noir, en morceaux… Elle se dévoile petit à petit.",
+        "Clique sur le <b>nom de la map</b> dans la liste. <b>Une seule réponse</b>, pas le droit de se corriger !",
+        "Quand tout le monde a répondu (ou à la fin du chrono), l'image entière s'affiche avec la réponse et les points.",
+        "Image suivante, jusqu'à la fin de la série.",
+      ],
+      points: [
+        "Bonne réponse : jusqu'à <b>100 points</b>. Plus tu réponds tôt, plus tu gagnes (40 points à la dernière seconde).",
+        "Mauvaise réponse ou pas de réponse : 0.",
+      ],
+      example: "L'image commence zoomée sur une caisse et un mur jaune. Tu hésites entre Dust2 et Mirage… Le zoom recule, tu vois une arche : tu cliques <b>Dust2</b> au bout de 4 s → <b>88 points</b>. Bob attend la fin pour être sûr : juste, mais seulement 45 points.",
+    },
+
+    quidenous: {
+      goal: "Voter pour le joueur qui colle le mieux à chaque question… et voter comme la majorité.",
+      steps: [
+        "Chacun <b>écrit une question</b> qui commence par « Qui… ? » (bouton 🎲 si tu n'as pas d'idée).",
+        "Les questions passent une par une, <b>sans dire qui les a écrites</b>. Pour chacune, clique sur un joueur (tu peux voter pour toi).",
+        "À la fin, la <b>cérémonie</b> : pour chaque question, on voit qui a voté pour qui, qui a écrit la question, et qui gagne le <b>titre</b>.",
+        "Le palmarès final montre les titres gagnés par chacun.",
+      ],
+      points: ["<b>+1</b> chaque fois que tu as voté pour le joueur le plus désigné (tu as voté comme la majorité)."],
+      example: "Question : « <b>Qui finirait en prison en premier ?</b> ». Tu votes pour Bob. À la cérémonie : 3 votes pour Bob, 1 pour Alice. Bob gagne le titre « finirait en prison en premier » 😂 et toi tu prends <b>+1</b>. Et surprise : c'est Alice qui avait écrit la question !",
+    },
+
+    neon: {
+      goal: "Ne toucher aucun mur de lumière. Le dernier en vie gagne la manche.",
+      steps: [
+        "Tu conduis une <b>moto</b> qui avance <b>toute seule</b> : impossible de s'arrêter.",
+        "Ta moto laisse derrière elle un <b>mur de lumière</b> qui disparaît après quelques secondes.",
+        "Si tu touches un mur (même le tien !), un obstacle ou le bord : <b>BOUM</b>, éliminé.",
+        "Le but : couper la route des autres pour qu'ils s'écrasent sur TON mur.",
+        "Après un moment, la <b>zone rétrécit</b> : les bords se rapprochent et ça devient très serré.",
+        "<kbd>Espace</kbd> : <b>saut</b> par-dessus un mur (recharge de 5 s). Ça peut sauver une manche !",
+      ],
+      controls: [
+        "<kbd>Z</kbd> / <kbd>↑</kbd> accélérer · <kbd>S</kbd> / <kbd>↓</kbd> ralentir (jamais à l'arrêt)",
+        "<kbd>Q</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd> tourner",
+        "<kbd>Espace</kbd> sauter",
+      ],
+      points: [
+        "<b>1 point par joueur éliminé avant toi</b>.",
+        "<b>+1 par kill</b> : quand quelqu'un s'écrase sur ton mur.",
+      ],
+      example: "Bob fonce tout droit. Tu accélères, tu le doubles et tu tournes juste devant lui : ton mur lui barre la route. Il essaie de sauter, mais son saut n'est pas rechargé… BOUM. <b>+1 kill</b> pour toi !",
+    },
+
+    carfoot: {
+      goal: "Marquer plus de buts que l'équipe d'en face avec ta voiture.",
+      steps: [
+        "Les joueurs sont répartis en <b>2 équipes</b> au hasard : 🔵 Bleus (à gauche) et 🔴 Rouges (à droite).",
+        "Pousse le <b>ballon</b> dans la <b>cage d'en face</b> en fonçant dedans avec ta voiture. Plus tu vas vite, plus tu frappes fort.",
+        "Le ballon rebondit sur les murs. Tu peux entrer dans les cages (pratique pour défendre !).",
+        "Après chaque but : remise en jeu au centre avec un compte à rebours.",
+        "À la fin du chrono, l'équipe qui a le plus de buts gagne. En cas d'égalité : <b>but en or</b> (le prochain but gagne).",
+      ],
+      controls: DRIVE,
+      points: [
+        "L'équipe gagnante prend la <b>1re place</b>, l'autre la 2e.",
+        "Match nul : tout le monde ex æquo.",
+      ],
+      example: "Tu es chez les 🔴. Au coup d'envoi, tu prends le nitro et frappes le ballon, qui rebondit sur le mur du haut. Ton coéquipier arrive en dérapage et le pousse dans la cage bleue : <b>⚽ BUT des Rouges !</b>",
+    },
+
+    sur10: {
+      goal: "Deviner la note secrète des autres grâce à leur indice… et donner des indices faciles à deviner.",
+      steps: [
+        "On vote pour le <b>thème</b> de la manche parmi 3 (exemple : « Un jeu vidéo »).",
+        "Chacun choisit une <b>note secrète</b> de 0 à 10. Personne ne la voit.",
+        "Puis tu écris un <b>indice</b> : un truc du thème qui vaut <b>ta note</b>, selon <b>tes goûts à toi</b>.",
+        "Un joueur à la fois, son indice s'affiche. Les autres <b>devinent sa note</b> : clique un chiffre puis <b>Valider</b>. C'est le moment de débattre sur Discord !",
+        "<b>Révélation</b> : la vraie note s'affiche sur une réglette de 0 à 10, avec les réponses de chacun.",
+        "Certains thèmes ont leur propre échelle, écrite sous le thème (« Un animal : 0 = inoffensif · 10 = mortel »).",
+      ],
+      points: [
+        "Note exacte : <b>3 points</b> · à 1 près : <b>2</b> · à 2 près : <b>1</b>.",
+        "L'auteur de l'indice : <b>+1 par joueur</b> qui l'a trouvé à 1 près ou mieux (un bon indice rapporte !).",
+      ],
+      example: "Thème « <b>Un jeu vidéo</b> ». Tu choisis <b>10</b> et tu écris « <b>Rust</b> » parce que pour toi c'est le meilleur jeu du monde. Alice dit 9 (+2), Bob dit 3 (« Rust c'est nul ! » → 0 point). Comme Alice t'a trouvé à 1 près, tu prends <b>+1</b>.",
+    },
+  };
+})();

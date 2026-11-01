@@ -151,3 +151,30 @@
   background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px;
   padding: 12px 18px; box-shadow: var(--shadow); animation: fadeIn 0.3s ease;
 }
+
+/* --- Bouton ❓ sur les tuiles + fenêtre d'aide --- */
+.gt-wrap { position: relative; display: flex; }
+.gt-wrap .game-tile { flex: 1; }
+.gt-help {
+  position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border-radius: 50%;
+  border: 2px solid var(--border); background: var(--surface); color: var(--text);
+  font-size: 16px; font-weight: 900; cursor: pointer; transition: transform 0.12s, border-color 0.15s, background 0.15s;
+}
+.gt-help:hover { transform: scale(1.15); border-color: var(--accent); background: var(--accent); }
+.gt-wrap:has(.gt-check) .gt-help { right: 44px; }
+
+.help-overlay {
+  position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-start; justify-content: center;
+  padding: 5vh 16px; overflow-y: auto; background: rgba(5, 4, 15, 0.75); backdrop-filter: blur(4px);
+  animation: fadeIn 0.15s both;
+}
+.help-card { position: relative; max-width: 680px; width: 100%; text-align: left; animation: popIn 0.25s cubic-bezier(.2,1.4,.4,1) both; }
+.help-card h2 { font-size: 28px; margin-bottom: 8px; }
+.help-emoji { font-size: 34px; }
+.help-card h3 { font-size: 18px; margin: 16px 0 6px; color: var(--accent-3); }
+.help-card ol, .help-card ul { padding-left: 22px; display: flex; flex-direction: column; gap: 6px; font-size: 16px; line-height: 1.45; }
+.help-goal { font-size: 18px; font-weight: 700; padding: 10px 14px; border-radius: 12px; background: var(--surface-2); }
+.help-example { font-size: 16px; line-height: 1.5; padding: 12px 14px; border-radius: 12px; border-left: 4px solid var(--accent); background: var(--surface-2); font-style: italic; }
+.help-close { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--surface-2); color: var(--text); font-size: 18px; cursor: pointer; }
+.help-close:hover { background: var(--danger); }
+.help-ok { display: block; margin: 18px auto 0; }
