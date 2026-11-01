@@ -433,15 +433,16 @@
 
   // Traces de pneus quand une voiture glisse ou freine fort.
   function drawSkids(id, c) {
+    const V = P.VEHICLES[c.type] || P.VEHICLES.sport;
     const fx = Math.cos(c.a), fy = Math.sin(c.a), rx = -fy, ry = fx;
     const lat = Math.abs(c.vx * rx + c.vy * ry);
-    const wheels = [
-      { x: c.x - fx * 14 + rx * 9, y: c.y - fy * 14 + ry * 9 },
-      { x: c.x - fx * 14 - rx * 9, y: c.y - fy * 14 - ry * 9 },
-    ];
+    const back = V.L / 2 - 8, side = c.type === "moto" ? 0 : V.W / 2 - 3;
+    const wheels = (c.type === "moto" ? [0] : [1, -1]).map((k) => ({
+      x: c.x - fx * back + rx * side * k, y: c.y - fy * back + ry * side * k,
+    }));
     const prev = lastWheels[id];
-    if (prev && (lat > 70 || c.slide)) {
-      for (let i = 0; i < 2; i++) {
+    if (prev && prev.length === wheels.length && (lat > 70 || c.slide)) {
+      for (let i = 0; i < wheels.length; i++) {
         if (Math.hypot(prev[i].x - wheels[i].x, prev[i].y - wheels[i].y) > 40) continue;
         skidCtx.beginPath();
         skidCtx.moveTo(prev[i].x, prev[i].y);
@@ -475,11 +476,21 @@
       </div>
       <div class="setting"><label>Nitro (Shift)</label><div class="val">${toggle("nitro", s.nitro)}</div></div>
       <div class="setting"><label>Sols glissants (terre, neige)</label><div class="val">${toggle("slippery", s.slippery)}</div></div>
-      <p class="settings-note">La map est tirée au hasard à chaque manche.</p>
+      <div class="setting-block">
+        <label>Véhicule (le même pour tous)</label>
+        <div class="cat-chips">
+          ${[["vote", "🗳️ Vote entre 2"], ["hasard", "🎲 Au hasard"]].map(([k, label]) =>
+            `<button class="cat-chip ${s.vehicle === k ? "on" : ""}" data-vehicle="${k}" ${host ? "" : "disabled"}>${label}</button>`).join("")}
+        </div>
+      </div>
+      <p class="settings-note">La map et le véhicule changent à chaque manche.</p>
       ${host ? "" : '<p class="settings-note">Seul l\'hôte peut modifier les réglages.</p>'}`;
     if (!host) return;
     panel.querySelectorAll("[data-fuse]").forEach((b) => {
       b.onclick = () => api.action("settings", { settings: { fuse: b.dataset.fuse } });
+    });
+    panel.querySelectorAll("[data-vehicle]").forEach((b) => {
+      b.onclick = () => api.action("settings", { settings: { vehicle: b.dataset.vehicle } });
     });
     panel.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
       cb.onchange = () => api.action("settings", { settings: { [cb.dataset.key]: cb.checked } });
@@ -508,7 +519,8 @@
     const mine = st.cars.find((c) => c.id === me());
     const status = $("pt-status");
     status.className = "phase-label";
-    if (st.phase === "play" || st.phase === "countdown") {
+    if (st.phase === "vehicle") status.textContent = "🗳️ Votez pour le véhicule de la manche !";
+    else if (st.phase === "play" || st.phase === "countdown") {
       if (!mine) status.textContent = "👀 Tu regardes cette manche";
       else if (!mine.alive) status.textContent = "💀 Éliminé — regarde la fin !";
       else if (st.holderId === me()) { status.textContent = "💣 TU AS LA BOMBE ! Fonce sur quelqu'un !"; status.classList.add("pt-danger"); }
@@ -517,13 +529,63 @@
     else if (st.phase === "roundOver") status.textContent = "🏁 Fin de la manche";
 
     const nitro = $("pt-nitro");
-    const show = st.settings.nitro && mine?.alive && st.phase !== "roundOver";
+    const show = st.settings.nitro && mine?.alive && !["roundOver", "vehicle"].includes(st.phase);
     nitro.classList.toggle("hidden", !show);
     renderRoundOver();
   }
 
+  // Le vote du véhicule (avant la manche) : 2 cartes, on clique.
+  function renderVehicleVote() {
+    const ov = $("pt-overlay");
+    const vv = st.vehicleVote;
+    const mineVote = vv.votes[me()];
+    const playing = st.cars.some((c) => c.id === me());
+
+    // La fenêtre est dessinée une seule fois par manche (sinon elle clignoterait à chaque vote).
+    const key = "vv" + st.roundNum;
+    if (ov.dataset.key !== key || ov.classList.contains("hidden")) {
+      ov.dataset.key = key;
+      ov.dataset.round = "";
+      ov.innerHTML = `
+        <div class="pt-over card pt-vote">
+          <h2 class="go-banner">🗳️ Quel véhicule pour cette manche ?</h2>
+          <p class="pt-vsec"><b id="pt-vsec">${Math.ceil((st.phaseLeft || 0) / 1000)}</b> s</p>
+          <div class="pt-vcards">${vv.choices.map((type) => {
+            const V = P.VEHICLES[type];
+            return `<button class="pt-vcard" data-type="${type}">
+              <canvas width="200" height="110" data-type="${type}"></canvas>
+              <b>${V.emoji} ${V.name}</b><span class="muted">${V.desc}</span>
+              <span class="pt-vvoters"></span></button>`;
+          }).join("")}</div>
+          <p class="muted" id="pt-vmsg"></p>
+        </div>`;
+      ov.classList.remove("hidden");
+      ov.querySelectorAll("canvas[data-type]").forEach((cv) => {
+        const c = cv.getContext("2d");
+        const V = P.VEHICLES[cv.dataset.type];
+        c.translate(cv.width / 2, cv.height / 2);
+        c.scale(1.6 * 44 / Math.max(44, V.L), 1.6 * 44 / Math.max(44, V.L));
+        window.VehicleArt.paint(c, cv.dataset.type, playerOf(me())?.color || "#ff7a3c", null, 0, false, false);
+      });
+      ov.querySelectorAll(".pt-vcard").forEach((b) => {
+        b.onclick = () => api.action("vehicle", { type: b.dataset.type });
+      });
+    }
+    // Ensuite on ne met à jour que les votes.
+    ov.querySelectorAll(".pt-vcard").forEach((b) => {
+      const type = b.dataset.type;
+      b.classList.toggle("chosen", mineVote === type);
+      b.disabled = !playing || !!mineVote;
+      b.querySelector(".pt-vvoters").innerHTML =
+        Object.entries(vv.votes).filter(([, t]) => t === type).map(([id]) => api.avatar(playerOf(id))).join("") || "&nbsp;";
+    });
+    $("pt-vmsg").textContent = !playing ? "👀 Tu regardes cette manche." : mineVote ? "✅ Vote enregistré" : "Le plus voté, tout le monde l'a !";
+  }
+
   function renderRoundOver() {
     const ov = $("pt-overlay");
+    if (st.phase === "vehicle" && st.vehicleVote) { ov.parentElement.classList.add("over"); renderVehicleVote(); return; }
+    ov.dataset.key = "";
     const isOver = st.phase === "roundOver" && !!st.lastRound;
     ov.parentElement.classList.toggle("over", isOver);
     if (!isOver) { ov.classList.add("hidden"); return; }
@@ -590,6 +652,8 @@
     dbg.frames++; if (dt > 0.025) dbg.slow++;
     const fin = document.getElementById("pt-fin-sec");
     if (fin) fin.textContent = Math.max(0, Math.ceil((finishEndLocal - Date.now()) / 1000));
+    const vsec = document.getElementById("pt-vsec");
+    if (vsec) vsec.textContent = Math.max(0, Math.ceil((phaseEndLocal - Date.now()) / 1000));
     if (!st || st.phase === "setup" || !g2d || !bg) return;
     driveLocal(dt);
     const decay = Math.pow(0.82, dt * 60);
@@ -671,7 +735,8 @@
       g2d.font = "bold 72px Segoe UI, sans-serif";
       g2d.fillText(left > 0 ? left : "GO !", P.W / 2, P.H / 2 - 14);
       g2d.font = "22px Segoe UI, sans-serif";
-      g2d.fillText(st.holderId === me() ? "💣 C'est TOI qui as la bombe !" : `💣 ${pseudoOf(st.holderId)} a la bombe`, P.W / 2, P.H / 2 + 46);
+      const V = P.VEHICLES[st.vehicle] || P.VEHICLES.sport;
+      g2d.fillText(`${V.emoji} ${V.name} pour tout le monde · ` + (st.holderId === me() ? "💣 C'est TOI qui as la bombe !" : `💣 ${pseudoOf(st.holderId)} a la bombe`), P.W / 2, P.H / 2 + 46);
     }
     g2d.restore();
 
@@ -682,56 +747,14 @@
     }
   }
 
-  // Une petite voiture vue de dessus.
+  // Un véhicule vu de dessus (dessin partagé avec le Sumo : vehicles-art.js).
   function drawCar(v, dead) {
-    const L = P.CAR_L, Wd = P.CAR_W;
     const color = dead ? "#2a2626" : playerOf(v.id)?.color || "#888";
     g2d.save();
     g2d.translate(v.x, v.y);
     g2d.rotate(v.a);
-
-    // Flamme du nitro.
-    if (!dead && v.boost) {
-      const len = 18 + Math.random() * 14;
-      const gr = g2d.createLinearGradient(-L / 2, 0, -L / 2 - len, 0);
-      gr.addColorStop(0, "rgba(120,200,255,0.95)"); gr.addColorStop(0.4, "rgba(255,170,40,0.9)"); gr.addColorStop(1, "rgba(255,60,20,0)");
-      g2d.fillStyle = gr;
-      g2d.beginPath(); g2d.moveTo(-L / 2 + 2, -6); g2d.lineTo(-L / 2 - len, 0); g2d.lineTo(-L / 2 + 2, 6); g2d.fill();
-    }
-
-    // Ombre.
-    g2d.fillStyle = "rgba(0,0,0,0.35)";
-    rr(g2d, -L / 2 + 3, -Wd / 2 + 4, L, Wd, 7); g2d.fill();
-
-    // Roues (celles de devant tournent avec le volant).
-    g2d.fillStyle = "#111";
-    for (const sy of [-1, 1]) {
-      g2d.fillRect(-L / 2 + 5, sy * (Wd / 2) - 3, 11, 6);
-      g2d.save();
-      g2d.translate(L / 2 - 10, sy * (Wd / 2));
-      g2d.rotate((v.st || 0) * 0.45);
-      g2d.fillRect(-5.5, -3, 11, 6);
-      g2d.restore();
-    }
-
-    // Carrosserie.
-    g2d.fillStyle = color;
-    rr(g2d, -L / 2, -Wd / 2, L, Wd, 7); g2d.fill();
-    g2d.lineWidth = 2; g2d.strokeStyle = "rgba(0,0,0,0.45)"; g2d.stroke();
-    if (!dead) {
-      g2d.fillStyle = "rgba(255,255,255,0.18)";               // reflet du toit
-      g2d.fillRect(-8, -Wd / 2 + 4, 14, Wd - 8);
-      g2d.fillStyle = "rgba(20,30,50,0.8)";                   // pare-brise
-      rr(g2d, L / 2 - 18, -Wd / 2 + 4, 8, Wd - 8, 2); g2d.fill();
-      rr(g2d, -L / 2 + 6, -Wd / 2 + 5, 5, Wd - 10, 2); g2d.fill();   // lunette arrière
-      g2d.fillStyle = "#fff6b0";                               // phares
-      g2d.fillRect(L / 2 - 3, -Wd / 2 + 3, 3, 5);
-      g2d.fillRect(L / 2 - 3, Wd / 2 - 8, 3, 5);
-    } else {
-      g2d.fillStyle = "rgba(255,120,30,0.5)";                  // braises
-      g2d.fillRect(-6, -4, 10, 8);
-    }
-    if (v.id === me() && !dead) { g2d.lineWidth = 2; g2d.strokeStyle = "#fff"; rr(g2d, -L / 2 - 2, -Wd / 2 - 2, L + 4, Wd + 4, 8); g2d.stroke(); }
+    window.VehicleArt.paint(g2d, v.type, color, null, dead ? 0 : v.st || 0, v.id === me() && !dead, !dead && v.boost);
+    if (dead) { g2d.fillStyle = "rgba(255,120,30,0.5)"; g2d.fillRect(-6, -4, 10, 8); }   // braises
     g2d.restore();
 
     // Fumée des épaves.

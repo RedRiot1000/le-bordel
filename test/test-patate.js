@@ -34,10 +34,20 @@ async function run() {
   check(game?.phase === "setup", "Patate chaude : écran de réglages");
 
   console.log("\n— Manche 1 —");
+  check(game.settings.vehicle === "vote", "Par défaut : on vote pour le véhicule");
   await act("settings", { settings: { fuse: "test", slippery: true } });
   await act("start");
   await wait(200);
-  check(game.phase === "countdown" && game.cars.length === 3, "3 voitures sur la ligne de départ");
+  const vv = game.vehicleVote;
+  check(game.phase === "vehicle" && vv?.choices.length === 2 && vv.choices[0] !== vv.choices[1], `Vote entre 2 véhicules : ${vv?.choices.join(" / ")}`);
+  const bad = await act("vehicle", { type: "fusee" });
+  check(!!bad.error, "Un véhicule hors du vote est refusé");
+  await act("vehicle", { type: vv.choices[1] });
+  // Les 2 bots votent aussi : dès que tout le monde a voté, on n'attend pas les 10 s.
+  check(await waitFor(() => game.phase === "countdown", 8000), "Tout le monde a voté → compte à rebours");
+  check(vv.choices.includes(game.vehicle) && game.cars.every((c) => c.type === game.vehicle),
+    `Tout le monde a le même véhicule : ${game.vehicle}`);
+  check(game.cars.length === 3, "3 voitures sur la ligne de départ");
   const map1 = game.map;
   check(map1.obstacles.length >= 3 && ["asphalte", "terre", "neige"].includes(map1.surface),
     `Map aléatoire : ${map1.surface}, ${map1.obstacles.length} obstacles, ${map1.oils.length} flaque(s)`);
@@ -65,8 +75,12 @@ async function run() {
   check(JSON.stringify(pts) === "[0,1,2]", "Points de manche 2 / 1 / 0");
   check(game.cars.filter((c) => !c.alive).length === 2, "Les 2 épaves restent dans l'arène");
 
-  console.log("\n— Manche 2 —");
+  console.log("\n— Manche 2 (véhicule au hasard) —");
+  await act("setup");
+  await act("settings", { settings: { vehicle: "hasard" } });
   await act("start");
+  await wait(100);
+  check(game.phase === "countdown" && game.cars.every((c) => c.type === game.vehicle), `Pas de vote, véhicule tiré au sort : ${game.vehicle}`);
   await wait(200);
   check(game.map.id !== map1.id, "Nouvelle map tirée au hasard");
   await waitFor(() => game.phase === "roundOver", 25000);

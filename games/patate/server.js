@@ -30,13 +30,15 @@ const PASS_COOLDOWN = 0.3;     // délai mini entre deux passes (s)
 const COUNTDOWN_MS = 3000;     // compte à rebours en début de manche
 const RESPAWN_MS = 2000;       // pause avant la bombe suivante
 const BOOM_MS = 1800;          // durée de l'explosion à l'écran
+const VEHICLE_VOTE_MS = 10000; // vote du véhicule avant la manche
 
 // Durée de la mèche (en secondes, tirée au hasard dans l'intervalle).
 // ("test" = mèche éclair utilisée seulement par les tests automatiques.)
 const FUSES = { courte: [12, 20], normale: [18, 30], longue: [28, 42], test: [4, 6] };
 
 function defaultSettings() {
-  return { fuse: "normale", nitro: true, slippery: true };
+  // vehicle : "vote" (on vote entre 2 véhicules) ou "hasard" (tiré au sort) — le même pour tout le monde.
+  return { fuse: "normale", nitro: true, slippery: true, vehicle: "vote" };
 }
 
 // ===================================================================
@@ -60,9 +62,17 @@ export const playlist = {
       key: "nitro", label: "Nitro", default: "oui",
       choices: [{ v: "oui", label: "Oui" }, { v: "non", label: "Non" }],
     },
+    {
+      key: "vehicle", label: "Véhicule", default: "vote",
+      choices: [
+        { v: "vote", label: "🗳️ Vote", hint: "On vote entre 2 véhicules avant chaque manche" },
+        { v: "hasard", label: "🎲 Hasard", hint: "Un véhicule tiré au sort à chaque manche" },
+      ],
+    },
   ],
   settingsFor(c) {
     const s = defaultSettings();
+    s.vehicle = c.vehicle === "hasard" ? "hasard" : "vote";
     if (c.difficulty === "facile") { s.fuse = "longue"; s.slippery = false; }
     if (c.difficulty === "difficile") { s.fuse = "courte"; s.slippery = true; }
     s.nitro = c.nitro !== "non";
@@ -79,7 +89,10 @@ const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 // ===================================================================
 export function createGame(ctx) {
   const g = {
-    phase: "setup",       // setup | countdown | play | boom | roundOver
+    phase: "setup",       // setup | vehicle | countdown | play | boom | roundOver
+    vehicle: "sport",     // le véhicule de la manche (le même pour tous)
+    vv: null,             // vote du véhicule : { choices: [a, b], votes: { id: type } }
+    botTimers: [],
     settings: ctx.savedSettings ? { ...defaultSettings(), ...ctx.savedSettings } : defaultSettings(),
     scores: {},           // points Patate (classement final)
     roundNum: 0,
@@ -129,6 +142,8 @@ export function createGame(ctx) {
         finishLeft: g.final ? Math.max(0, g.finishAt - t) : 0,
       },
       players: ctx.players().map((p) => ({ ...p, score: g.scores[p.id] || 0 })),
+      vehicle: g.vehicle,
+      vehicleVote: g.phase === "vehicle" ? g.vv : null,
       map: g.map && {
         id: g.map.id, surface: g.map.surface, grip: g.map.grip, seed: g.map.seed,
         obstacles: g.map.obstacles, oils: g.map.oils, w: P.W, h: P.H,
@@ -136,7 +151,7 @@ export function createGame(ctx) {
       // Valeurs EXACTES (pas d'arrondi) : le navigateur refait les mêmes calculs
       // à partir d'elles, le moindre arrondi finirait en petite saccade.
       cars: Object.entries(g.cars).map(([id, s]) => ({
-        id, alive: s.alive, seq: s.seq,
+        id, alive: s.alive, seq: s.seq, type: s.car.type,
         x: s.car.x, y: s.car.y, a: s.car.a, vx: s.car.vx, vy: s.car.vy, w: s.car.w,
         nitro: s.car.nitro, slide: s.car.slide, st: s.car.st, boost: s.car.boost,
       })),
@@ -170,9 +185,43 @@ export function createGame(ctx) {
     });
 
     giveBomb(pick(players).id);
-    g.phase = "countdown";
-    g.phaseEnd = now() + COUNTDOWN_MS;
     startLoop();
+    if (g.settings.vehicle === "hasard") return setVehicle(pick(P.TYPES));
+
+    // Vote : 2 véhicules différents tirés au sort, 10 s pour choisir.
+    const a = pick(P.TYPES);
+    g.vv = { choices: [a, pick(P.TYPES.filter((t) => t !== a))], votes: {} };
+    setVehicle(g.vv.choices[0], "vehicle");
+    g.phaseEnd = now() + VEHICLE_VOTE_MS;
+    for (const p of players.filter((p) => p.bot)) {
+      g.botTimers.push(setTimeout(() => voteVehicle(p.id, pick(g.vv?.choices || [])), 1500 + Math.random() * 4000));
+    }
+  }
+
+  // Tout le monde prend le même véhicule, puis compte à rebours.
+  function setVehicle(type, phase = "countdown") {
+    g.vehicle = type;
+    for (const s of Object.values(g.cars)) s.car.type = type;
+    g.phase = phase;
+    g.phaseEnd = now() + COUNTDOWN_MS;
+  }
+
+  function voteVehicle(pid, type) {
+    if (g.phase !== "vehicle" || !g.cars[pid] || !g.vv.choices.includes(type)) return { error: "Vote impossible." };
+    g.vv.votes[pid] = type;
+    // Tout le monde a voté : on n'attend pas la fin du chrono.
+    const voters = ctx.players().filter((p) => p.connected && g.cars[p.id]);
+    if (voters.every((p) => g.vv.votes[p.id])) g.phaseEnd = Math.min(g.phaseEnd, now() + 800);
+    return { ok: true };
+  }
+
+  // Fin du vote : le plus voté gagne (égalité ou aucun vote = au hasard).
+  function endVehicleVote() {
+    const counts = Object.fromEntries(g.vv.choices.map((t) => [t, 0]));
+    for (const t of Object.values(g.vv.votes)) counts[t]++;
+    const max = Math.max(...Object.values(counts));
+    g.vv.winner = pick(g.vv.choices.filter((t) => counts[t] === max));
+    setVehicle(g.vv.winner);
   }
 
   function giveBomb(id) {
@@ -373,7 +422,9 @@ export function createGame(ctx) {
   // =================================================================
   function tick() {
     const t = now();
-    if (g.phase === "countdown") {
+    if (g.phase === "vehicle") {
+      if (t >= g.phaseEnd) endVehicleVote();
+    } else if (g.phase === "countdown") {
       if (t >= g.phaseEnd) { g.phase = "play"; lightFuse(); }
     } else if (g.phase === "play" || g.phase === "boom") {
       step();
@@ -387,7 +438,10 @@ export function createGame(ctx) {
   }
 
   function startLoop() { stopLoop(); g.loop = setInterval(tick, TICK_MS); }
-  function stopLoop() { clearInterval(g.loop); g.loop = null; }
+  function stopLoop() {
+    clearInterval(g.loop); g.loop = null;
+    g.botTimers.forEach(clearTimeout); g.botTimers = [];
+  }
 
   function ranking() {
     const byScore = {};
@@ -398,7 +452,7 @@ export function createGame(ctx) {
   // Quelqu'un part en pleine manche : sa voiture devient une épave.
   function leave(id) {
     const s = g.cars[id];
-    if (!s?.alive || !["countdown", "play", "boom"].includes(g.phase)) return;
+    if (!s?.alive || !["vehicle", "countdown", "play", "boom"].includes(g.phase)) return;
     eliminate(id);
     const alive = aliveIds();
     if (alive.length <= 1) { endRound(); return; }
@@ -412,6 +466,7 @@ export function createGame(ctx) {
     settings(pid, { settings }) {
       if (!ctx.isHost(pid) || g.phase !== "setup" || !settings) return;
       if (settings.fuse && (!FUSES[settings.fuse])) delete settings.fuse;
+      if (settings.vehicle && !["vote", "hasard"].includes(settings.vehicle)) delete settings.vehicle;
       g.settings = { ...g.settings, ...settings };
       ctx.saveSettings({ ...g.settings });
       ctx.update();
@@ -441,6 +496,9 @@ export function createGame(ctx) {
       st.budget -= 1;
       advanceCar(pid, k & 63);
     },
+
+    // Vote du véhicule avant la manche.
+    vehicle(pid, { type }) { return voteVehicle(pid, type); },
 
     setup(pid) {
       if (!ctx.isHost(pid) || g.phase !== "roundOver" || ctx.playlist) return;   // en playlist, pas de réglages

@@ -54,7 +54,7 @@ async function run() {
   await emit("addBot"); await emit("addBot");
   await emit("pickGame", { gameId: "patate" });
   await wait(200);
-  await act("settings", { settings: { fuse: "longue" } });
+  await act("settings", { settings: { fuse: "longue", vehicle: "hasard" } });
   await act("start");
   while (!game || game.phase !== "play") await wait(20);
   await wait(100);

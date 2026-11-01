@@ -52,7 +52,7 @@ async function run() {
   check(hub.phase === "next" && hub.next.vote === false && hub.next.gameId === "patate", "Écran « prochain jeu » sans vote");
   check(await waitFor(() => hub.phase === "game", 7000), "Le jeu se lance tout seul après 5 s");
   await waitFor(() => game, 1000);
-  check(game.phase === "countdown", "Pas d'écran de réglages : la manche démarre direct");
+  check(game.phase === "vehicle" && game.vehicleVote?.choices.length === 2, "Pas d'écran de réglages : direct au vote du véhicule");
   check(game.playlist?.rounds === 3 && game.settings.fuse === "normale", `Normal par défaut : 3 manches, mèche ${game.settings.fuse}`);
   send("abortGame");
   await wait(200);

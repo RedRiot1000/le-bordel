@@ -146,7 +146,8 @@
         b.onclick = () => api.action("random").then((r) => { if (r.text) inputs[Number(b.dataset.i)].value = r.text; });
       });
       const send = () => api.action("write", { texts: inputs.map((i) => i.value) }).then((r) => {
-        $("qn-write-msg").textContent = r.error ? "⚠️ " + r.error : "✅ Envoyé ! Tu peux encore modifier et renvoyer.";
+        const msg = $("qn-write-msg");   // (disparu si l'écran est déjà passé au vote)
+        if (msg) msg.textContent = r.error ? "⚠️ " + r.error : "✅ Envoyé ! Tu peux encore modifier et renvoyer.";
       });
       $("qn-send").onclick = send;
       inputs.forEach((i) => i.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); }));

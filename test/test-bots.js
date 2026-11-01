@@ -64,7 +64,7 @@ async function run() {
   console.log("\n— Patate chaude avec bots —");
   await emit("pickGame", { gameId: "patate" });
   await wait(200);
-  await act("settings", { settings: { fuse: "test", obstacles: true } });
+  await act("settings", { settings: { fuse: "test", obstacles: true, vehicle: "hasard" } });
   await act("start");
   let passes = 0, last = null;
   const over = await waitFor(() => {
