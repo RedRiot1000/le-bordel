@@ -164,6 +164,13 @@ export function createGame(ctx) {
         g.cars[id].car = { ...P.newCar(x, y, a), nitro: old ? old.nitro : 1 };
       });
     }
+    // Gardien : dans une équipe d'au moins 2, un bot reste devant la cage.
+    g.keeper = {};
+    for (const tm of ["blue", "red"]) {
+      const ids = g.teams[tm].filter((id) => g.cars[id]);
+      const bots = ids.filter((id) => g.cars[id].bot);
+      g.keeper[tm] = ids.length >= 2 && bots.length ? bots[bots.length - 1] : null;
+    }
     g.ball = B.newBall();
     g.lastTouch = null;
     g.phase = "kickoff";
@@ -253,8 +260,28 @@ export function createGame(ctx) {
     if (ai.stuck > 0.8) { ai.reverse = 0.8; ai.stuck = 0; ai.revSteer = Math.random() < 0.5 ? K.LEFT : K.RIGHT; }
     if (ai.reverse > 0) { ai.wantGo = false; return K.DOWN | ai.revSteer; }
 
-    // La cage à attaquer.
     const tm = g.teamOf[id];
+    // Gardien : il se place entre le ballon et sa cage, et ne sort que si le ballon approche.
+    if (g.keeper?.[tm] === id) {
+      const ownX = tm === "blue" ? B.GD : B.GD + B.FW, ownY = B.H / 2;
+      if (Math.hypot(b.x - ownX, b.y - ownY) > 330) {
+        const toBall = Math.atan2(b.y - ownY, b.x - ownX);
+        const spot = {
+          x: ownX + Math.cos(toBall) * 110,
+          y: Math.max(B.goalTop - 30, Math.min(B.goalBot + 30, ownY + Math.sin(toBall) * 110)),
+        };
+        const d = Math.hypot(spot.x - c.x, spot.y - c.y);
+        if (d < 30) { ai.wantGo = false; return speed > 40 ? K.DOWN : 0; }   // en place : on attend
+        const want = Math.atan2(spot.y - c.y, spot.x - c.x);
+        const diff = angDiff(want, c.a);
+        let k = diff > 0.12 ? K.RIGHT : diff < -0.12 ? K.LEFT : 0;
+        // Pas besoin de foncer : on ralentit en approchant.
+        if (Math.abs(diff) < 1.9 || speed < 100) { if (d > 90 || speed < 120) k |= K.UP; ai.wantGo = true; }
+        else { k |= K.DOWN; ai.wantGo = false; }
+        return k;
+      }
+    }
+    // La cage à attaquer.
     const gx = tm === "blue" ? B.W - B.GD / 2 : B.GD / 2, gy = B.H / 2;
     const toGoal = Math.atan2(gy - b.y, gx - b.x);
     // Point derrière le ballon, dans l'axe de la cage adverse.
