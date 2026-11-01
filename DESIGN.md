@@ -265,6 +265,36 @@ Seules les maps qui ont au moins un screenshot apparaissent dans la liste.
 ### Bots
 Ils répondent après un petit délai au hasard, justes environ une fois sur deux.
 
+## 7 quinquies. Qui de nous ? 👉 (validé)
+
+**Principe** : chacun écrit des questions du genre « Qui finirait en prison en premier ? »,
+puis on vote pour un joueur sur chaque question, et tout est dévoilé à la fin dans une « cérémonie ».
+Partie rapide : ~2 min à 5 joueurs.
+
+### Déroulé
+1. **Écriture (45 s)** : chacun écrit **1 question** (réglable 1 à 3). Bouton 🎲 « Idée au hasard » qui
+   propose une question parmi une banque d'environ 100 (on peut la modifier avant d'envoyer).
+   Ceux qui n'ont rien écrit à la fin reçoivent une question au hasard. Les bots aussi.
+2. **Votes (10 s par question)** : les questions passent une par une, **anonymes**, dans un ordre au hasard.
+   Chacun clique sur un joueur (**on peut voter pour soi**). Tous les votes secrets. Question suivante dès
+   que tout le monde a voté.
+3. **La cérémonie (reveal)** : chaque question revient, avec roulement de tambour, les barres de votes qui
+   montent, **qui a voté pour qui** (avatars), **qui a écrit la question**, et le gagnant en grand avec son
+   **titre** (le texte de la question : « 🏆 Bob — finirait en prison en premier »). Égalité = titre partagé.
+   ~6 s par question (l'hôte peut passer plus vite).
+4. **Fin** : le palmarès des titres de chaque joueur + les points.
+
+### Points
+**+1 point** chaque fois que tu as voté pour la personne la plus désignée (tu connais bien le groupe !).
+Égalité en tête : voter pour n'importe lequel des premiers compte. À la fin → points de soirée.
+
+### Réglages
+- Un jeu : questions par joueur (1 / 2 / 3), temps d'écriture (30 / **45** / 60 s), temps de vote (**10** / 15 / 20 s).
+- Playlist (vote) : questions par joueur (**1** / 2 / 3).
+
+### Bots
+Ils écrivent une question de la banque et votent au hasard (parfois pour eux-mêmes).
+
 ## 8. Feuille de route
 
 | Phase | Contenu | Objectif |
