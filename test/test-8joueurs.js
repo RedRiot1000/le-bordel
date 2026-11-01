@@ -53,6 +53,8 @@ const GAMES = {
   classement: () => game.rounds === 8,
   chat: () => game.cars?.length === 8 && game.cars.filter((c) => c.role === "cat").length === 2,
   police: () => game.cars?.length === 8 && game.cars.every((c) => c.type === "f1"),
+  pensepareil: () => game.who?.length === 8 && game.phase === "answer",
+  deuxverites: () => game.who?.length === 8 && game.phase === "write",
 };
 
 async function run() {

@@ -1,0 +1,27 @@
+/* PENSE PAREIL — styles (le reste vient de quidenous.css et sur10.css : .qn-*, .s10-*) */
+.pp-prompt .s10-theme-title { color: #ff4fa3; text-shadow: 0 0 18px rgba(255, 79, 163, 0.4); }
+
+/* Les paquets de réponses identiques */
+.pp-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; max-width: 1100px; margin: 0 auto; }
+.pp-group {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 12px 12px; border-radius: 18px;
+  background: var(--surface); border: 3px solid var(--border); color: var(--text); text-align: center;
+  animation: popIn 0.4s cubic-bezier(.2,1.4,.4,1) both;
+}
+.pp-groups.noanim .pp-group { animation: none; }
+.pp-group:not(:disabled) { cursor: pointer; }
+.pp-group:not(:disabled):hover { border-color: var(--accent); }
+.pp-group.best { border-color: #ffd400; background: linear-gradient(180deg, rgba(255, 212, 0, 0.18), var(--surface)); }
+.pp-group.alone { opacity: 0.7; }
+.pp-group.picked { border-color: var(--accent-3); box-shadow: 0 0 0 4px rgba(56, 232, 200, 0.35); transform: scale(1.03); }
+.pp-count { position: absolute; top: -12px; right: 12px; padding: 2px 10px; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 900; font-size: 15px; }
+.pp-group.best .pp-count { background: #ffd400; color: #1a1400; }
+.pp-group.alone .pp-count { background: var(--surface-2); color: var(--muted); }
+.pp-label { font-size: 24px; font-weight: 900; line-height: 1.15; word-break: break-word; }
+.pp-who { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.pp-p { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--muted); }
+.pp-pts { font-weight: 900; color: var(--ok); }
+.pp-group.alone .pp-pts { color: var(--muted); }
+.pp-silent { text-align: center; margin-top: 10px; }
+.pp-merge-hint { text-align: center; margin-top: 14px; color: var(--accent-3); font-weight: 700; }
+.noanim .s10-theme { animation: none; }

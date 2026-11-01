@@ -15,6 +15,8 @@ import * as sur10 from "./sur10/server.js";
 import * as classement from "./classement/server.js";
 import * as chat from "./chat/server.js";
 import * as police from "./police/server.js";
+import * as pensepareil from "./pensepareil/server.js";
+import * as deuxverites from "./deuxverites/server.js";
 
 // Les jeux jouables.
 export const GAMES = {
@@ -29,10 +31,10 @@ export const GAMES = {
   [classement.meta.id]: classement,
   [chat.meta.id]: chat,
   [police.meta.id]: police,
+  [pensepareil.meta.id]: pensepareil,
+  [deuxverites.meta.id]: deuxverites,
 };
 
 // Les jeux prévus (affichés grisés "bientôt" dans le menu).
 export const UPCOMING = [
-  { name: "2 vérités, 1 mensonge", emoji: "🤥", family: "Ambiance" },
-  { name: "Pense pareil", emoji: "🧠", family: "Ambiance" },
 ];

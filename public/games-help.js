@@ -205,5 +205,37 @@
       ],
       example: "Tu fonces dans une grande avenue avec le nitro, deux Sportives au cul. Tu prends une ruelle étroite à droite… un van te bloque la sortie ! Tu recules, le cercle rouge commence à se remplir, tu repars en marche avant en frottant le mur : sauvé. À ⭐⭐⭐⭐⭐ Bob se fait coincer contre une rue barrée et devient flic… et c'est lui qui t'arrête à 10 s de la fin (+2 pour lui).",
     },
+    pensepareil: {
+      goal: "Écrire la même réponse que les autres : ici, on ne gagne pas en étant original !",
+      steps: [
+        "Un <b>thème</b> s'affiche, par exemple « Un truc rouge » ou « Un animal de la ferme ».",
+        "Chacun écrit <b>une seule réponse</b>, en secret (30 s par défaut). Pense à ce que les AUTRES vont écrire !",
+        "<b>Révélation</b> : les réponses sont regroupées par paquets identiques, le plus gros en premier (en jaune).",
+        "« Le chat », « chats » et « Chat ! » comptent pareil (majuscules, accents, le/la/un et pluriels ne comptent pas).",
+        "Deux réponses veulent dire la même chose (« Chaton » et « Chat ») ? Débattez sur Discord : l'<b>hôte</b> clique sur l'une puis sur l'autre pour les <b>fusionner</b>.",
+      ],
+      points: [
+        "<b>1 point par autre joueur</b> qui a la même réponse que toi.",
+        "Seul dans ton coin = 0 point.",
+      ],
+      example: "Thème « <b>Un truc rouge</b> ». Toi, Alice et Bob écrivez « Tomate » : 3 dans le même paquet, vous prenez <b>2 points chacun</b>. Léo a écrit « Fraise », seul : 0. Max a écrit « Les tomates » : fusionné tout seul avec vous, ça fait 4 → <b>3 points chacun</b> !",
+    },
+
+    deuxverites: {
+      goal: "Démasquer les mensonges des autres… et piéger tout le monde avec le tien.",
+      steps: [
+        "Un <b>thème</b> est tiré au sort (« Mes vacances », « Ma pire honte », « Mon enfance »…).",
+        "Chacun écrit <b>3 phrases sur lui</b> : 2 vraies et <b>1 fausse</b>, et coche laquelle est le mensonge (elle s'encadre en rouge).",
+        "Ensuite, <b>un joueur à la fois</b> : ses 3 phrases s'affichent dans le désordre (A, B, C).",
+        "Les autres cliquent sur celle qu'ils pensent être le <b>mensonge</b> (on peut changer d'avis). L'auteur peut se défendre… ou embrouiller tout le monde au micro !",
+        "<b>Révélation</b> : le mensonge en rouge, les vérités en vert, et qui a voté quoi.",
+      ],
+      points: [
+        "<b>+1</b> si tu trouves le mensonge.",
+        "L'auteur gagne <b>+1 par joueur piégé</b>.",
+        "Astuce : une vérité qui a l'air folle, ça piège très bien !",
+      ],
+      example: "Thème « <b>Ce que j'ai déjà mangé</b> ». Tu écris : A « J'ai mangé du crocodile », B « J'ai mangé 3 pizzas dans la soirée », C « Je n'ai jamais mangé d'huître ». Le mensonge, c'est B. Bob vote A (« impossible ! ») et Alice vote C : tu les as piégés tous les deux → <b>+2</b> pour toi.",
+    },
   };
 })();

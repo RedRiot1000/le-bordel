@@ -436,6 +436,22 @@ Idée de Scotty : tout le monde en **F1**, la police (IA) arrive de plus en plus
 - Bots fugitifs : choisissent un point loin des flics (par la route) et y vont ; arrêtés, ils deviennent flics IA.
 - Simulation bots contre police (2 min) : 4 joueurs → arrestations entre 30 s et 110 s, 1-2 survivants ; 8 joueurs → 2-3 survivants.
 
+## 7 duodecies. Pense pareil 🧠 — validé (« Go les deux »)
+
+Un thème (environ 130 dans `games/pensepareil/prompts.js`), chacun écrit UNE réponse en secret (20/30/45 s).
+- Révélation par paquets identiques (le plus gros en jaune). Fusion automatique : majuscules, accents, ponctuation,
+  articles (le/la/un/des…), pluriels (s/x, -aux → -al). L'**hôte** peut fusionner deux paquets à la main (clic, clic) pendant la révélation.
+- Points : 1 par autre joueur avec la même réponse. Partie : 5/8/12 thèmes (défaut 8) ; playlist 5/8.
+- Bots : chaque thème a une liste de réponses courantes, ils piochent surtout les premières.
+
+## 7 terdecies. 2 vérités, 1 mensonge 🤥 — validé (« Go les deux »)
+
+Un thème tiré au sort par manche (environ 30 dans `games/deuxverites/themes.js`, avec une aide pour écrire).
+- Chacun écrit 3 phrases sur lui et coche la fausse (60/90/120 s). Un joueur à la fois : ses phrases mélangées (A/B/C),
+  les autres votent (20/25/35 s, on peut changer d'avis), révélation (mensonge en rouge, vérités en vert).
+- Points : +1 si on trouve, l'auteur +1 par joueur piégé. Manches 1/2/3 (défaut 2) ; playlist 1/2.
+- Bots : 3 phrases prêtes du thème, une déclarée fausse au hasard ; ils votent juste environ 1 fois sur 3.
+
 ## 8. Feuille de route
 
 | Phase | Contenu | Objectif |
