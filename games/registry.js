@@ -11,6 +11,7 @@ import * as cs2map from "./cs2map/server.js";
 import * as quidenous from "./quidenous/server.js";
 import * as neon from "./neon/server.js";
 import * as carfoot from "./carfoot/server.js";
+import * as sur10 from "./sur10/server.js";
 
 // Les jeux jouables.
 export const GAMES = {
@@ -21,6 +22,7 @@ export const GAMES = {
   [quidenous.meta.id]: quidenous,
   [neon.meta.id]: neon,
   [carfoot.meta.id]: carfoot,
+  [sur10.meta.id]: sur10,
 };
 
 // Les jeux prévus (affichés grisés "bientôt" dans le menu).

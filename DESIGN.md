@@ -360,6 +360,38 @@ Ils se placent derrière le ballon (côté de leur cage) et foncent dedans vers 
 Physique du ballon partagée (`public/games/carfoot/ball.js`). Le serveur fait foi ; ma voiture est prédite
 comme à la Patate, le ballon est affiché « au présent » (avancé selon sa vitesse).
 
+## 7 octies. Sur 10 🔟 — validé (« go »)
+
+Idée de Scotty : chacun a une note secrète de 0 à 10 et donne un indice qui « vaut » cette note pour lui.
+Les autres devinent la note. Ex. : thème « Un jeu vidéo », j'ai 10 → j'écris « Rust ».
+
+### Une manche
+1. **Vote du thème** : 3 thèmes au hasard (environ 60 dans `games/sur10/themes.js`), 15 s, le plus voté gagne
+   (égalité = au sort). Un thème joué ne revient pas dans la partie. Certains thèmes ont leur propre échelle
+   (« Un animal : 0 = inoffensif · 10 = mortel »).
+2. **Note + indice** : chacun **choisit** sa note (0-10) en secret et écrit son indice (60 s par défaut).
+   Celui qui n'envoie rien ne passe pas cette manche.
+3. **On devine** : un joueur à la fois (ordre au hasard), son indice en grand, les autres choisissent une note
+   et valident (20 s, ou dès que tout le monde a validé).
+4. **Révélation** : roulement de tambour, puis la réglette 0→10 avec la vraie note et les avatars des devineurs
+   (10 s, l'hôte peut passer).
+
+### Points
+- Devineur : pile = 3, à 1 près = 2, à 2 près = 1.
+- Auteur de l'indice : +1 par joueur qui l'a trouvé à 1 près ou mieux (récompense les bons indices).
+
+### Réglages
+Manches 1/2/3/5 (défaut 3), temps note+indice 45/60/90 s, temps pour deviner 15/20/30 s.
+Playlist : option « Manches » 1/2/3 (défaut 2).
+
+### Bots
+Ils votent un thème au hasard, piochent un exemple du thème avec sa note (« Raclette » = 10), et devinent
+bien si l'indice vient de la liste, au pif autour de 5 sinon.
+
+### À surveiller
+Les joueurs risquent de toujours choisir 0 ou 10 (le plus facile à faire deviner). Si ça arrive :
+réglage « note tirée au hasard ».
+
 ## 8. Feuille de route
 
 | Phase | Contenu | Objectif |
