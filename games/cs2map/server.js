@@ -23,7 +23,7 @@ export const meta = {
 // Toutes les maps connues (dans l'ordre d'affichage) et leur nom.
 export const MAPS = {
   mirage: "Mirage", inferno: "Inferno", nuke: "Nuke", ancient: "Ancient", anubis: "Anubis",
-  dust2: "Dust2", train: "Train", overpass: "Overpass", vertigo: "Vertigo", office: "Office", italy: "Italy",
+  dust2: "Dust2", train: "Train", overpass: "Overpass", vertigo: "Vertigo", cache: "Cache", office: "Office", italy: "Italy",
 };
 const mapName = (id) => MAPS[id] || id.charAt(0).toUpperCase() + id.slice(1);
 

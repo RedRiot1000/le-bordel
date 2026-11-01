@@ -239,7 +239,7 @@ seulement de ce que les joueurs connaissent (c'est la même image pour tout le m
 - À la fin : classement → points de soirée (comme les autres jeux).
 
 ### Maps
-Active Duty + classiques : **Mirage, Inferno, Nuke, Ancient, Anubis, Dust2, Train, Overpass, Vertigo, Office, Italy**.
+Active Duty + classiques : **Mirage, Inferno, Nuke, Ancient, Anubis, Dust2, Train, Overpass, Vertigo, Cache, Office, Italy**.
 Seules les maps qui ont au moins un screenshot apparaissent dans la liste.
 
 ### Les screenshots (c'est toi qui les prends)
