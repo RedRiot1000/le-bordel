@@ -275,13 +275,13 @@ Partie rapide : ~2 min à 5 joueurs.
 1. **Écriture (45 s)** : chacun écrit **1 question** (réglable 1 à 3). Bouton 🎲 « Idée au hasard » qui
    propose une question parmi une banque d'environ 100 (on peut la modifier avant d'envoyer).
    Ceux qui n'ont rien écrit à la fin reçoivent une question au hasard. Les bots aussi.
-2. **Votes (10 s par question)** : les questions passent une par une, **anonymes**, dans un ordre au hasard.
+2. **Votes (15 s par question)** : les questions passent une par une, **anonymes**, dans un ordre au hasard.
    Chacun clique sur un joueur (**on peut voter pour soi**). Tous les votes secrets. Question suivante dès
    que tout le monde a voté.
 3. **La cérémonie (reveal)** : chaque question revient, avec roulement de tambour, les barres de votes qui
    montent, **qui a voté pour qui** (avatars), **qui a écrit la question**, et le gagnant en grand avec son
    **titre** (le texte de la question : « 🏆 Bob — finirait en prison en premier »). Égalité = titre partagé.
-   ~6 s par question (l'hôte peut passer plus vite).
+   ~11 s par question (l'hôte peut passer plus vite).
 4. **Fin** : le palmarès des titres de chaque joueur + les points.
 
 ### Points

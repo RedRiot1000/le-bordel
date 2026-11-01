@@ -106,7 +106,7 @@
     $("qn-finish-setup").classList.toggle("hidden", !host);
     $("qn-finish-setup").textContent = played ? "Terminer le jeu (points de soirée)" : "Retour au menu";
     $("qn-hint").textContent = !host ? "En attente que l'hôte lance la partie…"
-      : n < 3 ? `Il faut au moins 3 joueurs (${n}/3).` : `${n} joueurs · ~${Math.round((s.writeTime + n * s.perPlayer * (s.voteTime + 6.5)) / 60)} min de jeu.`;
+      : n < 3 ? `Il faut au moins 3 joueurs (${n}/3).` : `${n} joueurs · ~${Math.round((s.writeTime + n * s.perPlayer * (s.voteTime + 11)) / 60)} min de jeu.`;
   }
 
   // ===================================================================
@@ -167,12 +167,19 @@
     const v = st.vote;
     const box = $("qn-vote");
     const key = "v" + v.num;
-    if (shownKey !== key) { shownKey = key; myVote = null; }
+    // Nouvelle question : on dessine le haut une seule fois (sinon la question
+    // rejouerait son animation et clignoterait à chaque vote reçu).
+    if (shownKey !== key) {
+      shownKey = key; myVote = null;
+      box.innerHTML = `
+        <div class="qn-top"><span class="pill">🗳️ Question ${v.num}/${v.total}</span><span class="qn-sec" id="qn-sec"></span></div>
+        <div class="qn-bar"><i id="qn-bar"></i></div>
+        <div class="qn-question">${esc(v.text)}</div>
+        <div id="qn-vote-live"></div>`;
+    }
     const playing = st.who.includes(me());
-    box.innerHTML = `
-      <div class="qn-top"><span class="pill">🗳️ Question ${v.num}/${v.total}</span><span class="qn-sec" id="qn-sec"></span></div>
-      <div class="qn-bar"><i id="qn-bar"></i></div>
-      <div class="qn-question">${esc(v.text)}</div>
+    const live = $("qn-vote-live");
+    live.innerHTML = `
       <div class="qn-candidates">
         ${st.who.map((id) => {
           const p = playerOf(id);
@@ -182,7 +189,7 @@
       </div>
       <p class="qn-status">${!playing ? "👀 Tu regardes." : myVote ? `✅ Tu as voté pour <b>${esc(pseudoOf(myVote))}</b>` : "👉 Clique sur quelqu'un !"}</p>
       <div class="qn-who">${st.who.map((id) => `<span class="qn-chip ${v.votedIds.includes(id) ? "done" : ""}">${api.avatar(playerOf(id))}</span>`).join("")}</div>`;
-    box.querySelectorAll(".qn-cand:not([disabled])").forEach((b) => {
+    live.querySelectorAll(".qn-cand:not([disabled])").forEach((b) => {
       b.onclick = () => { myVote = b.dataset.id; api.action("vote", { target: b.dataset.id }); renderVote(); };
     });
   }

@@ -18,12 +18,12 @@ export const meta = {
   description: "« Qui finirait en prison en premier ? » Votez… et assumez.",
 };
 
-const STEP_MS = 6500;          // durée d'une question pendant la cérémonie
+const STEP_MS = 11000;         // durée d'une question pendant la cérémonie
 const FINISH_DELAY = 15000;    // playlist : temps pour lire le palmarès
 const MAX_LEN = 100;           // longueur max d'une question
 
 function defaultSettings() {
-  return { perPlayer: 1, writeTime: 45, voteTime: 10 };
+  return { perPlayer: 1, writeTime: 45, voteTime: 15 };
 }
 
 // ===================================================================
@@ -218,7 +218,7 @@ export function createGame(ctx) {
     return { ok: true };
   }
 
-  // La cérémonie : une question toutes les ~6,5 s (l'hôte peut accélérer).
+  // La cérémonie : une question toutes les ~11 s (l'hôte peut accélérer).
   function startReveal() {
     g.phase = "reveal";
     g.index = -1;
@@ -271,7 +271,7 @@ export function createGame(ctx) {
       const s = { ...g.settings, ...settings };
       if (![1, 2, 3].includes(s.perPlayer)) s.perPlayer = 1;
       if (![30, 45, 60].includes(s.writeTime)) s.writeTime = 45;
-      if (![10, 15, 20].includes(s.voteTime)) s.voteTime = 10;
+      if (![10, 15, 20].includes(s.voteTime)) s.voteTime = 15;
       g.settings = s;
       ctx.saveSettings({ ...s });
       ctx.update();
