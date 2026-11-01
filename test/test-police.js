@@ -77,7 +77,7 @@ async function run() {
       if (seen.has(cop.id)) continue;
       seen.add(cop.id);
       const free = game.cars.filter((c) => c.role === "free");
-      if (free.length && Math.min(...free.map((f) => Math.hypot(f.x - cop.x, f.y - cop.y))) < 550) spawnTooClose++;
+      if (free.length && Math.min(...free.map((f) => Math.hypot(f.x - cop.x, f.y - cop.y))) < 400) spawnTooClose++;
     }
     maxCops = Math.max(maxCops, game.cops.length);
     if (game.cars.some((c) => c.role === "free" && c.arrest > 0)) sawArrestGauge = true;

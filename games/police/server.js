@@ -28,13 +28,14 @@ const TICK_MS = 1000 / 30;
 const COUNTDOWN_MS = 3000;
 export const COPS_DELAY = 5000;    // les flics arrivent 5 s après le départ
 export const ARREST_MS = 1000;     // presque à l'arrêt pendant 1 s...
-export const ARREST_SPEED = 45;    // ... en dessous de cette vitesse (px/s)...
-export const ARREST_DIST = 95;     // ... avec au moins 2 véhicules de police à moins de 95 px
+export const ARREST_SPEED = 65;    // ... en dessous de cette vitesse (px/s)...
+export const ARREST_DIST = 110;    // ... avec au moins 2 véhicules de police à moins de 110 px
 const END_DELAY = 1500;            // on voit la dernière arrestation avant les scores
 const ROUND_OVER_MS = 7000;        // playlist : manche suivante toute seule
 const FINISH_DELAY = 15000;
-const SPAWN_MIN_DIST = 700;        // un flic n'apparaît jamais sous le nez d'un joueur
-export const MAX_COPS = [2, 3, 4, 5, 6];   // flics par joueur libre, selon les étoiles
+const SPAWN_MIN_DIST = 550;        // un flic n'apparaît jamais sous le nez d'un joueur...
+const SPAWN_MAX_DIST = 1200;       // ... mais pas trop loin non plus (il arrive vite)
+export const MAX_COPS = [3, 4, 5, 6, 7];   // flics par joueur libre, selon les étoiles
 export const MAX_TOTAL = 40;              // et jamais plus de 40 en tout (pour que ça reste fluide)
 // Les véhicules de police selon les étoiles (chances sur 100).
 //   sport = chasse · moto = rapide et agile mais ne bloque rien · minivan = coupe la route
@@ -46,7 +47,9 @@ export const COP_MIX = [
   { sport: 25, moto: 15, minivan: 20, supercar: 20, truck: 20 },
   { sport: 20, moto: 15, minivan: 20, supercar: 25, truck: 20 },
 ];
-export const COP_POWER = (stars) => 0.85 + 0.07 * stars;   // moteur des flics (⭐ 0,92 → ⭐⭐⭐⭐⭐ 1,2)
+// Moteur des flics : ⭐ ×1 → ⭐⭐⭐⭐⭐ ×1,25. À partir de ⭐⭐⭐, une Sportive boostée va aussi vite qu'une F1 :
+// il faut semer la police dans les rues, pas juste tenir la ligne droite.
+export const COP_POWER = (stars) => 0.95 + 0.06 * stars;
 const HELI_STARS = 4;
 export const SURVIVE_BONUS = 3, PER_20S = 1, COP_ARREST = 2;
 
@@ -308,7 +311,7 @@ export function createGame(ctx) {
     for (let k = 0; k < 60 && !spot; k++) {
       const c = C.centerOf(g.city.nav, pick(g.roadCells));
       const dMin = Math.min(...targets.map((t) => dist(t, c)));
-      if (dMin < SPAWN_MIN_DIST || dMin > 1600) continue;
+      if (dMin < SPAWN_MIN_DIST || dMin > SPAWN_MAX_DIST) continue;
       if (others.some((o) => dist(o, c) < 70)) continue;
       spot = c;
     }
@@ -326,9 +329,12 @@ export function createGame(ctx) {
     g.fieldsAt = t;
     const nav = g.city.nav;
     g.fields = {};
+    g.aheadFields = {};
     for (const id of freeIds()) {
       const c = g.cars[id].car;
       g.fields[id] = C.field(nav, [C.nearestFree(nav, C.cellOf(nav, c.x, c.y))]);
+      const ax = Math.max(0, Math.min(g.city.w, c.x + c.vx * 1.3)), ay = Math.max(0, Math.min(g.city.h, c.y + c.vy * 1.3));
+      g.aheadFields[id] = C.field(nav, [C.nearestFree(nav, C.cellOf(nav, ax, ay))]);
     }
     const pc = policeCars();
     g.copField = pc.length ? C.field(nav, pc.map((c) => C.nearestFree(nav, C.cellOf(nav, c.x, c.y)))) : null;
@@ -381,9 +387,12 @@ export function createGame(ctx) {
     // Vans et camions visent devant le joueur (pour lui couper la route), les autres le percutent.
     const lead = c.type === "minivan" || c.type === "truck" ? 0.8 : 0.35;
     let target;
+    // 1 flic sur 3 (et tous les vans/camions) ne suit pas le fugitif : il file là où il va arriver, pour le prendre en tenaille.
+    const cutter = idx % 3 === 1 || lead > 0.5;
     if (d < 230) target = { x: t.x + t.vx * lead * (d / 230), y: t.y + t.vy * lead * (d / 230) };
-    else target = C.lookAhead(nav, g.fields[ai.target], c.x, c.y, 3);
-    return steerTo(c, ai, target, { corner: CORNER[c.type] || 210, nitro: false });
+    else target = C.lookAhead(nav, (cutter && g.aheadFields?.[ai.target]) || g.fields[ai.target], c.x, c.y, 3);
+    // Nitro en ligne droite quand le fugitif est loin (sauf les camions).
+    return steerTo(c, ai, target, { corner: CORNER[c.type] || 210, nitro: c.type !== "truck" && d > 260 });
   }
   // Vitesse max dans un virage serré, selon le véhicule.
   const CORNER = { moto: 270, supercar: 240, sport: 210, minivan: 190, truck: 160 };

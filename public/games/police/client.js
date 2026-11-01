@@ -10,7 +10,7 @@
   const P = window.PatatePhysics;
   const C = window.PoliceCity;
   const K = P.K;
-  const COP_POWER = (stars) => 0.85 + 0.07 * stars;   // (le même que games/police/server.js)
+  const COP_POWER = (stars) => 0.95 + 0.06 * stars;   // (le même que games/police/server.js)
   const COP_COLOR = "#16213e";
   const MINI = 0.07;
 

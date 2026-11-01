@@ -426,7 +426,9 @@ Idée de Scotty : tout le monde en **F1**, la police (IA) arrive de plus en plus
 - **Niveau de recherche** ⭐→⭐⭐⭐⭐⭐ (5 paliers sur la durée) : max 2/3/4/5/6 flics par fugitif libre (40 en tout au maximum),
   moteur ×0,92 → ×1,2. Véhicules (demande de Scotty) : Sportive + moto dès ⭐, van à ⭐⭐, **Supercar** (nouveau véhicule réservé à la
   police, presque aussi rapide qu'une F1) et **camion** à ⭐⭐⭐ (tableau COP_MIX dans le serveur). **Hélico** à ⭐⭐⭐⭐ : suit un fugitif, la moitié des flics le vise.
-- **Arrestation** : vitesse < 45 px/s pendant 1 s avec ≥ 2 véhicules de police à moins de 95 px (jauge rouge visible).
+- **Arrestation** : vitesse < 65 px/s pendant 1 s avec ≥ 2 véhicules de police à moins de 110 px (jauge rouge visible).
+- **Durci** (« trop facile ») : flics ×1 → ×1,25 (une Sportive à ⭐⭐⭐ va aussi vite qu’une F1), nitro pour les flics, 1 flic sur 3 + vans/camions
+  coupent la route (ils visent où le fugitif sera dans 1,3 s), apparition à 550-1200 px, max 3→7 par fugitif.
   Arrêté → **flic** (van de police), il compte pour la règle des 2.
 - **Points** : +1 par 20 s de liberté, +3 si libre à la fin, +2 par arrestation pour un joueur-flic.
 - Réglages : manches 2/3/5 (défaut 3), durée 1 min 30 / 2 min / 3 min (défaut 2 min). Playlist : 2/3 manches.
