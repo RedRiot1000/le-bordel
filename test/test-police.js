@@ -89,7 +89,9 @@ async function run() {
   check(game.phase === "roundOver" && !!lr, "Fin de manche 1");
   console.log(`     (${seen.size} flics apparus, max ${maxCops} en même temps, ⭐${lr.stars}, arrestations à ${lr.arrests.map((a) => Math.round(a.at / 1000) + " s" + (a.id === me ? " (moi)" : "")).join(", ") || "aucune"})`);
   check(seen.size > 0 && spawnTooClose === 0, "Les flics apparaissent, jamais sous le nez d'un fugitif");
-  check(lr.stars === 5, "Le niveau de recherche monte jusqu'à ⭐⭐⭐⭐⭐");
+  // (la manche peut finir avant ⭐⭐⭐⭐⭐ si tout le monde est arrêté : 1 étoile de plus toutes les 18 s sur 90 s)
+  const lastAt = lr.survivors.length ? 90000 : Math.max(...lr.arrests.map((x) => x.at));
+  check(lr.stars === Math.min(5, 1 + Math.floor(lastAt / 18000)), `Le niveau de recherche monte (⭐${lr.stars} au bout de ${Math.round(lastAt / 1000)} s)`);
   check(lr.arrests.some((a) => a.id === me), "Moi, immobile : arrêté");
   check(iWasCop, "Arrêté = je deviens flic (van)");
   check(sawArrestGauge, "La jauge d'arrestation se remplit avant l'arrestation");
