@@ -155,13 +155,17 @@
       box.innerHTML = `
         ${topHtml("📋 " + roundLabel())}
         ${judgeHtml()}
-        <div class="s10-theme"><div class="s10-theme-title">${esc(st.theme.title)}</div></div>
+        <div class="s10-theme cl-theme"><div class="s10-theme-title">${esc(st.theme.title)}</div></div>
         ${playing ? `
           <p class="cl-ask">${isJudge ? "🤫 Classe ces 5 choses <b>selon TES goûts</b>." : `🔮 Comment <b>${esc(pseudoOf(st.judge))}</b> les a classées ?`}
             <span class="muted">Glisse les réponses sur l'échelle (ou clique-les dans l'ordre, du 1er au 5e).</span></p>
           <div class="cl-board">
             <div class="cl-pool" id="cl-pool"></div>
-            <ol class="cl-ladder" id="cl-ladder"></ol>
+            <div class="cl-ladderwrap">
+              <div class="cl-endlab top">⬆️ 1er = ${esc(st.theme.top)}</div>
+              <ol class="cl-ladder" id="cl-ladder"></ol>
+              <div class="cl-endlab bottom">⬇️ 5e = ${esc(st.theme.bottom)}</div>
+            </div>
           </div>
           <div class="lobby-actions">
             <button id="cl-send" class="btn btn-primary btn-big" disabled>Valider</button>
@@ -188,15 +192,13 @@
   // On peut CLIQUER (la chose va à la première place libre / retourne dans la liste)
   // ou GLISSER-DÉPOSER (sur une place, entre deux places pour échanger, ou dans la liste pour l'enlever).
   function drawBoard() {
-    const t = st.theme;
     $("cl-pool").innerHTML = st.items.map((txt, i) => order.includes(i) ? ""
       : `<button class="cl-item" data-i="${i}">${esc(txt)}</button>`).join("") || '<p class="muted">Tout est classé 👍</p>';
     $("cl-ladder").innerHTML = Array.from({ length: N }, (_, k) => {
       const i = order[k];
       const empty = i === null;
-      const end = k === 0 ? `<span class="cl-end">${esc(t.top)}</span>` : k === N - 1 ? `<span class="cl-end">${esc(t.bottom)}</span>` : "";
       return `<li class="cl-slot ${empty ? "empty" : ""}" data-k="${k}"><span class="cl-pos">${k + 1}</span>
-        ${empty ? '<span class="muted">glisse ici…</span>' : `<span class="cl-grip">⠿</span><span class="cl-txt">${esc(st.items[i])}</span><span class="cl-x">✕</span>`}${end}</li>`;
+        ${empty ? '<span class="muted">glisse ici…</span>' : `<span class="cl-grip">⠿</span><span class="cl-txt">${esc(st.items[i])}</span><span class="cl-x">✕</span>`}</li>`;
     }).join("");
 
     // --- Clic ---
@@ -301,13 +303,13 @@
         </div>`;
       };
       body = `
-        <p class="cl-ends">1er = ${esc(t.top)} · 5e = ${esc(t.bottom)}</p>
+        <p class="cl-ends"><span>⬆️ 1er = ${esc(t.top)}</span><span>⬇️ 5e = ${esc(t.bottom)}</span></p>
         <div class="cl-cols">${col(st.judge)}${guessers.map(col).join("")}</div>
         <p class="muted cl-legend">🟩 bonne place = 2 pts · 🟨 à une place près = 1 pt · le juge gagne la moyenne des autres</p>`;
     }
     box.innerHTML = `
       <div class="qn-top"><span class="pill">🔍 ${roundLabel()} · Révélation</span></div>
-      <div class="s10-theme"><div class="s10-theme-title">${esc(t.title)}</div></div>
+      <div class="s10-theme cl-theme"><div class="s10-theme-title">${esc(t.title)}</div></div>
       ${body}
       <div class="lobby-actions" id="cl-host"></div>`;
     if (api.isHost()) {

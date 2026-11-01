@@ -61,3 +61,15 @@
   background: var(--surface); border: 3px solid var(--accent-3); color: var(--text); font-size: 18px; font-weight: 800;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5); transform: rotate(-2deg) scale(1.04);
 }
+
+/* Le thème en ROUGE, les bouts de l'échelle en JAUNE : on comprend tout de suite. */
+.cl-theme .s10-theme-title { color: #ff3b3b; text-shadow: 0 0 18px rgba(255, 59, 59, 0.45); font-size: clamp(30px, 5vw, 50px); }
+.cl-ladderwrap { display: flex; flex-direction: column; gap: 8px; }
+.cl-endlab {
+  align-self: stretch; text-align: center; padding: 6px 12px; border-radius: 12px;
+  background: #ffd400; color: #1a1400; font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px;
+  box-shadow: 0 0 16px rgba(255, 212, 0, 0.45);
+}
+.cl-ends { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+.cl-ends span { padding: 4px 12px; border-radius: 10px; background: #ffd400; color: #1a1400; font-weight: 900; text-transform: uppercase; }
+#cl-pick .s10-scale { color: #ffd400; font-weight: 900; font-size: 15px; }
