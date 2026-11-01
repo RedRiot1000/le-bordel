@@ -228,8 +228,12 @@ seulement de ce que les joueurs connaissent (c'est la même image pour tout le m
 - Une série d'**images** (10 par défaut), **20 s** par image, jamais deux fois la même image dans la partie.
 - On répond en cliquant parmi **la liste de toutes les maps** du jeu.
   **Une seule réponse** par image (pas le droit de se corriger).
-- **Zoom qui recule** sur toutes les images : l'image commence zoomée ×4 sur un détail (le même pour
-  tout le monde) et se dézoome petit à petit jusqu'à l'image entière à la fin du chrono.
+- **Mode de révélation tiré au hasard pour chaque image** (le même pour tout le monde), parmi ceux cochés par l'hôte :
+  - 🔍 **Zoom qui recule** : zoomée ×4 sur un détail, se dézoome jusqu'à l'image entière.
+  - 🕳️ **Trou noir** : écran noir, un cercle s'ouvre depuis un point au hasard et grandit.
+  - ▦ **Un tiers à la fois** : 3 bandes (verticales ou horizontales), 1 visible au départ, +1 à chaque tiers du chrono.
+  - 💥 **Écran cassé** : des éclats de verre noir qui tombent, de plus en plus vers la fin.
+  - ⬅️➡️⬆️⬇️ **Balayage** : le noir recule dans un des 4 sens.
 - Quand tout le monde a répondu (ou à 0) : **révélation** 5 s — l'image entière, le nom de la map,
   qui a trouvé et combien de points. Puis image suivante.
 

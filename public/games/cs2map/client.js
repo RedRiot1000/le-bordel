@@ -46,12 +46,14 @@
     <div id="cm-play" class="hidden">
       <div class="game-topbar">
         <span class="pill" id="cm-count">Image 1/10</span>
+        <span class="cm-mode" id="cm-mode"></span>
         <span class="phase-label" id="cm-status">—</span>
         <span class="cm-sec" id="cm-sec"></span>
       </div>
       <div class="cm-bar"><i id="cm-bar"></i></div>
       <div class="cm-frame">
         <img id="cm-img" alt="" draggable="false" />
+        <canvas id="cm-mask" class="cm-mask"></canvas>
         <div id="cm-reveal" class="cm-reveal hidden"></div>
       </div>
       <div id="cm-answered" class="cm-answered"></div>
@@ -105,11 +107,24 @@
     panel.innerHTML = `
       <div class="setting-block"><label>Nombre d'images</label>${chips("images", [[5, "5"], [10, "10"], [15, "15"], [20, "20"]])}</div>
       <div class="setting-block"><label>Temps par image</label>${chips("time", [[15, "15 s"], [20, "20 s"], [30, "30 s"]])}</div>
-      <div class="setting-block"><label>Zoom de départ (plus c'est zoomé, plus c'est dur)</label>${chips("zoom", [[2, "×2"], [4, "×4"], [6, "×6"]])}</div>
+      <div class="setting-block"><label>Révélation de l'image (une au hasard parmi celles cochées)</label>
+        <div class="cat-chips">${Object.entries(st.allModes || {}).map(([id, label]) =>
+          `<button class="cat-chip ${s.modes?.includes(id) ? "on" : ""}" data-mode="${id}" ${host ? "" : "disabled"}>${label}</button>`).join("")}</div>
+      </div>
+      <div class="setting-block"><label>Zoom de départ du mode 🔍 (plus c'est zoomé, plus c'est dur)</label>${chips("zoom", [[2, "×2"], [4, "×4"], [6, "×6"]])}</div>
       ${host ? "" : '<p class="settings-note">Seul l\'hôte peut modifier les réglages.</p>'}`;
     if (!host) return;
     panel.querySelectorAll("[data-key]").forEach((b) => {
       b.onclick = () => api.action("settings", { settings: { [b.dataset.key]: Number(b.dataset.v) } });
+    });
+    // Modes de révélation : on coche / décoche (il en faut au moins un).
+    panel.querySelectorAll("[data-mode]").forEach((b) => {
+      b.onclick = () => {
+        const cur = s.modes || [];
+        let next = cur.includes(b.dataset.mode) ? cur.filter((m) => m !== b.dataset.mode) : [...cur, b.dataset.mode];
+        if (!next.length) next = [b.dataset.mode];
+        api.action("settings", { settings: { modes: next } });
+      };
     });
   }
 
@@ -145,7 +160,10 @@
     const q = st.q;
     const reveal = st.phase === "reveal";
     $("cm-count").textContent = `Image ${st.index + 1}/${st.total}`;
-    if (shownImg !== q.img) { $("cm-img").src = q.img; shownImg = q.img; }
+    // (pour le balayage, la flèche montre le vrai sens)
+    const ARROWS = { lr: "➡️", rl: "⬅️", tb: "⬇️", bt: "⬆️" };
+    $("cm-mode").textContent = q.mode === "balayage" ? `${ARROWS[q.dir]} Balayage` : q.modeName || "";
+    if (shownImg !== q.img) { $("cm-img").src = q.img; shownImg = q.img; shards = null; }
     $("cm-img").style.transformOrigin = `${q.fx * 100}% ${q.fy * 100}%`;
 
     const status = $("cm-status");
@@ -230,27 +248,149 @@
   }
 
   // ===================================================================
-  //  ANIMATION : le zoom qui recule + le chrono
+  //  ANIMATION : la révélation de l'image + le chrono
   // ===================================================================
-  function frame() {
+  function frame(ts) {
     rafId = requestAnimationFrame(frame);
     const fin = document.getElementById("cm-fin-sec");
     if (fin) fin.textContent = Math.max(0, Math.ceil((finishEndLocal - Date.now()) / 1000));
     if (!st?.q || !["question", "reveal"].includes(st.phase)) return;
     const img = $("cm-img");
+    const mask = $("cm-mask");
     if (st.phase === "reveal") {
       img.style.transform = "scale(1)";
+      clearMask(mask);
       $("cm-bar").style.width = "0%";
       $("cm-sec").textContent = "";
       return;
     }
     const left = Math.max(0, qEndLocal - Date.now());
-    const progress = 1 - left / st.q.totalMs;          // 0 au début, 1 à la fin
-    const z = st.q.zoom - (st.q.zoom - 1) * progress;   // ×4 -> ×1
+    const progress = Math.min(1, 1 - left / st.q.totalMs);   // 0 au début, 1 à la fin
+    const q = st.q;
+    // Le zoom ne sert qu'au mode "zoom" ; les autres modes dessinent un cache noir par-dessus.
+    const z = q.mode === "zoom" ? q.zoom - (q.zoom - 1) * progress : 1;
     img.style.transform = `scale(${z.toFixed(3)})`;
-    $("cm-bar").style.width = (100 * left / st.q.totalMs).toFixed(1) + "%";
+    drawMask(mask, q, progress, ts);
+    $("cm-bar").style.width = (100 * left / q.totalMs).toFixed(1) + "%";
     const sec = Math.ceil(left / 1000);
     $("cm-sec").textContent = sec + " s";
     $("cm-sec").classList.toggle("urgent", sec <= 5);
+  }
+
+  // ===================================================================
+  //  LES CACHES NOIRS (un par mode). On dessine du noir sur tout le
+  //  cadre, puis on "perce" ce qui doit être visible.
+  // ===================================================================
+  let shards = null;   // morceaux de l'écran cassé (calculés une fois par image)
+
+  // Hasard "à graine" : la même graine donne les mêmes morceaux chez tout le monde.
+  function seeded(seed) {
+    let s = seed >>> 0;
+    return () => { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+
+  function clearMask(cv) {
+    const c = cv.getContext("2d");
+    c.clearRect(0, 0, cv.width, cv.height);
+  }
+
+  function drawMask(cv, q, p, ts) {
+    // Le canvas suit la taille du cadre.
+    const W = cv.clientWidth, H = cv.clientHeight;
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; shards = null; }
+    const c = cv.getContext("2d");
+    c.clearRect(0, 0, W, H);
+    if (q.mode === "zoom") return;
+
+    if (q.mode === "casse") return drawShards(c, W, H, q, p);
+
+    c.fillStyle = "#05070c";
+    c.fillRect(0, 0, W, H);
+    c.globalCompositeOperation = "destination-out";   // ce qu'on dessine maintenant "perce" le noir
+
+    if (q.mode === "trou") {
+      // Un cercle qui grandit depuis un point au hasard jusqu'à couvrir tout l'écran.
+      const cx = q.fx * W, cy = q.fy * H;
+      const maxR = Math.max(Math.hypot(cx, cy), Math.hypot(W - cx, cy), Math.hypot(cx, H - cy), Math.hypot(W - cx, H - cy));
+      const r = maxR * (0.04 + 0.96 * p);
+      const gr = c.createRadialGradient(cx, cy, r * 0.85, cx, cy, r);
+      gr.addColorStop(0, "rgba(0,0,0,1)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+      c.fillStyle = gr;
+      c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.fill();
+    } else if (q.mode === "tiers") {
+      // 3 bandes : une visible au départ, une de plus à chaque tiers du chrono.
+      const shown = Math.min(3, 1 + Math.floor(p * 3));
+      c.fillStyle = "#000";
+      for (let i = 0; i < shown; i++) {
+        const b = q.bands.order[i];
+        if (q.bands.vertical) c.fillRect((b * W) / 3, 0, W / 3 + 1, H);
+        else c.fillRect(0, (b * H) / 3, W, H / 3 + 1);
+      }
+    } else if (q.mode === "balayage") {
+      // Le noir recule dans un sens (avec un bord adouci).
+      const f = 0.03 + 0.97 * p, soft = 40;
+      const horiz = q.dir === "lr" || q.dir === "rl";
+      const len = horiz ? W : H;
+      const edge = f * len;
+      const from = q.dir === "lr" || q.dir === "tb" ? 0 : len;
+      const to = q.dir === "lr" || q.dir === "tb" ? edge : len - edge;
+      const g = horiz ? c.createLinearGradient(from, 0, to, 0) : c.createLinearGradient(0, from, 0, to);
+      g.addColorStop(0, "rgba(0,0,0,1)");
+      g.addColorStop(Math.max(0, 1 - soft / Math.max(1, edge)), "rgba(0,0,0,1)");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      c.fillStyle = g;
+      if (horiz) c.fillRect(Math.min(from, to), 0, Math.abs(to - from), H);
+      else c.fillRect(0, Math.min(from, to), W, Math.abs(to - from));
+    }
+    c.globalCompositeOperation = "source-over";
+  }
+
+  // Écran cassé : des morceaux de verre noir qui tombent de plus en plus.
+  function buildShards(W, H, seed) {
+    const rnd = seeded(seed);
+    const cols = 9, rows = 6;
+    // Une grille de points un peu "tordue" (ce qui donne des morceaux irréguliers).
+    const pts = [];
+    for (let j = 0; j <= rows; j++) for (let i = 0; i <= cols; i++) {
+      const edgeX = i === 0 || i === cols, edgeY = j === 0 || j === rows;
+      pts.push([(i + (edgeX ? 0 : (rnd() - 0.5) * 0.8)) * W / cols, (j + (edgeY ? 0 : (rnd() - 0.5) * 0.8)) * H / rows]);
+    }
+    const P = (i, j) => pts[j * (cols + 1) + i];
+    const list = [];
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+      const a = P(i, j), b = P(i + 1, j), d = P(i + 1, j + 1), e = P(i, j + 1);
+      const tris = rnd() < 0.5 ? [[a, b, d], [a, d, e]] : [[a, b, e], [b, d, e]];
+      for (const t of tris) {
+        // Moment de la chute : plus de morceaux tombent vers la fin ("de plus en plus").
+        const fall = 0.02 + 0.93 * Math.sqrt(rnd());
+        list.push({ pts: t, cx: (t[0][0] + t[1][0] + t[2][0]) / 3, cy: (t[0][1] + t[1][1] + t[2][1]) / 3, fall, spin: (rnd() - 0.5) * 4, drift: (rnd() - 0.5) * 60 });
+      }
+    }
+    return list;
+  }
+
+  function drawShards(c, W, H, q, p) {
+    if (!shards) shards = buildShards(W, H, q.seed);
+    const totalS = q.totalMs / 1000;
+    for (const s of shards) {
+      const tFall = (p - s.fall) * totalS;          // secondes depuis le début de sa chute
+      if (tFall > 1.2) continue;                     // tombé et disparu
+      c.save();
+      if (tFall > 0) {
+        // Il tombe : gravité, petite rotation, il s'efface.
+        c.translate(s.cx + s.drift * tFall, s.cy + 900 * tFall * tFall);
+        c.rotate(s.spin * tFall);
+        c.translate(-s.cx, -s.cy);
+        c.globalAlpha = Math.max(0, 1 - tFall / 1.2);
+      }
+      c.beginPath();
+      c.moveTo(s.pts[0][0], s.pts[0][1]); c.lineTo(s.pts[1][0], s.pts[1][1]); c.lineTo(s.pts[2][0], s.pts[2][1]); c.closePath();
+      c.fillStyle = "#07090f";
+      c.fill();
+      c.strokeStyle = "rgba(170,190,220,0.35)";       // les fissures
+      c.lineWidth = 1.2;
+      c.stroke();
+      c.restore();
+    }
   }
 })();

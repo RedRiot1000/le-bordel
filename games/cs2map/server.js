@@ -32,8 +32,17 @@ const REVEAL_MS = 5000;        // durée de la révélation entre deux images
 const FINISH_DELAY = 15000;    // playlist : temps pour lire le classement avant de passer
 const MIN_FACTOR = 0.4;        // une bonne réponse à la dernière seconde rapporte 40 %
 
+// Les façons de dévoiler l'image (une tirée au hasard pour chaque image, parmi celles cochées).
+export const MODES = {
+  zoom: "🔍 Zoom qui recule",
+  trou: "🕳️ Trou noir",
+  tiers: "▦ Un tiers à la fois",
+  casse: "💥 Écran cassé",
+  balayage: "➡️ Balayage",
+};
+
 function defaultSettings() {
-  return { images: 10, time: 20, zoom: 4 };
+  return { images: 10, time: 20, zoom: 4, modes: Object.keys(MODES) };
 }
 
 // ===================================================================
@@ -115,6 +124,7 @@ export function createGame(ctx) {
     return {
       phase: g.phase,
       settings: g.settings,
+      allModes: MODES,
       imageCount: images.length,
       perMap: Object.fromEntries(maps.map((m) => [m, images.filter((i) => i.map === m).length])),
       maps: maps.map((id) => ({ id, name: mapName(id) })),
@@ -127,7 +137,8 @@ export function createGame(ctx) {
       playlist: ctx.playlist && { rounds: ctx.playlist.rounds, final: g.final, finishLeft: g.final ? Math.max(0, g.finishAt - t) : 0 },
       q: q && {
         img: "games/cs2map/img/" + q.img,
-        zoom: g.settings.zoom, fx: q.fx, fy: q.fy,
+        mode: q.mode, modeName: MODES[q.mode],
+        zoom: g.settings.zoom, fx: q.fx, fy: q.fy, seed: q.seed, dir: q.dir, bands: q.bands,
         left: Math.max(0, q.end - t), totalMs: q.end - q.start,
         answered: Object.keys(q.answers),                   // QUI a répondu (pas quoi)
         // À la révélation seulement : la bonne map et ce que chacun a répondu.
@@ -161,9 +172,15 @@ export function createGame(ctx) {
     if (g.index >= g.queue.length) return endSeries();
     const im = g.queue[g.index];
     const t = now();
+    const modes = g.settings.modes?.length ? g.settings.modes : Object.keys(MODES);
     g.q = {
       img: im.file, map: im.map,
-      fx: rand(0.2, 0.8), fy: rand(0.25, 0.75),   // le détail sur lequel on zoome (le même pour tous)
+      // Comment l'image se dévoile : tiré ici pour que TOUT LE MONDE voie exactement la même chose.
+      mode: modes[Math.floor(Math.random() * modes.length)],
+      fx: rand(0.2, 0.8), fy: rand(0.25, 0.75),   // point de départ (zoom, trou noir)
+      seed: Math.floor(Math.random() * 1e9),        // forme des morceaux (écran cassé)
+      dir: ["lr", "rl", "tb", "bt"][Math.floor(Math.random() * 4)],                  // sens du balayage
+      bands: { vertical: Math.random() < 0.5, order: shuffle([0, 1, 2]) },          // les 3 tiers
       start: t, end: t + g.settings.time * 1000,
       answers: {},
     };
@@ -252,6 +269,8 @@ export function createGame(ctx) {
       if (![5, 10, 15, 20].includes(s.images)) s.images = 10;
       if (![15, 20, 30].includes(s.time)) s.time = 20;
       if (![2, 4, 6].includes(s.zoom)) s.zoom = 4;
+      s.modes = (Array.isArray(s.modes) ? s.modes : []).filter((m) => MODES[m]);
+      if (!s.modes.length) s.modes = Object.keys(MODES);   // au moins un mode
       g.settings = s;
       ctx.saveSettings({ ...s });
       ctx.update();

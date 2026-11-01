@@ -50,6 +50,7 @@ async function run() {
   check(img.ok && img.headers.get("content-type")?.includes("image"), "L'image se télécharge (" + game.q.img.split("/").pop() + ")");
   check(game.q.map === null && game.q.answers === null, "La bonne réponse n'est PAS envoyée pendant la question");
   check(game.q.zoom === 4 && game.q.fx >= 0.2 && game.q.fx <= 0.8, `Zoom ×4 sur le point (${game.q.fx.toFixed(2)}, ${game.q.fy.toFixed(2)})`);
+  check(Object.keys(game.allModes).includes(game.q.mode), `Mode de révélation tiré au hasard : ${game.q.modeName}`);
 
   let correctCount = 0, scoresHidden = true;
   for (let i = 0; i < 5; i++) {
