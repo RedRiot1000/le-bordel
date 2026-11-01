@@ -34,6 +34,7 @@
   const seenFx = new Set();
   let shake = 0;
   let boomKey = null;
+  let prevPhase = null, playSeenAt = 0;   // pour le repère « TOI » en début de manche
 
   // Diagnostic de fluidité (taper window.__pt dans la console du navigateur).
   const dbg = { n: 0, fix: 0, sum: 0, max: 0, big: 0, frames: 0, slow: 0, drawMs: 0 };
@@ -128,6 +129,9 @@
     update(state) {
       const prevRound = st?.roundNum;
       st = state;
+      // Repère « TOI » : on note quand la course démarre (il s'efface 2 s après).
+      if (st.phase === "play" && prevPhase !== "play") playSeenAt = performance.now();
+      prevPhase = st.phase;
       phaseEndLocal = Date.now() + (st.phaseLeft || 0);
 
       if (st.phase === "setup") {
@@ -739,6 +743,9 @@
       const V = P.VEHICLES[st.vehicle] || P.VEHICLES.sport;
       g2d.fillText(`${V.emoji} ${V.name} pour tout le monde · ` + (st.holderId === me() ? "💣 C'est TOI qui as la bombe !" : `💣 ${pseudoOf(st.holderId)} a la bombe`), P.W / 2, P.H / 2 + 46);
     }
+    // Repère « TOI » par-dessus tout (compte à rebours + début de manche).
+    const mv = view.find((v) => v.id === me() && v.alive);
+    if (mv) window.VehicleArt.markMe(g2d, mv.x, mv.y, ts, playerOf(me())?.color || "#fff", window.VehicleArt.markAlpha(st.phase, playSeenAt), Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)));
     g2d.restore();
 
     // Jauge de nitro.

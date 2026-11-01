@@ -33,6 +33,7 @@
   let particles = [];
   const seenBooms = new Set();
   let shake = 0;
+  let prevPhase = null, playSeenAt = 0;   // pour le repère « TOI » en début de manche
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => api.escapeHtml(s);
@@ -114,6 +115,9 @@
     update(state) {
       const prevRound = st?.roundNum;
       st = state;
+      // Repère « TOI » : on note quand la course démarre (il s'efface 2 s après).
+      if (st.phase === "play" && prevPhase !== "play") playSeenAt = performance.now();
+      prevPhase = st.phase;
       phaseEndLocal = Date.now() + (st.phaseLeft || 0);
       clockOff = st.t - Date.now();
 
@@ -518,6 +522,9 @@
       c.font = "22px Segoe UI, sans-serif";
       c.fillText("Ta moto démarre toute seule : prépare ton premier virage !", m.w / 2, m.h / 2 + 46);
     }
+    // Repère « TOI » par-dessus tout (compte à rebours + début de manche).
+    const mv = view.find((v) => v.id === me() && v.alive);
+    if (mv) window.VehicleArt.markMe(c, mv.x, mv.y, ts, colorOf(me()), window.VehicleArt.markAlpha(st.phase, playSeenAt), Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)));
     c.restore();
 
     // Jauge du saut.

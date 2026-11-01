@@ -124,6 +124,9 @@
     update(state) {
       const prevRound = st?.roundNum;
       st = state;
+      // Repère « TOI » : on note quand la course démarre (il s'efface 2 s après).
+      if (st.phase === "play" && prevPhase !== "play") playSeenAt = performance.now();
+      prevPhase = st.phase;
       phaseEndLocal = Date.now() + (st.phaseLeft || 0);
       if (st.phase === "setup") {
         $("sm-play").classList.add("hidden");
@@ -739,6 +742,14 @@
         (myV ? ` · tu conduis : ${myV.emoji} ${myV.name}` : ""), VIEW_W / 2, VIEW_H / 2 + 46);
     }
 
+    // Repère « TOI » par-dessus tout (compte à rebours + début de manche), dans le monde (caméra).
+    const mv = view.find((v) => v.id === me() && v.alive && !v.falling);
+    if (mv && showCars) {
+      g2d.setTransform(cam.z, 0, 0, cam.z, VIEW_W / 2 - cam.x * cam.z, VIEW_H / 2 - cam.y * cam.z);
+      window.VehicleArt.markMe(g2d, mv.x, mv.y, ts, playerOf(me())?.color || "#fff", window.VehicleArt.markAlpha(st.phase, playSeenAt), Math.max(1, 1 / cam.z) * Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)));
+      g2d.setTransform(1, 0, 0, 1, 0, 0);
+    }
+
     if (pred) {
       const bar = document.querySelector("#sm-nitro i");
       if (bar) { bar.style.width = Math.round(pred.nitro * 100) + "%"; bar.parentElement.classList.toggle("on", pred.boost); }
@@ -835,6 +846,7 @@
     g2d.strokeRect(x0 + (cam.x - vw / 2) * s, y0 + (cam.y - vh / 2) * s, vw * s, vh * s);
   }
 
+  let prevPhase = null, playSeenAt = 0;   // pour le repère « TOI » en début de manche
   const colorOf = (v) => (st.mode === "teams" && v.team ? st.teamColors[v.team] : playerOf(v.id)?.color || "#888");
 
   // Un véhicule dans l'arène (avec la chute qui le fait rétrécir en tournant).

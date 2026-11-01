@@ -85,5 +85,52 @@
     c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
     c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
   }
-  window.VehicleArt = { paint: paintVehicle };
+  // ===================================================================
+  //  REPÈRE « C'EST TOI » (début de manche) : des ondes qui partent de
+  //  ton véhicule, un anneau à ta couleur et une grosse flèche « TOI ».
+  //  alpha : 1 = bien visible, 0 = caché (il s'efface après le départ).
+  //  size : agrandissement (pour garder la même taille à l'écran quelle que soit l'arène).
+  // ===================================================================
+  function markMe(c, x, y, ts, color, alpha = 1, size = 1) {
+    if (alpha <= 0) return;
+    c.save();
+    c.translate(x, y); c.scale(size, size); x = 0; y = 0;
+    c.globalAlpha = alpha;
+    const t = ts / 1000;
+    // Ondes qui s'agrandissent (2 décalées).
+    for (let i = 0; i < 2; i++) {
+      const f = (t * 0.9 + i / 2) % 1;
+      c.beginPath(); c.arc(x, y, 26 + f * 80, 0, Math.PI * 2);
+      c.strokeStyle = color; c.lineWidth = 5 * (1 - f);
+      c.globalAlpha = alpha * (1 - f) * 0.9;
+      c.stroke();
+    }
+    c.globalAlpha = alpha;
+    // Anneau fixe : blanc + couleur du joueur.
+    c.beginPath(); c.arc(x, y, 34, 0, Math.PI * 2);
+    c.lineWidth = 6; c.strokeStyle = "rgba(255,255,255,0.95)"; c.stroke();
+    c.lineWidth = 3; c.strokeStyle = color; c.stroke();
+    // Flèche qui rebondit + étiquette « TOI ».
+    const bob = Math.sin(t * 6) * 6;
+    const ay = y - 60 + bob;   // (au-dessus du pseudo)
+    c.fillStyle = "#ffe14d"; c.strokeStyle = "rgba(0,0,0,0.8)"; c.lineWidth = 3;
+    c.beginPath(); c.moveTo(x - 14, ay - 16); c.lineTo(x + 14, ay - 16); c.lineTo(x, ay); c.closePath();
+    c.stroke(); c.fill();
+    c.font = "900 20px Segoe UI, sans-serif";
+    c.textAlign = "center"; c.textBaseline = "middle";
+    const ly = ay - 32;
+    c.fillStyle = "#ffe14d"; rr(c, x - 32, ly - 14, 64, 28, 14); c.fill();
+    c.lineWidth = 2; c.strokeStyle = "rgba(0,0,0,0.8)"; c.stroke();
+    c.fillStyle = "#1a1a1a"; c.fillText("TOI", x, ly + 1);
+    c.restore();
+  }
+
+  // Visibilité du repère : plein pendant le compte à rebours et 2 s après le départ, puis s'efface en 1 s.
+  function markAlpha(phase, playSeenAt) {
+    if (phase === "countdown") return 1;
+    if (phase !== "play" || !playSeenAt) return 0;
+    return Math.max(0, Math.min(1, 1 - (performance.now() - playSeenAt - 2000) / 1000));
+  }
+
+  window.VehicleArt = { paint: paintVehicle, markMe, markAlpha };
 })();
