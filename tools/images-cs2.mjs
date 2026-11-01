@@ -48,7 +48,14 @@ for (const mapDir of readdirSync(SRC)) {
     const id = createHash("sha1").update(readFileSync(src)).digest("hex").slice(0, 14);
     const out = path.join(OUT_DIR, id + ".jpg");
     if (!existsSync(out)) {
-      await sharp(src).resize({ width: 1280, withoutEnlargement: true }).jpeg({ quality: 80, mozjpeg: true }).toFile(out);
+      // On coupe la petite ligne de texte technique que CS2 écrit en bas à gauche des captures.
+      const { width, height } = await sharp(src).metadata();
+      const cut = Math.round(height * 0.03);
+      await sharp(src)
+        .extract({ left: 0, top: 0, width, height: height - cut })
+        .resize({ width: 1280, withoutEnlargement: true })
+        .jpeg({ quality: 80, mozjpeg: true })
+        .toFile(out);
       console.log(`  + ${mapDir}/${file}`);
     }
     entries.push({ file: id + ".jpg", map });

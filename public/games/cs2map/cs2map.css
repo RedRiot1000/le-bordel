@@ -6,13 +6,14 @@
 
 .cm-sec { font-size: 30px; font-weight: 900; min-width: 70px; text-align: right; font-variant-numeric: tabular-nums; }
 .cm-sec.urgent { color: var(--danger); animation: pulseTimer 0.5s ease-in-out infinite; }
-.cm-bar { height: 12px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin-bottom: 12px; }
+.cm-bar { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin-bottom: 10px; }
+#cm-play .game-topbar { margin-bottom: 10px; }
 .cm-bar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-3)); }
 
 /* Le cadre de l'image : tout ce qui dépasse du zoom est caché */
 /* (largeur limitée par la hauteur de l'écran : les boutons des maps doivent rester visibles sans défiler) */
 .cm-frame {
-  position: relative; width: min(100%, calc(46vh * 16 / 9)); margin: 0 auto; aspect-ratio: 16 / 9; overflow: hidden;
+  position: relative; width: min(100%, calc(36vh * 16 / 9)); margin: 0 auto; aspect-ratio: 16 / 9; overflow: hidden;
   border-radius: var(--radius); border: 3px solid var(--border); background: #000; box-shadow: var(--shadow);
 }
 .cm-frame img { width: 100%; height: 100%; object-fit: cover; display: block; user-select: none; will-change: transform; }
@@ -37,14 +38,14 @@
 .cm-reveal-list .gain { color: var(--ok); font-weight: 900; min-width: 44px; text-align: right; }
 
 /* Qui a répondu */
-.cm-answered { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 10px 0; min-height: 30px; }
+.cm-answered { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 8px 0; min-height: 28px; }
 .cm-who { display: flex; align-items: center; gap: 6px; font-size: 14px; padding: 3px 10px 3px 4px; border-radius: 999px; background: var(--surface-2); opacity: 0.5; }
 .cm-who.done { opacity: 1; box-shadow: 0 0 0 2px var(--ok); }
 
 /* Les boutons des maps */
-.cm-maps { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.cm-maps { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 7px; }
 .cm-map {
-  padding: 12px 8px; border-radius: 12px; cursor: pointer; font-size: 17px; font-weight: 800;
+  padding: 9px 6px; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: 800;
   background: var(--surface); border: 2px solid var(--border); color: var(--text);
   transition: transform 0.1s, border-color 0.2s;
 }
