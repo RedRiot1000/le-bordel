@@ -58,6 +58,19 @@
 .cm-map.good { opacity: 1; border-color: var(--ok); background: var(--ok); color: #05210f; }
 .cm-map.bad { opacity: 1; border-color: var(--danger); background: rgba(255, 77, 109, 0.25); }
 
+/* Boutons-icônes : toutes les maps sur une rangée (les icônes contiennent déjà le nom) */
+.cm-maps:has(.cm-map.icon) { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
+.cm-map.icon {
+  width: 74px; height: 74px; padding: 4px; border-radius: 16px;
+  background: var(--surface); display: grid; place-items: center;
+}
+.cm-map.icon img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; filter: drop-shadow(0 3px 4px rgba(0,0,0,0.5)); }
+.cm-map.icon:hover:not(:disabled) { transform: translateY(-4px) scale(1.08); }
+.cm-map.icon:disabled { opacity: 0.35; filter: grayscale(0.8); }
+.cm-map.icon.mine { opacity: 1; filter: none; background: var(--surface-2); box-shadow: 0 0 0 4px var(--accent); }
+.cm-map.icon.good { opacity: 1; filter: none; background: rgba(46, 204, 113, 0.25); box-shadow: 0 0 0 4px var(--ok); transform: scale(1.12); }
+.cm-map.icon.bad { opacity: 1; filter: none; background: rgba(255, 77, 109, 0.25); box-shadow: 0 0 0 4px var(--danger); }
+
 /* Fin de série */
 .cm-over-card { max-width: 900px; margin: 0 auto; text-align: center; }
 .cm-recap-title { margin: 18px 0 10px; text-transform: uppercase; letter-spacing: 1px; font-size: 13px; }

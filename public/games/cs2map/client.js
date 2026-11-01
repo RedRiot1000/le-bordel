@@ -182,7 +182,9 @@
       if (reveal && m.id === q.map) cls += " good";
       else if (reveal && q.answers?.[me()]?.map === m.id) cls += " bad";
       else if (!reveal && myAnswer === m.name) cls += " mine";
-      return `<button class="${cls}" data-id="${m.id}" ${reveal || myAnswer ? "disabled" : ""}>${esc(m.name)}</button>`;
+      // Bouton = l'icône de la map (le nom s'affiche au survol) ; texte si pas d'icône.
+      const inside = m.icon ? `<img src="${m.icon}" alt="${esc(m.name)}" draggable="false" />` : esc(m.name);
+      return `<button class="${cls}${m.icon ? " icon" : ""}" data-id="${m.id}" title="${esc(m.name)}" ${reveal || myAnswer ? "disabled" : ""}>${inside}</button>`;
     }).join("");
     maps.querySelectorAll(".cm-map:not([disabled])").forEach((b) => {
       b.onclick = () => {

@@ -72,7 +72,11 @@ export const playlist = {
 };
 
 // La liste des screenshots (créée par  npm run images).
-const MANIFEST = path.join(path.dirname(fileURLToPath(import.meta.url)), "manifest.json");
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const MANIFEST = path.join(HERE, "manifest.json");
+// Icône d'une map (créée par  node tools/icons-cs2.mjs), ou null si elle n'en a pas.
+const ICONS = path.join(HERE, "..", "..", "public", "games", "cs2map", "icons");
+const iconOf = (id) => (existsSync(path.join(ICONS, id + ".png")) ? `games/cs2map/icons/${id}.png` : null);
 function loadImages() {
   try { return existsSync(MANIFEST) ? JSON.parse(readFileSync(MANIFEST, "utf8")) : []; }
   catch { return []; }
@@ -127,7 +131,7 @@ export function createGame(ctx) {
       allModes: MODES,
       imageCount: images.length,
       perMap: Object.fromEntries(maps.map((m) => [m, images.filter((i) => i.map === m).length])),
-      maps: maps.map((id) => ({ id, name: mapName(id) })),
+      maps: maps.map((id) => ({ id, name: mapName(id), icon: iconOf(id) })),
       // Pendant une question, on cache les points de cette image (sinon on devinerait qui a trouvé).
       players: ctx.players().map((p) => ({
         ...p, score: (g.scores[p.id] || 0) - (g.phase === "question" ? q?.answers[p.id]?.points || 0 : 0),
