@@ -544,21 +544,27 @@
     }
     drawParticles(dt);
 
-    // L'hélico : projecteur sur sa cible, et l'appareil au-dessus.
+    // L'hélico : il tourne autour de sa cible. Projecteur allumé seulement quand il est assez près.
     if (st.heli) {
       const h = st.heli;
-      const tv = view.find((v) => v.id === h.target);
-      if (tv) {
-        const gr = c.createRadialGradient(tv.x, tv.y, 10, tv.x, tv.y, 120);
-        gr.addColorStop(0, "rgba(255,255,220,0.35)"); gr.addColorStop(1, "rgba(255,255,220,0)");
-        c.fillStyle = gr; c.beginPath(); c.arc(tv.x, tv.y, 120, 0, Math.PI * 2); c.fill();
+      if (h.on) {
+        // Le faisceau, de l'hélico jusqu'au rond de lumière au sol.
+        const ang = Math.atan2(h.sy - h.y, h.sx - h.x), R = 90;
+        c.fillStyle = "rgba(255,255,220,0.07)";
+        c.beginPath(); c.moveTo(h.x, h.y);
+        c.lineTo(h.sx + Math.cos(ang + Math.PI / 2) * R, h.sy + Math.sin(ang + Math.PI / 2) * R);
+        c.lineTo(h.sx + Math.cos(ang - Math.PI / 2) * R, h.sy + Math.sin(ang - Math.PI / 2) * R);
+        c.closePath(); c.fill();
+        const gr = c.createRadialGradient(h.sx, h.sy, 10, h.sx, h.sy, R + 20);
+        gr.addColorStop(0, "rgba(255,255,220,0.4)"); gr.addColorStop(0.7, "rgba(255,255,220,0.18)"); gr.addColorStop(1, "rgba(255,255,220,0)");
+        c.fillStyle = gr; c.beginPath(); c.arc(h.sx, h.sy, R + 20, 0, Math.PI * 2); c.fill();
       }
-      c.fillStyle = "rgba(0,0,0,0.35)"; c.beginPath(); c.ellipse(h.x + 40, h.y + 60, 30, 14, 0, 0, Math.PI * 2); c.fill();
-      c.save(); c.translate(h.x, h.y);
+      c.fillStyle = "rgba(0,0,0,0.35)"; c.beginPath(); c.ellipse(h.x + 40, h.y + 60, 30, 14, h.a, 0, Math.PI * 2); c.fill();
+      c.save(); c.translate(h.x, h.y); c.rotate(h.a);
       c.fillStyle = "#1d2b4f"; c.beginPath(); c.ellipse(0, 0, 26, 14, 0, 0, Math.PI * 2); c.fill();
       c.fillRect(-48, -3, 26, 6);
       c.fillStyle = "#8fb6ff"; c.beginPath(); c.ellipse(12, 0, 9, 8, 0, 0, Math.PI * 2); c.fill();
-      c.rotate(ts / 40);
+      c.rotate(ts / 40 - h.a);
       c.strokeStyle = "rgba(220,220,220,0.8)"; c.lineWidth = 4;
       c.beginPath(); c.moveTo(-38, 0); c.lineTo(38, 0); c.moveTo(0, -38); c.lineTo(0, 38); c.stroke();
       c.restore();

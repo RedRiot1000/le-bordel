@@ -102,7 +102,7 @@ export function createGame(ctx) {
     timeUpAt: 0,
     endAt: 0,
     stars: 1,
-    heli: null,           // { target, x, y }
+    heli: null,           // { target, x, y, a, orbit, sx, sy, on, locked }
     fields: {},           // id joueur libre -> distances (pour l'IA)
     copField: null,       // distance aux flics (pour les bots qui fuient)
     fieldsAt: 0,
@@ -149,7 +149,10 @@ export function createGame(ctx) {
         vx: Math.round(c.vx), vy: Math.round(c.vy), w: Math.round(c.w * 100) / 100,
       })),
       stars: g.stars,
-      heli: g.heli && { target: g.heli.target, x: Math.round(g.heli.x), y: Math.round(g.heli.y) },
+      heli: g.heli && {
+        target: g.heli.target, x: Math.round(g.heli.x), y: Math.round(g.heli.y), a: Math.round(g.heli.a * 100) / 100,
+        on: g.heli.on, sx: Math.round(g.heli.sx), sy: Math.round(g.heli.sy),
+      },
       arrests: g.arrests,
       phaseLeft: Math.max(0, g.phaseEnd - t),
       copsIn: g.phase === "play" ? Math.max(0, g.playAt + COPS_DELAY - t) : COPS_DELAY,
@@ -292,16 +295,34 @@ export function createGame(ctx) {
     }
     // L'hélico : à partir de ⭐⭐⭐⭐, il suit un joueur libre.
     if (g.stars >= HELI_STARS && free.length) {
-      if (!g.heli) g.heli = { target: null, x: g.city.w / 2, y: -200 };
+      if (!g.heli) g.heli = { target: null, x: g.city.w / 2, y: -250, a: Math.PI / 2, orbit: 0, sx: g.city.w / 2, sy: -250, on: false, locked: false };
       if (!g.heli.target || !g.cars[g.heli.target] || g.cars[g.heli.target].role !== "free") {
         // Le plus longtemps libre... ou au hasard.
         g.heli.target = pick(free);
       }
-      const tc = g.cars[g.heli.target].car;
-      const dx = tc.x - g.heli.x, dy = tc.y - g.heli.y, d = Math.hypot(dx, dy) || 1;
-      const v = Math.min(d, 520 * P.TICK);
-      g.heli.x += (dx / d) * v; g.heli.y += (dy / d) * v;
+      moveHeli(g.heli, g.cars[g.heli.target].car);
     } else if (!free.length) g.heli = null;
+  }
+
+  // L'hélico tourne en rond autour de sa cible (il ne reste pas pile au-dessus).
+  // Son projecteur ne s'allume que quand il est assez près, puis il rattrape la cible :
+  // un fugitif rapide peut le semer un moment.
+  const HELI_SPEED = 430, HELI_ORBIT = 240, SPOT_RANGE = 420, SPOT_SPEED = 520;
+  function moveHeli(h, tc) {
+    h.orbit += 0.7 * P.TICK;
+    const want = { x: tc.x + Math.cos(h.orbit) * HELI_ORBIT, y: tc.y + Math.sin(h.orbit) * HELI_ORBIT };
+    const dx = want.x - h.x, dy = want.y - h.y, d = Math.hypot(dx, dy);
+    if (d > 1) {
+      const v = Math.min(d, HELI_SPEED * P.TICK);
+      h.x += (dx / d) * v; h.y += (dy / d) * v;
+      h.a += angDiff(Math.atan2(dy, dx), h.a) * Math.min(1, 4 * P.TICK);   // il tourne doucement dans le sens où il vole
+    }
+    h.on = dist(h, tc) < SPOT_RANGE;
+    const goal = h.on ? tc : h;                    // éteint : le faisceau reste sous l'hélico
+    const sdx = goal.x - h.sx, sdy = goal.y - h.sy, sd = Math.hypot(sdx, sdy);
+    if (sd > 1) { const v = Math.min(sd, SPOT_SPEED * P.TICK); h.sx += (sdx / sd) * v; h.sy += (sdy / sd) * v; }
+    // Les flics ne foncent sur lui que si le projecteur est vraiment sur lui.
+    h.locked = h.on && Math.hypot(tc.x - h.sx, tc.y - h.sy) < 120;
   }
 
   function spawnCop(free) {
@@ -378,7 +399,7 @@ export function createGame(ctx) {
         const d = f[cell] < 0 ? 1e8 : f[cell];
         if (d < bestD) { bestD = d; best = id; }
       }
-      if (g.heli?.target && g.fields[g.heli.target] && idx % 2 === 0) best = g.heli.target;
+      if (g.heli?.locked && g.fields[g.heli.target] && idx % 2 === 0) best = g.heli.target;
       ai.target = best;
     }
     if (!ai.target || !g.fields[ai.target]) return steerTo(c, ai, null);
