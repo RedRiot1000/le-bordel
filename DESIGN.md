@@ -331,6 +331,35 @@ Ils évitent les murs (regardent devant eux à gauche/droite et tournent vers le
 Le serveur fait foi (murs + collisions) ; ma moto est prédite chez moi comme à la Patate.
 Mur = suite de points (un toutes les ~6 px) avec l'heure de création ; collision = distance moto ↔ segments.
 
+## 7 septies. Car-foot ⚽ — validé (« go »)
+> Du foot avec les petites voitures, vu de dessus. 2 équipes, un gros ballon, des cages.
+> Réutilise la physique, la prédiction et les bots de la Patate.
+
+### Un match
+- **2 équipes** (🔵 Bleus / 🔴 Rouges) tirées au hasard à chaque match, équilibrées (3 contre 2 si impair). 2 à 6 joueurs.
+- Tout le monde en **Sportive** à la couleur de son équipe (sa propre couleur sur le toit).
+- Commandes de la Patate : ZQSD, Espace frein à main, Shift **nitro**.
+- **Ballon** : léger, rebondit sur les murs, les voitures le frappent (plus tu vas vite, plus il part fort).
+- **Cages** au milieu des petits côtés : on peut rentrer dedans en voiture. Le ballon doit passer entièrement la ligne.
+- **But** : « BUT ! » 3 s, puis remise en jeu (chacun dans son camp, compte à rebours 3 s).
+- **Durée** : 2 / **3** / 5 min (le chrono s'arrête pendant les célébrations).
+- Égalité à la fin : **but en or** (prolongation, le 1er but gagne ; 90 s max, sinon match nul) — réglable.
+
+### Points de soirée
+Équipe gagnante = 1re place (tous ses joueurs), perdante = 2e. Match nul = tout le monde ex æquo.
+L'écran de fin montre aussi les buteurs (et les buts contre son camp 😅).
+
+### Réglages
+- Un jeu : durée (2 / **3** / 5 min), but en or (oui / non).
+- Playlist (vote) : durée.
+
+### Bots
+Ils se placent derrière le ballon (côté de leur cage) et foncent dedans vers la cage adverse ; nitro en ligne droite.
+
+### Technique (pour moi)
+Physique du ballon partagée (`public/games/carfoot/ball.js`). Le serveur fait foi ; ma voiture est prédite
+comme à la Patate, le ballon est affiché « au présent » (avancé selon sa vitesse).
+
 ## 8. Feuille de route
 
 | Phase | Contenu | Objectif |

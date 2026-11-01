@@ -1,0 +1,27 @@
+/* CAR-FOOT — styles (le reste vient de patate.css : .pt-setup-grid, .pt-arena-wrap, .pt-over…) */
+#cf-canvas {
+  display: block; width: 100%; height: auto; max-height: 74vh; object-fit: contain;
+  border-radius: var(--radius); border: 3px solid rgba(255, 255, 255, 0.25); box-shadow: var(--shadow);
+}
+.pt-arena-wrap.over #cf-canvas { display: none; }
+
+/* Tableau de score */
+.cf-board { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; margin-bottom: 6px; }
+.cf-team { display: flex; align-items: center; gap: 10px; font-size: 20px; }
+.cf-team.blue { justify-content: flex-end; color: #6aa9ff; }
+.cf-team.red { justify-content: flex-start; color: #ff7a85; }
+.cf-names { display: flex; gap: 8px; font-size: 13px; color: var(--muted); }
+.cf-names .me { color: var(--text); font-weight: 800; text-decoration: underline; }
+.cf-score { font-size: 44px; font-weight: 900; font-variant-numeric: tabular-nums; background: var(--surface); padding: 0 22px; border-radius: 14px; border: 2px solid var(--border); }
+.cf-score #cf-score-blue { color: #6aa9ff; }
+.cf-score #cf-score-red { color: #ff7a85; }
+.cf-sep { margin: 0 10px; color: var(--muted); }
+.cf-sub { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.cf-clock { font-size: 24px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.cf-clock.urgent { color: var(--danger); animation: pulseTimer 0.6s ease-in-out infinite; }
+.cf-me { font-size: 15px; }
+
+/* Fin de match */
+.cf-over { max-width: 520px; }
+.cf-final { font-size: 48px; font-weight: 900; margin: 4px 0 10px; }
+.cf-goals { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; font-size: 15px; }
