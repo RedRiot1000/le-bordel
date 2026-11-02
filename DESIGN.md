@@ -478,13 +478,25 @@ Servira à Territoire, Boules de neige, Lampe torche.
 **Sol qui s'effondre** : arène de petites dalles (40 px, grille 32 × 19) au-dessus du vide, forme tirée au sort
 (carré, rond, croix, anneau, îlots, gruyère), un peu plus grande à 5+ joueurs.
 - Réglage **Dalles** : **solides** (défaut) = 1er passage fissure, 2e passage → tombe 0,9 s après ; **fragiles** = tombe dès le 1er
-  passage (l'idée d'origine). Rester planté plus de 1,1 s fait tomber la dalle. Après 60 s, le bord s'effrite tout seul.
+  passage (l'idée d'origine). Rester planté plus de 1,1 s fait tomber la dalle. On ne tombe que si aucun pied ne touche une dalle (passage en diagonale par un coin OK). Après 60 s, le bord s'effrite tout seul.
   (Simulation : en « fragiles » l'arène se découpe en ~5-10 s de jeu à 4 ; en « solides » 12-22 s → défaut « solides ».)
 - **Espace = pousser** (demande de Scotty, à la place du dash) : bras tendus, ceux qui sont juste devant (≈ 30 px, ±70°) sont
   repoussés (330 px/s ≈ 2 dalles de glissade, moins s’ils sont lourds), on ne bouge pas ; recharge 0,9 s. Dalle dorée ★ toutes les ~7-11 s = **lourd 5 s**.
 - Points : 1 par joueur tombé avant toi. Manches 3/5/7 (défaut 3) ; playlist 3/5. Fin de manche : 1,5 s pour voir la dernière chute.
 - Bots : chemin de dalle intacte en dalle intacte (sans couper les coins) vers la zone la plus sûre ; dash sur un voisin
   au bord seulement si l'atterrissage est sûr.
+
+## 7 quindecies. Territoire 🎨 — validé (« Go »)
+
+Arène 1280 × 800 vue en entier, 5 à 8 obstacles au hasard. Grille de peinture de 80 × 50 cases (16 px), on compte les cases.
+- **Marcher** peint (traînée de 20 px de rayon). **Clic gauche** = jet vers la souris (portée 180 px, vole par-dessus les
+  obstacles, tache de 42 px, recharge 0,6 s). On repeint par-dessus les autres. **Pas de contact** entre joueurs (choix de Scotty).
+- Mode (réglage) : auto (équipes 🔴/🔵 dès 4 joueurs) / chacun pour soi / 2 équipes.
+- Bonus (caisse toutes les 7-10 s, 2 max) : 💣 bombe (tache de 115 px), 🧹 rouleau (traînée 46 px, 6 s), 👟 chaussures (×1,4, 5 s).
+- Durée 60/90/120 s (défaut 90) ; playlist 60/90. Classement à la surface (égalité = même place).
+- Réseau : seulement les cases changées à chaque envoi + la grille complète 1 fois/s (obstacles/équipes aussi 1 fois/s).
+  Dessin : chaque case peinte = un petit rond (bords arrondis façon peinture).
+- Bots : vont vers les zones « pas à eux » (adversaire > vide), visent la plus grosse zone adverse à portée, vont aux caisses.
 
 ## 8. Feuille de route
 

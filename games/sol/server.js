@@ -327,6 +327,12 @@ export function createGame(ctx) {
     }
   }
 
+  // Y a-t-il une dalle sous les pieds ? (autour du centre, ~la moitié du bonhomme)
+  const FEET = [[-9, -9], [9, -9], [-9, 9], [9, 9], [0, -10], [0, 10], [-10, 0], [10, 0]];
+  function supported(x, y) {
+    return FEET.some(([dx, dy]) => { const j = tileAt(x + dx, y + dy); return j >= 0 && g.tiles[j]; });
+  }
+
   // Chaque calcul : les dalles sous les pieds se fissurent, celles qui sont à bout tombent, on tombe si plus de sol.
   function floorTick(t) {
     for (const [id, s] of Object.entries(g.heroes)) {
@@ -334,7 +340,11 @@ export function createGame(ctx) {
       if (s.falling) { if (t - s.fallAt >= FALL_MS) eliminate(id); continue; }
       if (g.endAt) continue;   // manche gagnée : le dernier debout ne peut plus tomber
       const i = tileAt(s.h.x, s.h.y);
-      if (i < 0 || !g.tiles[i]) { s.falling = true; s.fallAt = t; s.h.vx *= 0.3; s.h.vy *= 0.3; continue; }
+      if (i < 0 || !g.tiles[i]) {
+        // Le centre est au-dessus du vide… mais un pied encore sur une dalle (passage en diagonale par un coin) : on tient.
+        if (supported(s.h.x, s.h.y)) continue;
+        s.falling = true; s.fallAt = t; s.h.vx *= 0.3; s.h.vy *= 0.3; continue;
+      }
       // On entre sur une dalle : un passage de moins (au dernier, elle tombe). Rester planté la fait tomber aussi.
       if (i !== s.tile) { s.tile = i; s.since = t; if (!g.crackAt[i] && --g.hp[i] <= 0) g.crackAt[i] = t + CRACK_MS; }
       else if (!g.crackAt[i] && t - s.since > STAY_MS) g.crackAt[i] = t + CRACK_MS;

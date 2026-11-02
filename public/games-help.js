@@ -255,5 +255,24 @@
       points: ["<b>1 point par joueur tombé avant toi</b> : le dernier debout prend le plus de points."],
       example: "Tu cours en laissant une traînée de dalles fissurées. Bob est coincé au bord d'un trou : tu te mets face à lui et tu appuies sur Espace, <b>BOUM</b>, il s'envole dans le vide. Mais en revenant, tu repasses sur ta propre traînée… la dalle tremble, tu sautes juste à temps sur une dalle intacte. Ouf.",
     },
+    territoire: {
+      goal: "Peindre la plus grande surface de l'arène à ta couleur (ou à celle de ton équipe) avant la fin du chrono.",
+      steps: [
+        "Chacun a sa couleur (ou celle de son équipe : 🔴 Rouges contre 🔵 Bleus, automatique à partir de 4 joueurs).",
+        "<b>En marchant</b>, tu laisses une traînée de peinture derrière toi.",
+        "<b>Clic gauche</b> : tu lances un jet de peinture vers ta souris. Il vole <b>par-dessus les obstacles</b> et fait une grosse tache là où il atterrit (portée limitée, recharge 0,6 s).",
+        "On peut <b>repeindre</b> par-dessus la couleur des autres autant qu'on veut : rien n'est jamais acquis !",
+        "Des <b>caisses</b> apparaissent : 💣 bombe (énorme tache d'un coup), 🧹 gros rouleau (traînée très large 6 s), 👟 chaussures (plus rapide 5 s).",
+        "La barre en haut montre les pourcentages en direct. À la fin du chrono (90 s par défaut), la plus grande surface gagne.",
+      ],
+      controls: [
+        "<kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> / flèches : marcher (et peindre)",
+        "🖱️ Souris : viser · <b>clic gauche</b> : jet de peinture",
+      ],
+      points: [
+        "Classement à la surface peinte (en équipes : toute l'équipe gagnante prend la 1re place).",
+      ],
+      example: "Tu es chez les 🔴. Tu fonces vers une grosse zone bleue en tirant des jets devant toi, tu ramasses le 🧹 et tu traverses toute l'arène en laissant une bande rouge énorme. À 10 s de la fin, la barre est à 48 % contre 47 %… tu attrapes la 💣 en plein milieu des bleus : victoire !",
+    },
   };
 })();

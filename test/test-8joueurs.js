@@ -56,6 +56,7 @@ const GAMES = {
   pensepareil: () => game.who?.length === 8 && game.phase === "propose" && game.perPlayer === 1,
   deuxverites: () => game.who?.length === 8 && game.phase === "write",
   sol: () => game.heroes?.length === 8,
+  territoire: () => game.heroes?.length === 8,
 };
 
 async function run() {
