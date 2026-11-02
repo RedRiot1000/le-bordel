@@ -479,6 +479,12 @@ Idée de Scotty : tout le monde en **F1**, la police (IA) arrive de plus en plus
   - campagne et arbres, rivière, ponts avec garde-corps, panneaux « SORTIE ».
 - **Mini-carte** : rues claires, quartiers colorés, rivière, commissariat 🚓, sorties en vert (elles clignotent pendant « FUYEZ ! »). **M** = la carte en grand au milieu de l'écran.
 - **Serveur** : il ne teste que les obstacles proches de chaque voiture (cases de 200 px, `C.near`).
+- **Retouches (demande de Scotty)** :
+  - **3 zones bien séparées** : colonnes [banlieue ou industrie] [rivière] [centre-ville, 3 colonnes] [rivière] [l autre zone]. Les 2 rivières sont larges (colonne de 600 px) : des **ponts d environ 450 px** (2 par rivière + le périphérique). Le boulevard horizontal traverse les deux.
+  - **Pâtés de tailles variées** : colonnes et rangées de 380 à 520 px. Ville d environ 5 100 px de large (jusqu à 4 joueurs) ou 6 200 px (8 joueurs).
+  - **Trottoirs partout** (18 px, à l intérieur des rectangles qui bloquent : on ne roule pas dessus) : autour de chaque bâtiment (donc des deux côtés des ruelles), des parcs, des parkings (le grillage est posé sur le trottoir), sur les quais, et au bord du périphérique côté campagne. Bordure, dalles, lampadaires, arbres.
+  - **Commissariat** : un bâtiment en U autour d un **garage** (100 px de large) ouvert sur la rue. Les flics apparaissent dans le garage (2 places) ou juste devant la porte. Le pâté choisi fait au moins 240 px de côté, et aucune rue barrée devant.
+  - **Formes variées** (dessin seulement, tiré de la seed) : tour simple, rangée de 2 à 4 immeubles de hauteurs différentes, tour sur esplanade, immeuble en L avec jardin, immeuble autour d une cour, entrepôt + bureaux, entrepôt + silos.
 - **Simulation** (bots, 2 min) : arrestations entre 15 s et 140 s. Les bots sont presque tous pris avant la fin, l'un d'eux est sorti à 93 s (manche de 90 s).
 
 ## 7 duodecies. Pense pareil 🧠 — validé (« Go les deux »)
