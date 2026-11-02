@@ -36,7 +36,7 @@ console.log("— Moteur bonhomme —");
   H.simulate(p, K.DASH, null, { push: true });
   check(p.pushed && p.pushT > 0 && Math.hypot(p.vx, p.vy) < 1, "Poussée : bras tendus, sans avancer");
   const hits = H.applyPush(p, [front, behind]);
-  check(hits.length === 1 && hits[0] === front && front.vx > 400 && behind.vx === 0, "Seul celui qui est DEVANT est repoussé");
+  check(hits.length === 1 && hits[0] === front && front.vx > 250 && behind.vx === 0, "Seul celui qui est DEVANT est repoussé");
   H.simulate(p, K.DASH, null, { push: true });
   check(p.dash > 0.5, "Recharge avant de pouvoir repousser");
   const w = H.newHero(20, 20);

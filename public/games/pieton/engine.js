@@ -25,7 +25,8 @@
   H.PUSH_TIME = 0.2;        // bras tendus (pour le dessin)
   H.PUSH_REACH = 30;        // portée devant soi (en plus des deux corps)
   H.PUSH_ANGLE = 1.25;      // demi-angle devant soi (rad, ~70°)
-  H.PUSH_FORCE = 540;       // vitesse donnée à celui qu'on pousse
+  H.PUSH_FORCE = 330;       // vitesse donnée à celui qu'on pousse (≈ 2 dalles de glissade)
+  H.PUSH_STUN = 0.2;        // temps où celui qu'on pousse contrôle mal
 
   // Touches (les mêmes bits pour tous les jeux à pied).
   H.K = { UP: 1, DOWN: 2, LEFT: 4, RIGHT: 8, DASH: 16, FIRE: 32 };
@@ -150,7 +151,7 @@
       if (Math.abs(diff) > H.PUSH_ANGLE) continue;
       const f = H.PUSH_FORCE * Math.min(2, H.mass(a) / H.mass(b));
       b.vx += (dx / d) * f; b.vy += (dy / d) * f;
-      b.stun = H.STUN;
+      b.stun = H.PUSH_STUN;
       hits.push(b);
     }
     return hits;
