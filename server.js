@@ -103,6 +103,7 @@ function publicHub(room) {
     draft: room.draft,              // la playlist en préparation dans le salon
     playlist: room.playlist && { num: room.playlist.index + 1, total: room.playlist.order.length },
     next: publicNext(room),         // écran "prochain jeu" (vote des réglages)
+    pause: publicPause(room),       // jeux de réflexion : la partie peut être mise en pause
     players: room.players.map((p) => ({
       id: p.id,
       pseudo: p.pseudo,
@@ -124,6 +125,80 @@ function publicNext(room) {
     for (const [key, value] of Object.entries(v)) ((votes[key] ||= {})[value] ||= []).push(pid);
   }
   return { gameId: nx.gameId, num: nx.num, total: nx.total, vote: nx.vote, left: Math.max(0, nx.endsAt - Date.now()), votes };
+}
+
+// ===================================================================
+//  PAUSE (jeux de réflexion : meta.pausable)
+//  - L'hôte met en pause / relance quand il veut.
+//  - Les joueurs peuvent demander la pause : elle démarre quand au moins la
+//    moitié des joueurs (humains connectés) la demande, et repart dès que
+//    moins de la moitié la demande encore.
+//  Pendant la pause, l'horloge du jeu est arrêtée : chronos, bots, tout.
+// ===================================================================
+
+// Horloge d'un mini-jeu : son temps s'arrête pendant la pause.
+function makeClock() {
+  const c = { offset: 0, pausedAt: 0, timers: new Map(), seq: 0 };
+  const now = () => (c.pausedAt || Date.now()) - c.offset;
+  const arm = (id) => {
+    const t = c.timers.get(id);
+    t.real = setTimeout(() => { c.timers.delete(id); t.fn(); }, Math.max(0, t.at - now()));
+  };
+  return {
+    now,
+    setTimeout(fn, ms = 0) {
+      const id = ++c.seq;
+      c.timers.set(id, { fn, at: now() + ms });
+      if (!c.pausedAt) arm(id);
+      return id;
+    },
+    clearTimeout(id) {
+      const t = c.timers.get(id);
+      if (t) { clearTimeout(t.real); c.timers.delete(id); }
+    },
+    pause() {
+      if (c.pausedAt) return;
+      c.pausedAt = Date.now();
+      for (const t of c.timers.values()) clearTimeout(t.real);
+    },
+    resume() {
+      if (!c.pausedAt) return;
+      c.offset += Date.now() - c.pausedAt;
+      c.pausedAt = 0;
+      for (const id of [...c.timers.keys()]) arm(id);
+    },
+    clearAll() {
+      for (const t of c.timers.values()) clearTimeout(t.real);
+      c.timers.clear();
+    },
+  };
+}
+
+const pausable = (room) => room.phase === "game" && !!room.game && !!GAMES[room.gameId]?.meta.pausable;
+const humans = (room) => room.players.filter((p) => p.connected && !p.bot);
+
+function pauseState(room) {
+  const pz = room.pause;
+  const ids = new Set(humans(room).map((p) => p.id));
+  const votes = [...pz.votes].filter((id) => ids.has(id));
+  const needed = Math.max(1, Math.ceil(ids.size / 2));
+  return { active: pz.host || votes.length >= needed, host: pz.host, votes, needed };
+}
+
+function publicPause(room) {
+  if (!pausable(room) || !room.pause) return null;
+  return { ...pauseState(room), since: room.pause.since };
+}
+
+// Recalcule la pause après un vote, un départ… et arrête / relance l'horloge du jeu.
+function updatePause(room) {
+  if (!pausable(room) || !room.pause) return;
+  const { active } = pauseState(room);
+  const was = room.clock.paused;
+  if (active && !was) { room.clock.pause(); room.clock.paused = true; room.pause.since = Date.now(); }
+  if (!active && was) { room.clock.resume(); room.clock.paused = false; room.pause.since = 0; }
+  sendHub(room);
+  sendGame(room);
 }
 
 function sendHub(room) {
@@ -150,8 +225,18 @@ function startGame(room, gameId, opts = null) {
   room.phase = "game";
   room.lastResult = null;
 
+  // L'horloge du jeu (arrêtée pendant une pause) et la pause elle-même.
+  room.clock?.clearAll();
+  room.clock = makeClock();
+  room.pause = { host: false, votes: new Set(), since: 0 };
+  const clock = room.clock;
+
   // Le "contexte" : tout ce que le mini-jeu a le droit d'utiliser.
   const ctx = {
+    // Le temps du jeu : à utiliser à la place de Date.now / setTimeout pour que la pause marche.
+    now: () => clock.now(),
+    setTimeout: (fn, ms) => clock.setTimeout(fn, ms),
+    clearTimeout: (id) => clock.clearTimeout(id),
     // bot = joueur géré par l'ordinateur : c'est le jeu qui le fait jouer.
     players: () => room.players.map(({ id, pseudo, color, connected, bot }) =>
       ({ id, pseudo, color, connected, bot: !!bot })),
@@ -170,6 +255,7 @@ function startGame(room, gameId, opts = null) {
   sendHub(room);                 // le client affiche l'écran du jeu...
   room.game = def.createGame(ctx);
   if (opts) room.game.autoStart();   // playlist : pas d'écran de réglages, on joue direct
+  if (def.meta.pausable) sendHub(room);   // le bouton pause apparaît (le jeu existe maintenant)
   sendGame(room);                // ...puis reçoit son premier état
 }
 
@@ -244,6 +330,7 @@ function endPlaylist(room) {
 function finishGame(room, ranking = []) {
   room.game?.destroy();
   room.game = null;
+  room.clock?.clearAll();
 
   const results = [];
   let place = 0;
@@ -279,6 +366,7 @@ function finishGame(room, ranking = []) {
 function abortGame(room) {
   room.game?.destroy();
   room.game = null;
+  room.clock?.clearAll();
   endPlaylist(room);
 }
 
@@ -338,6 +426,7 @@ io.on("connection", (socket) => {
     socket.join(room.code);
     clearTimeout(room.cleanupTimer);
     if (room.hostId === player.id) clearTimeout(room.hostTimer);
+    updatePause(room);   // un joueur revient : la moitié nécessaire change
   }
 
   // --- Créer un salon ---
@@ -423,6 +512,7 @@ io.on("connection", (socket) => {
   function handleGameAction({ type, data } = {}, callback) {
     const room = roomOf();
     if (!room?.game || !me()) return callback?.({ error: "Aucun jeu en cours." });
+    if (room.clock?.paused) return callback?.({ error: "⏸ La partie est en pause." });
     let res;
     try {
       res = room.game.onAction(socket.data.playerId, type, data || {});
@@ -434,6 +524,24 @@ io.on("connection", (socket) => {
   }
 
   // --- L'hôte arrête le jeu / la playlist (sans points) ---
+  // --- Pause (jeux de réflexion) ---
+  // L'hôte : pause / reprise immédiate (la reprise efface aussi les demandes des joueurs).
+  socket.on("pauseHost", () => {
+    const room = roomOf();
+    if (!room || !amHost() || !pausable(room)) return;
+    if (pauseState(room).active) { room.pause.host = false; room.pause.votes.clear(); }
+    else room.pause.host = true;
+    updatePause(room);
+  });
+  // Un joueur demande la pause (ou retire sa demande).
+  socket.on("pauseVote", () => {
+    const room = roomOf();
+    if (!room || !me() || !pausable(room)) return;
+    const id = socket.data.playerId;
+    if (room.pause.votes.has(id)) room.pause.votes.delete(id); else room.pause.votes.add(id);
+    updatePause(room);
+  });
+
   socket.on("abortGame", () => {
     const room = roomOf();
     if (room && amHost() && ["game", "next"].includes(room.phase)) abortGame(room);
@@ -573,6 +681,7 @@ function handleDisconnect(room, playerId) {
   room.game?.onDisconnect(playerId);
   if (!humansOnline(room)) scheduleCleanup(room);
   sendHub(room);
+  updatePause(room);   // un joueur en moins : la moitié nécessaire change
 }
 
 // ===================================================================

@@ -140,6 +140,50 @@ $("btn-abort").addEventListener("click", () => {
 });
 
 $("btn-help").addEventListener("click", () => { if (hub?.gameId) showHelp(hub.gameId); });
+// Pause : l'hôte met en pause / relance ; les autres demandent (il faut la moitié des joueurs).
+$("btn-pause").addEventListener("click", () => socket.emit(isHost() ? "pauseHost" : "pauseVote"));
+
+// ===================================================================
+//  ÉCRAN DE PAUSE (jeux de réflexion)
+// ===================================================================
+function renderPause() {
+  const pz = hub?.phase === "game" ? hub.pause : null;
+  const btn = $("btn-pause");
+  btn.classList.toggle("hidden", !pz);
+  let ov = document.getElementById("pause-overlay");
+  if (!pz) { ov?.remove(); return; }
+  const me = store.playerId, host = isHost();
+  const iAsked = pz.votes.includes(me);
+  btn.textContent = host ? (pz.active ? "▶ Reprendre" : "⏸ Pause")
+    : pz.active ? (iAsked ? "▶ Je veux reprendre" : "⏸ En pause") : (iAsked ? `✋ Pause demandée (${pz.votes.length}/${pz.needed})` : `✋ Demander la pause (${pz.votes.length}/${pz.needed})`);
+  btn.classList.toggle("on", iAsked || (host && pz.active));
+  if (!pz.active) { ov?.remove(); return; }
+  if (!ov) {
+    ov = document.createElement("div");
+    ov.id = "pause-overlay";
+    ov.className = "pause-overlay";
+    document.body.appendChild(ov);
+  }
+  const names = pz.votes.map((id) => escapeHtml(hub.players.find((p) => p.id === id)?.pseudo || "?"));
+  const why = pz.host ? "L'hôte a mis la partie en pause." : `${names.join(", ")} ${pz.votes.length > 1 ? "ont" : "a"} demandé la pause.`;
+  const myBtn = host ? '<button class="btn btn-primary btn-big" data-act="pauseHost">▶ Reprendre la partie</button>'
+    : iAsked ? '<button class="btn btn-secondary" data-act="pauseVote">▶ Je veux reprendre</button>'
+    : pz.host ? "<p class=\"muted\">Seul l'hôte peut relancer.</p>"
+    : '<p class="muted">La partie repart dès que moins de la moitié des joueurs veut la pause.</p>';
+  const key = JSON.stringify([pz, host, iAsked]);
+  if (ov.dataset.key === key) return;
+  ov.dataset.key = key;
+  ov.innerHTML = `
+    <div class="pause-card card">
+      <div class="pause-icon">⏸</div>
+      <h2>PAUSE</h2>
+      <p>${why}</p>
+      ${pz.host ? "" : `<p class="muted">${pz.votes.length} / ${pz.needed} nécessaires pour rester en pause</p>`}
+      <div class="pause-actions">${myBtn}</div>
+      <p class="muted pause-note">Le chrono est arrêté : profitez-en pour débattre sur Discord 🎙️</p>
+    </div>`;
+  ov.querySelectorAll("[data-act]").forEach((b) => { b.onclick = () => socket.emit(b.dataset.act); });
+}
 
 // ===================================================================
 //  AIDE D'UN JEU (fenêtre ❓) — le texte est dans games-help.js
@@ -174,6 +218,7 @@ function showHelp(gameId) {
 }
 
 function renderBar() {
+  renderPause();
   $("hub-bar").classList.remove("hidden");
   $("bar-code").textContent = hub.code;
   const online = hub.players.filter((p) => p.connected).length;

@@ -16,6 +16,7 @@ export const meta = {
   minPlayers: 3,
   maxPlayers: 8,
   description: "Un mot secret, un intrus. Démasquez-le !",
+  pausable: true,      // jeu de réflexion : l'hôte (ou la moitié des joueurs) peut mettre en pause
 };
 
 function defaultSettings() {
@@ -134,7 +135,7 @@ export function createGame(ctx) {
       theme: g.theme,
       playlist: ctx.playlist && {
         rounds: ctx.playlist.rounds, played: g.roundsPlayed, final: g.final,
-        finishLeft: g.final ? Math.max(0, g.finishAt - Date.now()) : 0,
+        finishLeft: g.final ? Math.max(0, g.finishAt - ctx.now()) : 0,
       },
       players: ctx.players().map((p) => ({ ...p, score: g.scores[p.id] || 0 })),
     };
@@ -154,7 +155,8 @@ export function createGame(ctx) {
         result: r.result || null,
         guesserId: r.guesserId || null,
         outcome: r.outcome || null,
-        deadline: r.deadline || null,
+        // Heure de fin en heure RÉELLE (le temps du jeu s'arrête pendant une pause).
+        deadline: r.deadline ? r.deadline - ctx.now() + Date.now() : null,
       };
     }
     return base;
@@ -172,7 +174,7 @@ export function createGame(ctx) {
   function botLater(key, fn) {
     if (g.botPending.has(key)) return;
     g.botPending.add(key);
-    g.botTimers.push(setTimeout(fn, 1200 + Math.random() * 1800));
+    g.botTimers.push(ctx.setTimeout(fn, 1200 + Math.random() * 1800));
   }
 
   function botsThink() {
@@ -230,13 +232,13 @@ export function createGame(ctx) {
     }
 
     if (tctx === g.timerCtx) return;
-    clearTimeout(g.timer); g.timer = null;
+    ctx.clearTimeout(g.timer); g.timer = null;
     g.timerCtx = tctx;
     if (r) r.deadline = null;
     if (!tctx) return;
 
-    r.deadline = Date.now() + seconds * 1000;
-    g.timer = setTimeout(() => {
+    r.deadline = ctx.now() + seconds * 1000;
+    g.timer = ctx.setTimeout(() => {
       g.timer = null; g.timerCtx = null;
       onExpire();
       broadcast();
@@ -511,8 +513,8 @@ export function createGame(ctx) {
     g.roundsPlayed++;
     if (ctx.playlist && g.roundsPlayed >= ctx.playlist.rounds) {
       g.final = true;
-      g.finishAt = Date.now() + FINISH_DELAY;
-      g.finishTimer = setTimeout(() => ctx.finish(ranking()), FINISH_DELAY);
+      g.finishAt = ctx.now() + FINISH_DELAY;
+      g.finishTimer = ctx.setTimeout(() => ctx.finish(ranking()), FINISH_DELAY);
     }
   }
 
@@ -657,9 +659,9 @@ export function createGame(ctx) {
     },
 
     destroy() {
-      clearTimeout(g.timer);
-      clearTimeout(g.finishTimer);
-      g.botTimers.forEach(clearTimeout);
+      ctx.clearTimeout(g.timer);
+      ctx.clearTimeout(g.finishTimer);
+      g.botTimers.forEach((id) => ctx.clearTimeout(id));
     },
   };
 }

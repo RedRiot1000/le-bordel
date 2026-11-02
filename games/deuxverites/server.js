@@ -17,6 +17,7 @@ export const meta = {
   minPlayers: 3,
   maxPlayers: 8,
   description: "3 phrases sur toi, une est fausse. Tes potes te connaissent vraiment ?",
+  pausable: true,      // jeu de réflexion : l'hôte (ou la moitié des joueurs) peut mettre en pause
 };
 
 const REVEAL_MS = 9000;
@@ -76,13 +77,13 @@ export function createGame(ctx) {
     finishAt: 0,
     finishTimer: null,
   };
-  const now = () => Date.now();
+  const now = () => ctx.now();
   const players = () => ctx.players();
   const isBot = (id) => !!players().find((p) => p.id === id)?.bot;
   const online = () => players().filter((p) => p.connected && g.who.includes(p.id)).map((p) => p.id);
   const author = () => g.order[g.index];
   const voters = () => online().filter((id) => id !== author());
-  const later = (fn, ms) => g.botTimers.push(setTimeout(fn, ms));
+  const later = (fn, ms) => g.botTimers.push(ctx.setTimeout(fn, ms));
   // Indice AFFICHÉ du mensonge du joueur en cours.
   const lieShown = () => g.shown.indexOf(g.entries[author()].lie);
 
@@ -137,7 +138,7 @@ export function createGame(ctx) {
     g.entries = {};
     g.phase = "write";
     g.deadline = now() + g.settings.writeTime * 1000;
-    g.timer = setTimeout(endWrite, g.settings.writeTime * 1000);
+    g.timer = ctx.setTimeout(endWrite, g.settings.writeTime * 1000);
     // Les bots piochent 3 phrases du thème et en déclarent une fausse.
     for (const id of g.who.filter(isBot)) {
       later(() => {
@@ -172,7 +173,7 @@ export function createGame(ctx) {
     g.gains = {};
     g.phase = "guess";
     g.deadline = now() + g.settings.guessTime * 1000;
-    g.timer = setTimeout(startReveal, g.settings.guessTime * 1000);
+    g.timer = ctx.setTimeout(startReveal, g.settings.guessTime * 1000);
     const aid = author();
     for (const id of g.who.filter((i) => isBot(i) && i !== aid)) {
       // Un bot trouve le mensonge une fois sur trois… à peu près au hasard.
@@ -207,7 +208,7 @@ export function createGame(ctx) {
     g.phase = "reveal";
     g.stepAt = now();
     g.deadline = g.stepAt + REVEAL_MS;
-    g.timer = setTimeout(nextTurn, REVEAL_MS);
+    g.timer = ctx.setTimeout(nextTurn, REVEAL_MS);
     ctx.update();
   }
 
@@ -218,14 +219,14 @@ export function createGame(ctx) {
     if (ctx.playlist) {
       g.final = true;
       g.finishAt = now() + FINISH_DELAY;
-      g.finishTimer = setTimeout(() => ctx.finish(ranking()), FINISH_DELAY);
+      g.finishTimer = ctx.setTimeout(() => ctx.finish(ranking()), FINISH_DELAY);
     }
     ctx.update();
   }
 
   function clearTimers() {
-    clearTimeout(g.timer);
-    g.botTimers.forEach(clearTimeout);
+    ctx.clearTimeout(g.timer);
+    g.botTimers.forEach((id) => ctx.clearTimeout(id));
     g.botTimers = [];
   }
 
@@ -301,6 +302,6 @@ export function createGame(ctx) {
       if (players().filter((p) => p.connected).length < meta.minPlayers) { ctx.finish([]); return; }
       startGame();
     },
-    destroy() { clearTimers(); clearTimeout(g.finishTimer); },
+    destroy() { clearTimers(); ctx.clearTimeout(g.finishTimer); },
   };
 }

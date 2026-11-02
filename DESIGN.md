@@ -85,6 +85,16 @@ Pour les jeux d'action : **Phaser 3** côté navigateur, et c'est le **serveur q
      Après la dernière : 15 s pour voir les résultats, puis classement automatique → podium → jeu suivant.
    - Chaque jeu déclare ses options votables dans `export const playlist = { options, settingsFor(choix) }`.
 
+## 5 ter. Pause (jeux de réflexion)
+
+Jeux concernés (`meta.pausable`) : Imposter, Qui de nous ?, Sur 10, Classement, Pense pareil, 2 vérités 1 mensonge.
+- Bouton **⏸ Pause** dans la barre du haut. L’**hôte** met en pause / relance quand il veut (sa reprise efface aussi les demandes).
+- Les autres **demandent** la pause : elle démarre quand **au moins la moitié** des joueurs humains connectés la demande,
+  et repart dès que **moins de la moitié** la demande encore (chacun peut retirer sa demande).
+- Pendant la pause : grand écran « PAUSE », toutes les actions de jeu sont refusées, et l’**horloge du jeu** est arrêtée
+  (chronos, bots, passage à l’étape suivante). Technique : le hub donne au jeu `ctx.now()` / `ctx.setTimeout()` / `ctx.clearTimeout()`.
+- Pas de pause dans les jeux d’action (voitures) ni Devine la map (images qui se dévoilent en temps réel).
+
 ## 6. Barème de soirée (proposition)
 
 Chaque jeu donne un classement, le hub donne :

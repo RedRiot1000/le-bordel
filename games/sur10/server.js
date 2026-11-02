@@ -18,6 +18,7 @@ export const meta = {
   minPlayers: 3,
   maxPlayers: 8,
   description: "Ta note est secrète, ton indice la trahit. Les autres devinent.",
+  pausable: true,      // jeu de réflexion : l'hôte (ou la moitié des joueurs) peut mettre en pause
 };
 
 const THEME_MS = 15000;        // vote du thème
@@ -85,14 +86,14 @@ export function createGame(ctx) {
     finishTimer: null,
   };
 
-  const now = () => Date.now();
+  const now = () => ctx.now();
   const players = () => ctx.players();
   const isBot = (id) => !!players().find((p) => p.id === id)?.bot;
   const online = () => players().filter((p) => p.connected && g.who.includes(p.id)).map((p) => p.id);
   const target = () => g.order[g.index];
   const addPts = (id, n) => { g.scores[id] = (g.scores[id] || 0) + n; };
 
-  function later(fn, ms) { g.botTimers.push(setTimeout(fn, ms)); }
+  function later(fn, ms) { g.botTimers.push(ctx.setTimeout(fn, ms)); }
 
   // =================================================================
   //  ÉTAT PUBLIC (la note de quelqu'un n'est jamais envoyée avant sa révélation)
@@ -148,7 +149,7 @@ export function createGame(ctx) {
     g.theme = null;
     g.phase = "theme";
     g.deadline = now() + THEME_MS;
-    g.timer = setTimeout(endThemeVote, THEME_MS);
+    g.timer = ctx.setTimeout(endThemeVote, THEME_MS);
     for (const id of g.who.filter(isBot)) {
       later(() => { if (g.phase === "theme") voteTheme(id, Math.floor(Math.random() * 3)); }, 1500 + Math.random() * 4000);
     }
@@ -181,7 +182,7 @@ export function createGame(ctx) {
     g.entries = {};
     g.phase = "write";
     g.deadline = now() + g.settings.writeTime * 1000;
-    g.timer = setTimeout(endWrite, g.settings.writeTime * 1000);
+    g.timer = ctx.setTimeout(endWrite, g.settings.writeTime * 1000);
     // Les bots piochent un exemple du thème (avec la note qui va avec).
     for (const id of g.who.filter(isBot)) {
       later(() => {
@@ -222,7 +223,7 @@ export function createGame(ctx) {
     g.gains = {};
     g.phase = "guess";
     g.deadline = now() + g.settings.guessTime * 1000;
-    g.timer = setTimeout(startReveal, g.settings.guessTime * 1000);
+    g.timer = ctx.setTimeout(startReveal, g.settings.guessTime * 1000);
     const tid = target(), entry = g.entries[tid];
     // Les bots devinent : bien si l'indice vient de la liste du thème, au pif sinon.
     const known = g.theme.examples.find((e) => e.text.toLowerCase() === entry.clue.toLowerCase());
@@ -261,7 +262,7 @@ export function createGame(ctx) {
     g.phase = "reveal";
     g.stepAt = now();
     g.deadline = g.stepAt + REVEAL_MS;
-    g.timer = setTimeout(nextTurn, REVEAL_MS);
+    g.timer = ctx.setTimeout(nextTurn, REVEAL_MS);
     ctx.update();
   }
 
@@ -277,14 +278,14 @@ export function createGame(ctx) {
     if (ctx.playlist) {
       g.final = true;
       g.finishAt = now() + FINISH_DELAY;
-      g.finishTimer = setTimeout(() => ctx.finish(ranking()), FINISH_DELAY);
+      g.finishTimer = ctx.setTimeout(() => ctx.finish(ranking()), FINISH_DELAY);
     }
     ctx.update();
   }
 
   function clearTimers() {
-    clearTimeout(g.timer);
-    g.botTimers.forEach(clearTimeout);
+    ctx.clearTimeout(g.timer);
+    g.botTimers.forEach((id) => ctx.clearTimeout(id));
     g.botTimers = [];
   }
 
@@ -358,6 +359,6 @@ export function createGame(ctx) {
       if (players().filter((p) => p.connected).length < meta.minPlayers) { ctx.finish([]); return; }
       startGame();
     },
-    destroy() { clearTimers(); clearTimeout(g.finishTimer); },
+    destroy() { clearTimers(); ctx.clearTimeout(g.finishTimer); },
   };
 }

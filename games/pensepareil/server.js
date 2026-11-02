@@ -16,6 +16,7 @@ export const meta = {
   minPlayers: 3,
   maxPlayers: 8,
   description: "Un thème, une réponse : marque en pensant comme les autres !",
+  pausable: true,      // jeu de réflexion : l'hôte (ou la moitié des joueurs) peut mettre en pause
 };
 
 const REVEAL_MS = 20000;       // révélation (l'hôte peut passer, ou fusionner des réponses)
@@ -83,7 +84,7 @@ export function createGame(ctx) {
     finishAt: 0,
     finishTimer: null,
   };
-  const now = () => Date.now();
+  const now = () => ctx.now();
   const players = () => ctx.players();
   const isBot = (id) => !!players().find((p) => p.id === id)?.bot;
   const online = () => players().filter((p) => p.connected && g.who.includes(p.id)).map((p) => p.id);
@@ -168,9 +169,9 @@ export function createGame(ctx) {
     g.phase = "propose";
     const ms = (30 + 20 * g.perPlayer) * 1000;
     g.deadline = now() + ms;
-    g.timer = setTimeout(endPropose, ms);
+    g.timer = ctx.setTimeout(endPropose, ms);
     for (const id of g.who.filter(isBot)) {
-      g.botTimers.push(setTimeout(() => {
+      g.botTimers.push(ctx.setTimeout(() => {
         if (g.phase !== "propose") return;
         g.proposals[id] = shuffle(PROMPTS).slice(0, g.perPlayer).map((p) => p.text);
         checkAllProposed();
@@ -215,13 +216,13 @@ export function createGame(ctx) {
     g.alias = {};
     g.phase = "answer";
     g.deadline = now() + g.settings.answerTime * 1000;
-    g.timer = setTimeout(startReveal, g.settings.answerTime * 1000);
+    g.timer = ctx.setTimeout(startReveal, g.settings.answerTime * 1000);
     // Les bots : souvent la réponse la plus évidente, parfois une autre.
     for (const id of g.who.filter(isBot)) {
       const list = prompt().answers;
       if (!list) {
         // Thème inventé : le bot tente de copier la réponse de quelqu'un… ou répond au pif.
-        g.botTimers.push(setTimeout(() => {
+        g.botTimers.push(ctx.setTimeout(() => {
           if (g.phase !== "answer") return;
           const others = Object.entries(g.answers).filter(([oid]) => oid !== id).map(([, t]) => t);
           answer(id, others.length && Math.random() < 0.6 ? others[Math.floor(Math.random() * others.length)] : GUESSES[Math.floor(Math.random() * GUESSES.length)]);
@@ -231,7 +232,7 @@ export function createGame(ctx) {
       const w = list.map((_, i) => 1 / (i + 1) ** 1.3);
       let r = Math.random() * w.reduce((a, b) => a + b, 0), pickI = 0;
       for (let i = 0; i < w.length; i++) { if ((r -= w[i]) < 0) { pickI = i; break; } }
-      g.botTimers.push(setTimeout(() => { if (g.phase === "answer") answer(id, list[pickI]); }, 2500 + Math.random() * Math.min(12000, g.settings.answerTime * 400)));
+      g.botTimers.push(ctx.setTimeout(() => { if (g.phase === "answer") answer(id, list[pickI]); }, 2500 + Math.random() * Math.min(12000, g.settings.answerTime * 400)));
     }
     ctx.update();
   }
@@ -251,7 +252,7 @@ export function createGame(ctx) {
     clearTimers();
     g.phase = "reveal";
     g.deadline = now() + REVEAL_MS;
-    g.timer = setTimeout(endReveal, REVEAL_MS);
+    g.timer = ctx.setTimeout(endReveal, REVEAL_MS);
     ctx.update();
   }
 
@@ -273,14 +274,14 @@ export function createGame(ctx) {
     if (ctx.playlist) {
       g.final = true;
       g.finishAt = now() + FINISH_DELAY;
-      g.finishTimer = setTimeout(() => ctx.finish(ranking()), FINISH_DELAY);
+      g.finishTimer = ctx.setTimeout(() => ctx.finish(ranking()), FINISH_DELAY);
     }
     ctx.update();
   }
 
   function clearTimers() {
-    clearTimeout(g.timer);
-    g.botTimers.forEach(clearTimeout);
+    ctx.clearTimeout(g.timer);
+    g.botTimers.forEach((id) => ctx.clearTimeout(id));
     g.botTimers = [];
   }
 
@@ -328,9 +329,9 @@ export function createGame(ctx) {
       if (!keys.includes(from) || !keys.includes(into) || from === into) return { error: "Réponses inconnues." };
       g.alias[from] = into;
       if (g.deadline - now() < MERGE_EXTRA) {
-        clearTimeout(g.timer);
+        ctx.clearTimeout(g.timer);
         g.deadline = now() + MERGE_EXTRA;
-        g.timer = setTimeout(endReveal, MERGE_EXTRA);
+        g.timer = ctx.setTimeout(endReveal, MERGE_EXTRA);
       }
       ctx.update();
     },
@@ -365,6 +366,6 @@ export function createGame(ctx) {
       if (players().filter((p) => p.connected).length < meta.minPlayers) { ctx.finish([]); return; }
       startGame();
     },
-    destroy() { clearTimers(); clearTimeout(g.finishTimer); },
+    destroy() { clearTimers(); ctx.clearTimeout(g.finishTimer); },
   };
 }

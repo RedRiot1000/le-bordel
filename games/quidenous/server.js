@@ -16,6 +16,7 @@ export const meta = {
   minPlayers: 3,
   maxPlayers: 8,
   description: "« Qui finirait en prison en premier ? » Votez… et assumez.",
+  pausable: true,      // jeu de réflexion : l'hôte (ou la moitié des joueurs) peut mettre en pause
 };
 
 const STEP_MS = 11000;         // durée d'une question pendant la cérémonie
@@ -84,7 +85,7 @@ export function createGame(ctx) {
     finishTimer: null,
   };
 
-  const now = () => Date.now();
+  const now = () => ctx.now();
   const players = () => ctx.players();
   const pseudo = (id) => players().find((p) => p.id === id)?.pseudo || "?";
   const isBot = (id) => !!players().find((p) => p.id === id)?.bot;
@@ -157,10 +158,10 @@ export function createGame(ctx) {
     g.index = 0;
     g.phase = "write";
     g.deadline = now() + g.settings.writeTime * 1000;
-    g.timer = setTimeout(endWrite, g.settings.writeTime * 1000);
+    g.timer = ctx.setTimeout(endWrite, g.settings.writeTime * 1000);
     // Les bots écrivent après quelques secondes.
     for (const id of g.who.filter(isBot)) {
-      g.botTimers.push(setTimeout(() => {
+      g.botTimers.push(ctx.setTimeout(() => {
         if (g.phase !== "write") return;
         g.drafts[id] = Array.from({ length: g.settings.perPlayer }, () => randomQuestion());
         g.done[id] = true;
@@ -196,11 +197,11 @@ export function createGame(ctx) {
     g.index++;
     if (g.index >= g.questions.length) return startReveal();
     g.deadline = now() + g.settings.voteTime * 1000;
-    g.timer = setTimeout(nextVote, g.settings.voteTime * 1000);
+    g.timer = ctx.setTimeout(nextVote, g.settings.voteTime * 1000);
     // Les bots votent au hasard (y compris pour eux-mêmes).
     for (const id of g.who.filter(isBot)) {
       const qi = g.index;
-      g.botTimers.push(setTimeout(() => {
+      g.botTimers.push(ctx.setTimeout(() => {
         if (g.phase === "vote" && g.index === qi) vote(id, pick(g.who));
       }, 1200 + Math.random() * Math.min(6000, g.settings.voteTime * 600)));
     }
@@ -235,7 +236,7 @@ export function createGame(ctx) {
     for (const [voter, target] of Object.entries(q.votes)) if (winners.includes(target)) g.scores[voter] = (g.scores[voter] || 0) + 1;
     g.stepAt = now();
     g.deadline = g.stepAt + STEP_MS;
-    g.timer = setTimeout(nextReveal, STEP_MS);
+    g.timer = ctx.setTimeout(nextReveal, STEP_MS);
     ctx.update();
   }
 
@@ -245,14 +246,14 @@ export function createGame(ctx) {
     if (ctx.playlist) {
       g.final = true;
       g.finishAt = now() + FINISH_DELAY;
-      g.finishTimer = setTimeout(() => ctx.finish(ranking()), FINISH_DELAY);
+      g.finishTimer = ctx.setTimeout(() => ctx.finish(ranking()), FINISH_DELAY);
     }
     ctx.update();
   }
 
   function clearTimers() {
-    clearTimeout(g.timer);
-    g.botTimers.forEach(clearTimeout);
+    ctx.clearTimeout(g.timer);
+    g.botTimers.forEach((id) => ctx.clearTimeout(id));
     g.botTimers = [];
   }
 
@@ -325,6 +326,6 @@ export function createGame(ctx) {
       if (players().filter((p) => p.connected).length < meta.minPlayers) { ctx.finish([]); return; }
       startGame();
     },
-    destroy() { clearTimers(); clearTimeout(g.finishTimer); },
+    destroy() { clearTimers(); ctx.clearTimeout(g.finishTimer); },
   };
 }

@@ -18,6 +18,7 @@ export const meta = {
   minPlayers: 3,
   maxPlayers: 8,
   description: "Devine comment ton pote classe 5 trucs. Tu le connais si bien que ça ?",
+  pausable: true,      // jeu de réflexion : l'hôte (ou la moitié des joueurs) peut mettre en pause
 };
 
 const PICK_MS = 15000;        // le juge choisit le thème
@@ -96,12 +97,12 @@ export function createGame(ctx) {
     finishTimer: null,
   };
 
-  const now = () => Date.now();
+  const now = () => ctx.now();
   const players = () => ctx.players();
   const isBot = (id) => !!players().find((p) => p.id === id)?.bot;
   const online = () => players().filter((p) => p.connected && g.who.includes(p.id)).map((p) => p.id);
   const judge = () => g.judges[g.round - 1];
-  const later = (fn, ms) => g.botTimers.push(setTimeout(fn, ms));
+  const later = (fn, ms) => g.botTimers.push(ctx.setTimeout(fn, ms));
 
   // =================================================================
   //  ÉTAT PUBLIC (aucun classement n'est envoyé avant la révélation)
@@ -161,7 +162,7 @@ export function createGame(ctx) {
     g.theme = null;
     g.phase = "pick";
     g.deadline = now() + PICK_MS;
-    g.timer = setTimeout(() => choose(Math.floor(Math.random() * 3)), PICK_MS);
+    g.timer = ctx.setTimeout(() => choose(Math.floor(Math.random() * 3)), PICK_MS);
     if (isBot(judge())) later(() => { if (g.phase === "pick") choose(Math.floor(Math.random() * 3)); }, 2000 + Math.random() * 3000);
     ctx.update();
   }
@@ -179,7 +180,7 @@ export function createGame(ctx) {
     g.gains = {};
     g.phase = "rank";
     g.deadline = now() + g.settings.rankTime * 1000;
-    g.timer = setTimeout(startReveal, g.settings.rankTime * 1000);
+    g.timer = ctx.setTimeout(startReveal, g.settings.rankTime * 1000);
     // Les bots : le juge suit les notes de Sur 10 (avec un peu de fantaisie), les autres classent au pif.
     const byNote = (noise) => [0, 1, 2, 3, 4]
       .map((i) => [i, g.notes[i] + Math.random() * noise])
@@ -217,7 +218,7 @@ export function createGame(ctx) {
     g.phase = "reveal";
     g.stepAt = now();
     g.deadline = g.stepAt + REVEAL_MS;
-    g.timer = setTimeout(nextRound, REVEAL_MS);
+    g.timer = ctx.setTimeout(nextRound, REVEAL_MS);
     ctx.update();
   }
 
@@ -228,14 +229,14 @@ export function createGame(ctx) {
     if (ctx.playlist) {
       g.final = true;
       g.finishAt = now() + FINISH_DELAY;
-      g.finishTimer = setTimeout(() => ctx.finish(ranking()), FINISH_DELAY);
+      g.finishTimer = ctx.setTimeout(() => ctx.finish(ranking()), FINISH_DELAY);
     }
     ctx.update();
   }
 
   function clearTimers() {
-    clearTimeout(g.timer);
-    g.botTimers.forEach(clearTimeout);
+    ctx.clearTimeout(g.timer);
+    g.botTimers.forEach((id) => ctx.clearTimeout(id));
     g.botTimers = [];
   }
 
@@ -300,6 +301,6 @@ export function createGame(ctx) {
       if (players().filter((p) => p.connected).length < meta.minPlayers) { ctx.finish([]); return; }
       startGame();
     },
-    destroy() { clearTimers(); clearTimeout(g.finishTimer); },
+    destroy() { clearTimers(); ctx.clearTimeout(g.finishTimer); },
   };
 }
