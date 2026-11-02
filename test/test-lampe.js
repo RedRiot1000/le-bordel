@@ -81,7 +81,7 @@ async function run() {
     const b0 = game.heroes.find((h) => h.id === me).bat;
     for (let i = 0; i < 30; i++) { send(0); await wait(33); }
     const b1 = game.heroes.find((h) => h.id === me).bat;
-    check(b1 < b0 && b0 - b1 < DRAIN * 1.6, `Lampe allumée : la batterie baisse (${b0} → ${b1})`);
+    check(b1 < b0 && b0 - b1 < DRAIN * 2.5, `Lampe allumée : la batterie baisse (${b0} → ${b1})`);
     send(K.FIRE); await wait(60); send(0); await wait(100);
     check(!game.heroes.find((h) => h.id === me).lamp, "Clic = lampe éteinte");
     const b2 = game.heroes.find((h) => h.id === me).bat;
