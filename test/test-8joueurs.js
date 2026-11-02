@@ -57,6 +57,7 @@ const GAMES = {
   deuxverites: () => game.who?.length === 8 && game.phase === "write",
   sol: () => game.heroes?.length === 8,
   territoire: () => game.heroes?.length === 8,
+  neige: () => game.heroes?.length === 8 && game.teamsMode,
 };
 
 async function run() {

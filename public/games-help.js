@@ -274,5 +274,27 @@
       ],
       example: "Tu es chez les 🔴. Tu fonces vers une grosse zone bleue en tirant des jets devant toi, tu ramasses le 🧹 et tu traverses toute l'arène en laissant une bande rouge énorme. À 10 s de la fin, la barre est à 48 % contre 47 %… tu attrapes la 💣 en plein milieu des bleus : victoire !",
     },
+    neige: {
+      goal: "Toucher les autres avec tes boules de neige sans te faire toucher. Dernier debout (ou dernière équipe) gagne la manche.",
+      steps: [
+        "Chacun a <b>3 cœurs ❤️</b> et commence avec <b>3 boules</b>. En équipes (automatique à partir de 4 joueurs) : 🔴 Rouges contre 🔵 Bleus, pas de tir ami.",
+        "<b>Vise à la souris</b> : le viseur te suit quand tu marches (clique une fois sur l'arène pour capturer la souris, Échap pour la libérer).",
+        "<b>Maintiens le clic gauche</b> pour charger (un cercle se remplit autour de toi), <b>lâche</b> pour lancer. Plus c'est chargé, plus la boule va <b>loin et vite</b>. La ligne pointillée montre la portée.",
+        "Plus de boules ? <b>Clic droit</b> (ou <kbd>R</kbd>) maintenu : tu te baisses et fabriques une boule en 1 s… mais tu ne peux pas bouger pendant ce temps !",
+        "Les <b>murets de neige</b> arrêtent les boules, mais chaque boule les fait <b>fondre</b> un peu : ils rétrécissent puis disparaissent.",
+        "Touché = un cœur de moins (tu clignotes, invincible un court instant). 0 cœur = éliminé. Après 75 s : <b>mort subite</b>, tout le monde à 1 cœur.",
+      ],
+      controls: [
+        "<kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> / flèches : bouger",
+        "🖱️ Souris : viser · <b>clic gauche maintenu</b> : charger · <b>relâché</b> : lancer",
+        "<b>Clic droit</b> ou <kbd>R</kbd> : fabriquer une boule (3 max)",
+      ],
+      points: [
+        "Chacun pour soi : <b>1 point par joueur éliminé avant toi</b>.",
+        "Équipes : <b>3 points</b> pour chaque membre de l'équipe gagnante.",
+        "Dans les deux cas : <b>+1 par élimination</b> que tu fais (la dernière boule).",
+      ],
+      example: "Tu es caché derrière un muret, à court de boules : clic droit, tu en fabriques une… le muret fond sous les tirs de Bob ! Tu sors, tu charges à fond et tu vises un peu devant lui pendant qu'il court : PAF, dernier cœur, il est éliminé (+1 pour toi).",
+    },
   };
 })();

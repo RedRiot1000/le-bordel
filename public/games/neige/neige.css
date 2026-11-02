@@ -1,0 +1,8 @@
+/* BOULES DE NEIGE — styles (le reste vient de patate.css, chat.css et sol.css : .pt-*, .ch-*, .so-feed) */
+#sn-canvas {
+  display: block; width: 100%; height: auto; max-height: 72vh; object-fit: contain; cursor: crosshair;
+  border-radius: var(--radius); border: 3px solid rgba(255, 255, 255, 0.35); box-shadow: var(--shadow);
+}
+.pt-arena-wrap.over #sn-canvas { display: none; }
+.pt-arena-wrap.over #sn-feed { display: none; }
+.sn-ammo { font-size: 22px; letter-spacing: 3px; min-width: 90px; text-align: right; }

@@ -19,6 +19,7 @@ import * as pensepareil from "./pensepareil/server.js";
 import * as deuxverites from "./deuxverites/server.js";
 import * as sol from "./sol/server.js";
 import * as territoire from "./territoire/server.js";
+import * as neige from "./neige/server.js";
 
 // Les jeux jouables.
 export const GAMES = {
@@ -37,6 +38,7 @@ export const GAMES = {
   [deuxverites.meta.id]: deuxverites,
   [sol.meta.id]: sol,
   [territoire.meta.id]: territoire,
+  [neige.meta.id]: neige,
 };
 
 // Les jeux prévus (affichés grisés "bientôt" dans le menu).

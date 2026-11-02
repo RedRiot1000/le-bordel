@@ -500,6 +500,18 @@ Arène 1280 × 800 vue en entier, 5 à 8 obstacles au hasard. Grille de peinture
   Dessin : chaque case peinte = un petit rond (bords arrondis façon peinture).
 - Bots : vont vers les zones « pas à eux » (adversaire > vide), visent la plus grosse zone adverse à portée, vont aux caisses.
 
+## 7 sedecies. Boules de neige ❄️ — validé (« Go »)
+
+Arène 1280 × 800 enneigée, 6 à 9 **murets** (4 points de vie : chaque boule les fait fondre et rétrécir, puis ils disparaissent).
+- **3 cœurs**, 3 boules au départ (3 max). **Clic gauche maintenu = charger** (1 s pour le max), **relâché = lancer** :
+  vitesse 520 → 1000 px/s, portée 230 → 630 px selon la charge. Boules en ligne droite, arrêtées par les murets.
+- **Clic droit / R maintenu** : fabriquer une boule en 1 s, **immobile**. Viseur relatif (comme Territoire), souris capturée au 1er clic.
+- Touché : −1 cœur, petit recul, invincible 0,6 s. 0 cœur = éliminé. Mort subite à 75 s (tout le monde à 1 cœur).
+- Mode auto (équipes 🔴/🔵 dès 4) / chacun pour soi / équipes ; pas de tir ami. Manches 3/5/7 (défaut 3) ; playlist 3/5.
+- Points : chacun pour soi = 1 par joueur éliminé avant toi ; équipes = 3 pour l'équipe gagnante ; + 1 par élimination.
+- Bots : visent devant leur cible (anticipation), chargent selon la distance, tournent autour, se cachent derrière un muret
+  pour refaire des boules. Simulation : manches de 15 à 50 s, ~1 touche pour 3-4 lancers.
+
 ## 8. Feuille de route
 
 | Phase | Contenu | Objectif |
