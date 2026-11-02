@@ -58,7 +58,7 @@
     <div class="qn-top"><span class="pill">${label}</span><span class="qn-sec" id="dv-sec"></span></div>
     ${bar ? '<div class="qn-bar"><i id="dv-bar"></i></div>' : ""}`;
   const roundLabel = () => `Manche ${st.round}/${st.settings.rounds}`;
-  const themeHtml = (hint = false) => `<div class="s10-theme dv-theme"><div class="s10-theme-title">${esc(st.theme.title)}</div>${hint ? `<div class="s10-scale">${esc(st.theme.hint)}</div>` : ""}</div>`;
+  const themeHtml = (hint = false) => `<div class="s10-theme dv-theme"><div class="s10-theme-title">${esc(st.turn?.theme || st.theme.title)}</div>${hint ? `<div class="s10-scale">${esc(st.theme.hint)}</div>` : ""}</div>`;
   const authorHtml = (t) => `<div class="s10-author">${api.avatar(playerOf(t.id), "mini-avatar qn-big")}<b>${esc(pseudoOf(t.id))}</b>${t.id === me() ? " <span class='muted'>(toi)</span>" : ""}</div>`;
   const chipsHtml = (ids, doneIds) => `<div class="qn-who">${ids.map((id) =>
     `<span class="qn-chip ${doneIds.includes(id) ? "done" : ""}">${api.avatar(playerOf(id))} ${esc(pseudoOf(id))}</span>`).join("")}</div>`;
@@ -78,7 +78,7 @@
         <div class="card">
           <h2>📜 Règles</h2>
           <ul class="pt-help">
-            <li>🎲 Un <b>thème</b> est tiré au sort (ex. « Mes vacances »).</li>
+            <li>🎲 Un <b>thème</b> est proposé (ex. « Mes vacances ») : garde-le, pioche-en un autre 🎲 ou <b>écris le tien</b> (réglage).</li>
             <li>✍️ Chacun écrit <b>3 phrases sur lui</b> : 2 vraies, <b>1 fausse</b> (tu coches laquelle).</li>
             <li>🔍 Un joueur à la fois : ses phrases s'affichent dans le désordre, les autres <b>votent pour le mensonge</b>. Il peut se défendre au micro !</li>
             <li>🏆 <b>+1</b> si tu trouves le mensonge. L'auteur gagne <b>+1 par joueur piégé</b>.</li>
@@ -100,12 +100,19 @@
     const chips = (key, list) => `<div class="cat-chips">${list.map(([v, label]) =>
       `<button class="cat-chip ${s[key] === v ? "on" : ""}" data-key="${key}" data-v="${v}" ${host ? "" : "disabled"}>${label}</button>`).join("")}</div>`;
     panel.innerHTML = `
+      <div class="setting-block"><label>Les thèmes</label><div class="cat-chips">
+        ${[["joueurs", "✍️ Chacun choisit le sien"], ["banque", "🎲 Le même pour tous"]].map(([v, label]) =>
+          `<button class="cat-chip ${s.themes === v ? "on" : ""}" data-themes="${v}" ${host ? "" : "disabled"}>${label}</button>`).join("")}
+      </div></div>
       <div class="setting-block"><label>Manches (1 thème par manche)</label>${chips("rounds", [[1, "1"], [2, "2"], [3, "3"]])}</div>
       <div class="setting-block"><label>Temps pour écrire</label>${chips("writeTime", [[60, "60 s"], [90, "90 s"], [120, "2 min"]])}</div>
       <div class="setting-block"><label>Temps pour voter (par joueur)</label>${chips("guessTime", [[20, "20 s"], [25, "25 s"], [35, "35 s"]])}</div>
       ${host ? "" : '<p class="settings-note">Seul l\'hôte peut modifier les réglages.</p>'}`;
     if (host) panel.querySelectorAll("[data-key]").forEach((b) => {
       b.onclick = () => api.action("settings", { settings: { [b.dataset.key]: Number(b.dataset.v) } });
+    });
+    if (host) panel.querySelectorAll("[data-themes]").forEach((b) => {
+      b.onclick = () => api.action("settings", { settings: { themes: b.dataset.themes } });
     });
     const n = st.players.filter((p) => p.connected).length;
     const played = st.players.some((p) => p.score > 0);
@@ -131,6 +138,12 @@
         ${themeHtml(true)}
         <div class="card s10-write dv-write">
           ${playing ? `
+            ${st.settings.themes === "joueurs" ? `
+              <div class="dv-mytheme">
+                <label>🎯 Ton thème <span class="muted">(garde celui-ci, change-le ou 🎲)</span></label>
+                <div class="qn-line"><input id="dv-theme-in" class="qn-input" maxlength="60" value="${esc(st.theme.title)}" autocomplete="off" />
+                  <button id="dv-dice" class="btn btn-secondary qn-dice" title="Un autre thème">🎲</button></div>
+              </div>` : ""}
             <h2 class="s10-h">3 phrases sur toi… dont une fausse 😏</h2>
             ${[0, 1, 2].map((i) => `
               <div class="dv-line">
@@ -151,12 +164,24 @@
         });
         const send = () => {
           const lie = box.querySelector('input[name="dv-lie"]:checked');
-          api.action("write", { lines: inputs.map((i) => i.value), lie: lie ? Number(lie.value) : -1 }).then((r) => {
+          api.action("write", { lines: inputs.map((i) => i.value), lie: lie ? Number(lie.value) : -1, theme: $("dv-theme-in")?.value || "" }).then((r) => {
             const msg = $("dv-msg");
             if (msg) msg.textContent = r.error ? "⚠️ " + r.error : "✅ Envoyé ! Tu peux encore modifier et renvoyer.";
           });
         };
         $("dv-send").onclick = send;
+        if ($("dv-dice")) $("dv-dice").onclick = () => api.action("random").then((r) => {
+          if (!r.title) return;
+          $("dv-theme-in").value = r.title;
+          const hint = box.querySelector(".dv-theme .s10-scale"), title = box.querySelector(".dv-theme .s10-theme-title");
+          if (title) title.textContent = r.title;
+          if (hint) hint.textContent = r.hint;
+        });
+        if ($("dv-theme-in")) $("dv-theme-in").addEventListener("input", (e) => {
+          const title = box.querySelector(".dv-theme .s10-theme-title"), hint = box.querySelector(".dv-theme .s10-scale");
+          if (title) title.textContent = e.target.value || st.theme.title;
+          if (hint) hint.textContent = "✍️ Ton propre thème";
+        });
         inputs.forEach((i) => i.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); }));
       }
     }

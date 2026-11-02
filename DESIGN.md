@@ -438,7 +438,9 @@ Idée de Scotty : tout le monde en **F1**, la police (IA) arrive de plus en plus
 
 ## 7 duodecies. Pense pareil 🧠 — validé (« Go les deux »)
 
-Un thème (environ 130 dans `games/pensepareil/prompts.js`), chacun écrit UNE réponse en secret (20/30/45 s).
+Un thème (360 dans `games/pensepareil/prompts.js`), chacun écrit UNE réponse en secret (20/30/45 s).
+- **Thèmes écrits par les joueurs** (réglage, ACTIF par défaut) : au début, chacun écrit ceil(thèmes / joueurs) thèmes (1 à 3, 🎲 pour piocher),
+  joués à tour de rôle avec « Thème de X », complétés par la banque s'il en manque. Sur un thème inventé, les bots copient souvent une réponse déjà donnée.
 - Révélation par paquets identiques (le plus gros en jaune). Fusion automatique : majuscules, accents, ponctuation,
   articles (le/la/un/des…), pluriels (s/x, -aux → -al). L'**hôte** peut fusionner deux paquets à la main (clic, clic) pendant la révélation.
 - Points : 1 par autre joueur avec la même réponse. Partie : 5/8/12 thèmes (défaut 8) ; playlist 5/8.
@@ -446,7 +448,9 @@ Un thème (environ 130 dans `games/pensepareil/prompts.js`), chacun écrit UNE r
 
 ## 7 terdecies. 2 vérités, 1 mensonge 🤥 — validé (« Go les deux »)
 
-Un thème tiré au sort par manche (environ 30 dans `games/deuxverites/themes.js`, avec une aide pour écrire).
+Un thème proposé par manche (79 dans `games/deuxverites/themes.js`, avec une aide pour écrire).
+- **Chacun choisit son thème** (réglage, ACTIF par défaut) : le thème proposé est pré-rempli, on le garde, on pioche 🎲 ou on écrit le sien ;
+  le vote affiche le thème de l'auteur. Réglage « le même pour tous » = ancien fonctionnement.
 - Chacun écrit 3 phrases sur lui et coche la fausse (60/90/120 s). Un joueur à la fois : ses phrases mélangées (A/B/C),
   les autres votent (20/25/35 s, on peut changer d'avis), révélation (mensonge en rouge, vérités en vert).
 - Points : +1 si on trouve, l'auteur +1 par joueur piégé. Manches 1/2/3 (défaut 2) ; playlist 1/2.

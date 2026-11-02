@@ -46,6 +46,7 @@
 
   function renderUpdate() {
     if (st.phase === "setup") renderSetup();
+    else if (st.phase === "propose") renderPropose();
     else if (st.phase === "answer") renderAnswer();
     else if (st.phase === "reveal") renderReveal();
     else renderOver();
@@ -54,7 +55,8 @@
   const topHtml = (label) => `
     <div class="qn-top"><span class="pill">${label}</span><span class="qn-sec" id="pp-sec"></span></div>
     <div class="qn-bar"><i id="pp-bar"></i></div>`;
-  const promptHtml = () => `<div class="s10-theme pp-prompt"><div class="s10-theme-title">${esc(st.prompt)}</div></div>`;
+  const promptHtml = () => `<div class="s10-theme pp-prompt"><div class="s10-theme-title">${esc(st.prompt)}</div>
+    ${st.promptBy ? `<div class="pp-by">✍️ Thème de ${api.avatar(playerOf(st.promptBy))} <b>${esc(pseudoOf(st.promptBy))}</b></div>` : ""}</div>`;
 
   // ===================================================================
   //  RÉGLAGES
@@ -71,6 +73,7 @@
         <div class="card">
           <h2>📜 Règles</h2>
           <ul class="pt-help">
+            <li>✍️ Au début, <b>chacun écrit ses thèmes</b> (🎲 pour en piocher un), ou on prend la banque de thèmes (réglage).</li>
             <li>💭 Un thème s'affiche, par exemple <b>« Un truc rouge »</b>.</li>
             <li>✍️ Chacun écrit <b>une seule réponse</b>, en secret.</li>
             <li>🤝 Tu marques <b>1 point par joueur</b> qui a écrit la même chose que toi. Seul dans ton coin = 0.</li>
@@ -93,11 +96,18 @@
     const chips = (key, list) => `<div class="cat-chips">${list.map(([v, label]) =>
       `<button class="cat-chip ${s[key] === v ? "on" : ""}" data-key="${key}" data-v="${v}" ${host ? "" : "disabled"}>${label}</button>`).join("")}</div>`;
     panel.innerHTML = `
+      <div class="setting-block"><label>Les thèmes</label><div class="cat-chips">
+        ${[["joueurs", "✍️ Écrits par les joueurs"], ["banque", "📚 Banque de thèmes"]].map(([v, label]) =>
+          `<button class="cat-chip ${s.themes === v ? "on" : ""}" data-themes="${v}" ${host ? "" : "disabled"}>${label}</button>`).join("")}
+      </div></div>
       <div class="setting-block"><label>Nombre de thèmes</label>${chips("rounds", [[5, "5"], [8, "8"], [12, "12"]])}</div>
       <div class="setting-block"><label>Temps pour répondre</label>${chips("answerTime", [[20, "20 s"], [30, "30 s"], [45, "45 s"]])}</div>
       ${host ? "" : '<p class="settings-note">Seul l\'hôte peut modifier les réglages.</p>'}`;
     if (host) panel.querySelectorAll("[data-key]").forEach((b) => {
       b.onclick = () => api.action("settings", { settings: { [b.dataset.key]: Number(b.dataset.v) } });
+    });
+    if (host) panel.querySelectorAll("[data-themes]").forEach((b) => {
+      b.onclick = () => api.action("settings", { settings: { themes: b.dataset.themes } });
     });
     const n = st.players.filter((p) => p.connected).length;
     const played = st.players.some((p) => p.score > 0);
@@ -107,6 +117,49 @@
     $("pp-finish-setup").textContent = played ? "Terminer le jeu (points de soirée)" : "Retour au menu";
     $("pp-hint").textContent = !host ? "En attente que l'hôte lance la partie…"
       : n < 3 ? `Il faut au moins 3 joueurs (${n}/3).` : `${n} joueurs · ~${Math.round((s.rounds * (s.answerTime * 0.7 + 15)) / 60)} min de jeu.`;
+  }
+
+  // ===================================================================
+  //  0. CHACUN ÉCRIT SES THÈMES (mode « joueurs »)
+  // ===================================================================
+  function renderPropose() {
+    const box = $("pp-propose");
+    const playing = st.who.includes(me());
+    if (shownKey !== "p") {
+      shownKey = "p";
+      const n = st.perPlayer;
+      box.innerHTML = `
+        ${topHtml("✍️ Vos thèmes")}
+        <div class="card s10-write">
+          ${playing ? `
+            <h2 class="s10-h">Écris ${n > 1 ? `tes ${n} thèmes` : "ton thème"} 💭</h2>
+            <p class="muted">Un thème auquel tout le monde peut répondre en un mot : « Un truc rouge », « Un prénom de chien », « Un jeu de notre enfance »… Tu joueras aussi dessus ! (🎲 = un thème au hasard)</p>
+            ${Array.from({ length: n }, (_, i) => `
+              <div class="qn-line">
+                <input class="qn-input pp-theme-in" maxlength="60" placeholder="Un truc qui…" autocomplete="off" />
+                <button class="btn btn-secondary qn-dice" data-i="${i}" title="Thème au hasard">🎲</button>
+              </div>`).join("")}
+            <button id="pp-psend" class="btn btn-primary btn-big">Envoyer</button>
+            <p id="pp-pmsg" class="muted qn-write-msg"></p>`
+            : `<h2>Tu regardes cette partie 👀</h2>`}
+          <div id="pp-pdone"></div>
+        </div>`;
+      if (playing) {
+        const inputs = [...box.querySelectorAll(".pp-theme-in")];
+        inputs[0].focus();
+        box.querySelectorAll(".qn-dice").forEach((b) => {
+          b.onclick = () => api.action("random").then((r) => { if (r.text) inputs[Number(b.dataset.i)].value = r.text; });
+        });
+        const send = () => api.action("propose", { texts: inputs.map((i) => i.value) }).then((r) => {
+          const msg = $("pp-pmsg");
+          if (msg) msg.textContent = r.error ? "⚠️ " + r.error : "✅ Envoyé ! Tu peux encore modifier et renvoyer.";
+        });
+        $("pp-psend").onclick = send;
+        inputs.forEach((i) => i.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); }));
+      }
+    }
+    $("pp-pdone").innerHTML = `<div class="qn-who">${st.who.map((id) =>
+      `<span class="qn-chip ${st.doneIds.includes(id) ? "done" : ""}">${api.avatar(playerOf(id))} ${esc(pseudoOf(id))}</span>`).join("")}</div>`;
   }
 
   // ===================================================================
@@ -243,6 +296,7 @@
     const sec = $("pp-sec");
     if (sec) { sec.textContent = Math.ceil(left / 1000) + " s"; sec.classList.toggle("urgent", st.phase === "answer" && left <= 5000); }
     const bar = $("pp-bar");
-    if (bar) bar.style.width = Math.min(100, (100 * left) / ((st.phase === "answer" ? st.settings.answerTime : 20) * 1000)) + "%";
+    const total = st.phase === "answer" ? st.settings.answerTime : st.phase === "propose" ? 30 + 20 * (st.perPlayer || 1) : 20;
+    if (bar) bar.style.width = Math.min(100, (100 * left) / (total * 1000)) + "%";
   }
 })();

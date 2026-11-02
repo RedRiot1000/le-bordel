@@ -22,9 +22,13 @@ const REVEAL_MS = 20000;       // révélation (l'hôte peut passer, ou fusionne
 const MERGE_EXTRA = 8000;      // après une fusion, on laisse au moins 8 s pour voir le résultat
 const FINISH_DELAY = 15000;
 const MAX_LEN = 40;
+const THEME_LEN = 60;
+// Réponses des bots sur un thème inventé par un joueur (ils ne le connaissent pas : ils tentent leur chance).
+const GUESSES = ["Je sais pas", "Aucune idée", "Pizza", "Chat", "Rouge", "Paris", "Mario", "Le soleil", "Mon lit", "Une banane"];
 
 function defaultSettings() {
-  return { rounds: 8, answerTime: 30 };
+  // themes : "joueurs" = chacun écrit ses thèmes au début (défaut) · "banque" = thèmes tout prêts
+  return { rounds: 8, answerTime: 30, themes: "joueurs" };
 }
 
 export const playlist = {
@@ -61,7 +65,9 @@ export function normalize(text) {
 // ===================================================================
 export function createGame(ctx) {
   const g = {
-    phase: "setup",       // setup | answer | reveal | over
+    phase: "setup",       // setup | propose | answer | reveal | over
+    proposals: {},        // mode « joueurs » : id -> [thèmes écrits]
+    perPlayer: 1,         // thèmes à écrire par joueur
     settings: ctx.savedSettings ? { ...defaultSettings(), ...ctx.savedSettings } : defaultSettings(),
     scores: {},
     who: [],
@@ -124,9 +130,11 @@ export function createGame(ctx) {
       round: g.round,
       rounds: g.prompts.length,
       prompt: prompt()?.text || null,
+      promptBy: prompt()?.by || null,   // qui a écrit le thème (mode « joueurs »)
       left: Math.max(0, g.deadline - t),
       playlist: ctx.playlist && { final: g.final, finishLeft: g.final ? Math.max(0, g.finishAt - t) : 0 },
     };
+    if (g.phase === "propose") { base.doneIds = Object.keys(g.proposals); base.perPlayer = g.perPlayer; }
     if (g.phase === "answer") base.doneIds = Object.keys(g.answers);
     if (g.phase === "reveal") {
       base.groups = groups();
@@ -144,9 +152,58 @@ export function createGame(ctx) {
     g.who = players().filter((p) => p.connected).map((p) => p.id);
     g.scores = {};
     for (const id of g.who) g.scores[id] = 0;
-    g.prompts = shuffle(PROMPTS).slice(0, g.settings.rounds);
     g.round = 0;
     g.history = [];
+    if (g.settings.themes === "banque") {
+      g.prompts = shuffle(PROMPTS).slice(0, g.settings.rounds);
+      return nextPrompt();
+    }
+    startPropose();
+  }
+
+  // --- Mode « joueurs » : chacun écrit ses thèmes (🎲 pour en piocher un) ---
+  function startPropose() {
+    g.proposals = {};
+    g.perPlayer = Math.max(1, Math.min(3, Math.ceil(g.settings.rounds / g.who.length)));
+    g.phase = "propose";
+    const ms = (30 + 20 * g.perPlayer) * 1000;
+    g.deadline = now() + ms;
+    g.timer = setTimeout(endPropose, ms);
+    for (const id of g.who.filter(isBot)) {
+      g.botTimers.push(setTimeout(() => {
+        if (g.phase !== "propose") return;
+        g.proposals[id] = shuffle(PROMPTS).slice(0, g.perPlayer).map((p) => p.text);
+        checkAllProposed();
+        if (g.phase === "propose") ctx.update();
+      }, 3000 + Math.random() * 6000));
+    }
+    ctx.update();
+  }
+
+  function checkAllProposed() {
+    if (online().every((id) => g.proposals[id])) endPropose();
+  }
+
+  // Les thèmes de la partie : un de chaque joueur à tour de rôle, complétés par la banque s'il en manque.
+  function endPropose() {
+    if (g.phase !== "propose") return;
+    clearTimers();
+    const list = [], used = new Set();
+    const authors = shuffle(Object.keys(g.proposals));
+    for (let k = 0; k < g.perPlayer; k++) {
+      for (const id of authors) {
+        const text = g.proposals[id][k];
+        if (!text || used.has(text.toLowerCase())) continue;
+        used.add(text.toLowerCase());
+        const known = PROMPTS.find((p) => p.text.toLowerCase() === text.toLowerCase());
+        list.push({ text, answers: known?.answers || null, by: id });
+      }
+    }
+    for (const p of shuffle(PROMPTS)) {
+      if (list.length >= g.settings.rounds) break;
+      if (!used.has(p.text.toLowerCase())) list.push(p);
+    }
+    g.prompts = list.slice(0, g.settings.rounds);
     nextPrompt();
   }
 
@@ -162,6 +219,15 @@ export function createGame(ctx) {
     // Les bots : souvent la réponse la plus évidente, parfois une autre.
     for (const id of g.who.filter(isBot)) {
       const list = prompt().answers;
+      if (!list) {
+        // Thème inventé : le bot tente de copier la réponse de quelqu'un… ou répond au pif.
+        g.botTimers.push(setTimeout(() => {
+          if (g.phase !== "answer") return;
+          const others = Object.entries(g.answers).filter(([oid]) => oid !== id).map(([, t]) => t);
+          answer(id, others.length && Math.random() < 0.6 ? others[Math.floor(Math.random() * others.length)] : GUESSES[Math.floor(Math.random() * GUESSES.length)]);
+        }, g.settings.answerTime * 1000 * (0.4 + Math.random() * 0.45)));
+        continue;
+      }
       const w = list.map((_, i) => 1 / (i + 1) ** 1.3);
       let r = Math.random() * w.reduce((a, b) => a + b, 0), pickI = 0;
       for (let i = 0; i < w.length; i++) { if ((r -= w[i]) < 0) { pickI = i; break; } }
@@ -233,6 +299,7 @@ export function createGame(ctx) {
       const s = { ...g.settings, ...settings };
       if (![5, 8, 12].includes(s.rounds)) s.rounds = 8;
       if (![20, 30, 45].includes(s.answerTime)) s.answerTime = 30;
+      if (!["joueurs", "banque"].includes(s.themes)) s.themes = "joueurs";
       g.settings = s;
       ctx.saveSettings({ ...s });
       ctx.update();
@@ -243,6 +310,17 @@ export function createGame(ctx) {
       startGame();
     },
     answer(pid, { text }) { return answer(pid, text); },
+    // Mes thèmes (mode « joueurs ») : on peut renvoyer pour corriger.
+    propose(pid, { texts }) {
+      if (g.phase !== "propose" || !g.who.includes(pid)) return { error: "Ce n'est pas le moment." };
+      const list = (Array.isArray(texts) ? texts : []).map((t) => String(t || "").replace(/\s+/g, " ").trim().slice(0, THEME_LEN)).filter(Boolean);
+      if (list.length < g.perPlayer) return { error: g.perPlayer > 1 ? `Écris tes ${g.perPlayer} thèmes (ou 🎲).` : "Écris ton thème (ou 🎲)." };
+      g.proposals[pid] = list.slice(0, g.perPlayer);
+      checkAllProposed();
+      if (g.phase === "propose") ctx.update();
+    },
+    // 🎲 Un thème de la banque, au hasard (juste pour celui qui demande).
+    random() { return { ok: true, text: PROMPTS[Math.floor(Math.random() * PROMPTS.length)].text }; },
     // L'hôte fusionne deux paquets (« Chaton » dans « Chat »).
     merge(pid, { from, into }) {
       if (!ctx.isHost(pid) || g.phase !== "reveal") return { error: "Seul l'hôte peut fusionner, pendant la révélation." };
@@ -278,7 +356,8 @@ export function createGame(ctx) {
     },
     onReconnect() { ctx.update(); },
     onDisconnect() {
-      if (g.phase === "answer" && online().every((id) => g.answers[id])) startReveal();
+      if (g.phase === "propose") checkAllProposed();
+      else if (g.phase === "answer" && online().every((id) => g.answers[id])) startReveal();
       ctx.update();
     },
     canJoin: () => g.phase === "setup" || g.phase === "over",

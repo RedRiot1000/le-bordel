@@ -13,7 +13,7 @@ function check(cond, label) {
 }
 
 console.log("— Thèmes —");
-check(THEMES.length >= 25 && THEMES.every((t) => t.hint && t.bot.length >= 3), `${THEMES.length} thèmes, avec une aide et des phrases pour les bots`);
+check(THEMES.length >= 70 && THEMES.every((t) => t.hint && t.bot.length >= 3), `${THEMES.length} thèmes, avec une aide et des phrases pour les bots`);
 
 const socket = io(URL, { transports: ["websocket"], forceNew: true });
 let hub = null, game = null;
@@ -37,7 +37,7 @@ async function run() {
   const picked = await emit("pickGame", { gameId: "deuxverites" });
   await wait(200);
   check(picked.ok && game?.phase === "setup", "« 2 vérités, 1 mensonge » se lance");
-  check(game.settings.rounds === 2 && game.settings.writeTime === 90 && game.settings.guessTime === 25, "Par défaut : 2 manches, 90 s pour écrire, 25 s pour voter");
+  check(game.settings.rounds === 2 && game.settings.writeTime === 90 && game.settings.guessTime === 25 && game.settings.themes === "joueurs", "Par défaut : 2 manches, 90 s, 25 s, chacun choisit son thème");
   await act("settings", { settings: { rounds: 1, writeTime: 60, guessTime: 20 } });
   await act("start");
   await wait(200);
@@ -45,7 +45,10 @@ async function run() {
   check(!!(await act("write", { lines: ["A", "B"], lie: 0 })).error, "Il faut 3 phrases");
   check(!!(await act("write", { lines: ["A", "B", "C"] })).error, "Il faut cocher le mensonge");
   const MY = ["J'ai un chat qui s'appelle Steak", "J'ai déjà vu un ovni", "Je sais jongler"];
-  check((await act("write", { lines: MY, lie: 1 })).ok, "Mes 3 phrases envoyées (la 2e est fausse)");
+  const dice = await act("random");
+  check(dice.ok && THEMES.some((t) => t.title === dice.title), "🎲 propose un autre thème : " + dice.title);
+  check((await act("write", { lines: MY, lie: 1, theme: "  Mes   aventures en Bretagne " })).ok, "Mes 3 phrases envoyées (la 2e est fausse) avec MON thème");
+  const roundTheme = game.theme.title;
 
   await waitFor(() => game.phase === "guess", 20000);
   check(game.phase === "guess" && game.turn.total === 3 && game.turn.lines.length === 3, "Un joueur à la fois, 3 phrases chacun");
@@ -56,10 +59,11 @@ async function run() {
     await waitFor(() => game.phase === "guess" && game.turn.num === num, 30000);
     const t = game.turn;
     if (t.id === me) {
-      sawMine = MY.every((l) => t.lines.includes(l));
+      sawMine = MY.every((l) => t.lines.includes(l)) && t.theme === "Mes aventures en Bretagne";
       mixed = mixed || t.lines.join() !== MY.join();
       refusedSelf = !!(await act("vote", { index: 0 })).error;
     } else {
+      if (t.theme !== roundTheme) sawMine = false;   // les bots gardent le thème proposé
       await act("vote", { index: 2 });
       await act("vote", { index: 0 });   // je change d'avis
     }
@@ -75,7 +79,7 @@ async function run() {
     if (r.gains[r.id] !== fooled) okReveal = false;
     await act("next");
   }
-  check(sawMine, "Mes phrases sont affichées aux autres");
+  check(sawMine, "Mes phrases sont affichées aux autres, avec mon thème (les bots gardent le thème proposé)");
   check(refusedSelf, "Je ne vote pas pour mes propres phrases");
   check(okReveal, "Révélation : le bon mensonge, mon vote corrigé, et les points justes (+1 trouvé, +1 par piégé)");
 

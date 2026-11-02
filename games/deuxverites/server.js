@@ -22,9 +22,11 @@ export const meta = {
 const REVEAL_MS = 9000;
 const FINISH_DELAY = 15000;
 const MAX_LEN = 110;
+const THEME_LEN = 60;
 
 function defaultSettings() {
-  return { rounds: 2, writeTime: 90, guessTime: 25 };
+  // themes : "joueurs" = chacun peut choisir son propre thème (défaut) · "banque" = le même thème tiré au sort pour tous
+  return { rounds: 2, writeTime: 90, guessTime: 25, themes: "joueurs" };
 }
 
 export const playlist = {
@@ -59,7 +61,7 @@ export function createGame(ctx) {
     round: 0,
     usedThemes: new Set(),
     theme: null,
-    entries: {},          // id -> { lines: [3 phrases], lie: indice du mensonge }
+    entries: {},          // id -> { lines: [3 phrases], lie: indice du mensonge, theme }
     order: [],            // ordre de passage
     index: 0,
     shown: [],            // ordre d'affichage des 3 phrases du joueur en cours (mélangé)
@@ -102,7 +104,7 @@ export function createGame(ctx) {
     if (g.phase === "write") base.doneIds = Object.keys(g.entries);
     if (g.phase === "guess" || g.phase === "reveal") {
       const id = author();
-      base.turn = { id, num: g.index + 1, total: g.order.length, lines: g.shown.map((i) => g.entries[id].lines[i]) };
+      base.turn = { id, num: g.index + 1, total: g.order.length, theme: g.entries[id].theme, lines: g.shown.map((i) => g.entries[id].lines[i]) };
       if (g.phase === "guess") base.turn.votedIds = Object.keys(g.votes);
       else Object.assign(base.turn, { lie: lieShown(), votes: g.votes, gains: g.gains, elapsed: t - g.stepAt, duration: REVEAL_MS });
     }
@@ -140,7 +142,7 @@ export function createGame(ctx) {
     for (const id of g.who.filter(isBot)) {
       later(() => {
         if (g.phase !== "write") return;
-        g.entries[id] = { lines: shuffle(g.theme.bot).slice(0, 3), lie: Math.floor(Math.random() * 3) };
+        g.entries[id] = { lines: shuffle(g.theme.bot).slice(0, 3), lie: Math.floor(Math.random() * 3), theme: g.theme.title };
         checkAllWritten();
         if (g.phase === "write") ctx.update();
       }, 4000 + Math.random() * 8000);
@@ -201,7 +203,7 @@ export function createGame(ctx) {
     }
     for (const [id, n] of Object.entries(g.gains)) g.scores[id] = (g.scores[id] || 0) + n;
     const e = g.entries[aid];
-    g.history.push({ round: g.round, theme: g.theme.title, id: aid, lines: e.lines, lie: e.lie, fooled: g.gains[aid], voters: Object.keys(g.votes).length });
+    g.history.push({ round: g.round, theme: e.theme, id: aid, lines: e.lines, lie: e.lie, fooled: g.gains[aid], voters: Object.keys(g.votes).length });
     g.phase = "reveal";
     g.stepAt = now();
     g.deadline = g.stepAt + REVEAL_MS;
@@ -243,6 +245,7 @@ export function createGame(ctx) {
       if (![1, 2, 3].includes(s.rounds)) s.rounds = 2;
       if (![60, 90, 120].includes(s.writeTime)) s.writeTime = 90;
       if (![20, 25, 35].includes(s.guessTime)) s.guessTime = 25;
+      if (!["joueurs", "banque"].includes(s.themes)) s.themes = "joueurs";
       g.settings = s;
       ctx.saveSettings({ ...s });
       ctx.update();
@@ -253,16 +256,20 @@ export function createGame(ctx) {
       startGame();
     },
     // Mes 3 phrases + laquelle est fausse (on peut renvoyer pour corriger).
-    write(pid, { lines, lie }) {
+    write(pid, { lines, lie, theme }) {
       if (g.phase !== "write" || !g.who.includes(pid)) return { error: "Ce n'est pas le moment d'écrire." };
       const l = (Array.isArray(lines) ? lines : []).map(clean);
       if (l.length !== 3 || l.some((x) => !x)) return { error: "Écris tes 3 phrases." };
       if (![0, 1, 2].includes(lie)) return { error: "Coche laquelle est le mensonge." };
-      g.entries[pid] = { lines: l, lie };
+      // Mode « joueurs » : son propre thème (sinon celui tiré au sort).
+      const own = g.settings.themes === "joueurs" ? String(theme || "").replace(/\s+/g, " ").trim().slice(0, THEME_LEN) : "";
+      g.entries[pid] = { lines: l, lie, theme: own || g.theme.title };
       checkAllWritten();
       if (g.phase === "write") ctx.update();
     },
     vote(pid, { index }) { return vote(pid, index); },
+    // 🎲 Un autre thème au hasard (juste pour celui qui demande).
+    random() { const th = THEMES[Math.floor(Math.random() * THEMES.length)]; return { ok: true, title: th.title, hint: th.hint }; },
     next(pid) { if (ctx.isHost(pid) && g.phase === "reveal") nextTurn(); },
     setup(pid) {
       if (!ctx.isHost(pid) || g.phase !== "over" || ctx.playlist) return;

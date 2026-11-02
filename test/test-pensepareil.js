@@ -17,7 +17,7 @@ console.log("— Réponses proches —");
 check(["Le chat", "chats", "Chat !", "LES CHATS"].every((t) => normalize(t) === "chat"), "« Le chat », « chats », « Chat ! », « LES CHATS » = pareil");
 check(normalize("Les Chevaux") === normalize("cheval") && normalize("Éléphant") === normalize("elephant"), "Chevaux = cheval, accents ignorés");
 check(normalize("Tomate") !== normalize("Fraise"), "Deux réponses différentes restent différentes");
-check(PROMPTS.length >= 100 && PROMPTS.every((p) => p.answers.length >= 4), `${PROMPTS.length} thèmes, avec des réponses pour les bots`);
+check(PROMPTS.length >= 300 && PROMPTS.every((p) => p.answers.length >= 4), `${PROMPTS.length} thèmes, avec des réponses pour les bots`);
 
 const socket = io(URL, { transports: ["websocket"], forceNew: true });
 let hub = null, game = null;
@@ -41,8 +41,33 @@ async function run() {
   const picked = await emit("pickGame", { gameId: "pensepareil" });
   await wait(200);
   check(picked.ok && game?.phase === "setup", "« Pense pareil » se lance");
-  check(game.settings.rounds === 8 && game.settings.answerTime === 30, "Par défaut : 8 thèmes, 30 s");
+  check(game.settings.rounds === 8 && game.settings.answerTime === 30 && game.settings.themes === "joueurs", "Par défaut : 8 thèmes, 30 s, thèmes écrits par les joueurs");
+
+  // --- Mode « joueurs » : chacun écrit ses thèmes ---
   await act("settings", { settings: { rounds: 5, answerTime: 20 } });
+  await act("start");
+  await wait(200);
+  check(game.phase === "propose" && game.perPlayer === 2, "Chacun écrit ses thèmes (5 thèmes / 3 joueurs = 2 chacun)");
+  check(!!(await act("propose", { texts: ["Un truc qui flotte"] })).error, "Il faut écrire ses 2 thèmes");
+  const dice = await act("random");
+  check(dice.ok && PROMPTS.some((p) => p.text === dice.text), "🎲 propose un thème de la banque : " + dice.text);
+  await act("propose", { texts: ["Un truc qui   flotte", "Un sport de ouf"] });
+  await waitFor(() => game.phase === "answer", 15000);
+  const mineThemes = [];
+  for (let r = 1; r <= 5; r++) {
+    await waitFor(() => game.phase === "answer" && game.round === r, 30000);
+    if (game.promptBy === me) mineThemes.push(game.prompt);
+    await act("answer", { text: "Truc" });
+    await waitFor(() => game.phase === "reveal" && game.round === r, 30000);
+    await act("next");
+  }
+  check(mineThemes.includes("Un truc qui flotte") && mineThemes.includes("Un sport de ouf"), "Mes 2 thèmes ont été joués, avec mon nom (« Thème de… »)");
+  await waitFor(() => game.phase === "over", 5000);
+  await act("setup");
+  await wait(150);
+
+  // --- Mode « banque » ---
+  await act("settings", { settings: { themes: "banque" } });
   await act("start");
   await wait(200);
   check(game.phase === "answer" && game.rounds === 5 && !!game.prompt, `Thème 1 : « ${game.prompt} »`);

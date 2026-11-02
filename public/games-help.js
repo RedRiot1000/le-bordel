@@ -208,6 +208,7 @@
     pensepareil: {
       goal: "Écrire la même réponse que les autres : ici, on ne gagne pas en étant original !",
       steps: [
+        "Au début (réglage par défaut), <b>chacun écrit ses propres thèmes</b> (🎲 pour en piocher un dans la banque de 360). Ils seront joués chacun leur tour, avec le nom de l'auteur. Ou l'hôte choisit la banque de thèmes.",
         "Un <b>thème</b> s'affiche, par exemple « Un truc rouge » ou « Un animal de la ferme ».",
         "Chacun écrit <b>une seule réponse</b>, en secret (30 s par défaut). Pense à ce que les AUTRES vont écrire !",
         "<b>Révélation</b> : les réponses sont regroupées par paquets identiques, le plus gros en premier (en jaune).",
@@ -224,7 +225,7 @@
     deuxverites: {
       goal: "Démasquer les mensonges des autres… et piéger tout le monde avec le tien.",
       steps: [
-        "Un <b>thème</b> est tiré au sort (« Mes vacances », « Ma pire honte », « Mon enfance »…).",
+        "Un <b>thème</b> est proposé (« Mes vacances », « Ma pire honte », « Mon enfance »…). Par défaut, chacun peut le <b>garder</b>, en piocher un autre 🎲 ou <b>écrire le sien</b>. (Réglage : le même thème pour tous.)",
         "Chacun écrit <b>3 phrases sur lui</b> : 2 vraies et <b>1 fausse</b>, et coche laquelle est le mensonge (elle s'encadre en rouge).",
         "Ensuite, <b>un joueur à la fois</b> : ses 3 phrases s'affichent dans le désordre (A, B, C).",
         "Les autres cliquent sur celle qu'ils pensent être le <b>mensonge</b> (on peut changer d'avis). L'auteur peut se défendre… ou embrouiller tout le monde au micro !",

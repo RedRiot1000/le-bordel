@@ -35,3 +35,5 @@ button.dv-card:not(:disabled):hover { transform: translateY(-4px); border-color:
 .dv-recap-title { margin: 6px 0 10px; }
 
 @media (max-width: 760px) { .dv-cards { grid-template-columns: 1fr; } }
+.dv-mytheme { text-align: left; margin-bottom: 14px; padding: 10px 12px; border-radius: 14px; background: var(--surface-2); }
+.dv-mytheme label { font-weight: 800; }
