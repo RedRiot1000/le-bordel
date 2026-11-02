@@ -30,7 +30,8 @@ const mapName = (id) => MAPS[id] || id.charAt(0).toUpperCase() + id.slice(1);
 // --- Rythme ---
 const REVEAL_MS = 5000;        // durée de la révélation entre deux images
 const FINISH_DELAY = 15000;    // playlist : temps pour lire le classement avant de passer
-const MIN_FACTOR = 0.4;        // une bonne réponse à la dernière seconde rapporte 40 %
+const MAX_POINTS = 10;         // une bonne réponse tout de suite (même échelle que les autres jeux)
+const MIN_FACTOR = 0.4;        // une bonne réponse à la dernière seconde rapporte 40 % (4 points)
 
 // Les façons de dévoiler l'image (une tirée au hasard pour chaque image, parmi celles cochées).
 export const MODES = {
@@ -230,8 +231,8 @@ export function createGame(ctx) {
     const t = now();
     const progress = Math.min(1, (t - q.start) / (q.end - q.start));
     const correct = map === q.map;
-    // 100 points si on répond tout de suite, 40 à la dernière seconde.
-    const points = correct ? Math.round(100 * (1 - (1 - MIN_FACTOR) * progress)) : 0;
+    // 10 points si on répond tout de suite, 4 à la dernière seconde.
+    const points = correct ? Math.round(MAX_POINTS * (1 - (1 - MIN_FACTOR) * progress)) : 0;
     q.answers[pid] = { map, correct, points, secs: Math.round((t - q.start) / 100) / 10 };
     g.scores[pid] = (g.scores[pid] || 0) + points;
     checkAllAnswered();

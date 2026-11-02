@@ -79,10 +79,10 @@
         "Image suivante, jusqu'à la fin de la série.",
       ],
       points: [
-        "Bonne réponse : jusqu'à <b>100 points</b>. Plus tu réponds tôt, plus tu gagnes (40 points à la dernière seconde).",
+        "Bonne réponse : jusqu'à <b>10 points</b>. Plus tu réponds tôt, plus tu gagnes (4 points à la dernière seconde).",
         "Mauvaise réponse ou pas de réponse : 0.",
       ],
-      example: "L'image commence zoomée sur une caisse et un mur jaune. Tu hésites entre Dust2 et Mirage… Le zoom recule, tu vois une arche : tu cliques <b>Dust2</b> au bout de 4 s → <b>88 points</b>. Bob attend la fin pour être sûr : juste, mais seulement 45 points.",
+      example: "L'image commence zoomée sur une caisse et un mur jaune. Tu hésites entre Dust2 et Mirage… Le zoom recule, tu vois une arche : tu cliques <b>Dust2</b> au bout de 4 s → <b>9 points</b>. Bob attend la fin pour être sûr : juste, mais seulement 5 points.",
     },
 
     quidenous: {

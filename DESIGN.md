@@ -238,7 +238,7 @@ seulement de ce que les joueurs connaissent (c'est la même image pour tout le m
   qui a trouvé et combien de points. Puis image suivante.
 
 ### Points
-- Bonne réponse : **100 points × rapidité** (100 si tu réponds tout de suite, 40 si tu réponds à la dernière seconde).
+- Bonne réponse : **10 points × rapidité** (10 si tu réponds tout de suite, 4 à la dernière seconde). Passé de 100 à 10 le 02/11 pour être à la même échelle que les autres jeux.
   Mauvaise réponse ou pas de réponse : 0.
 - À la fin : classement → points de soirée (comme les autres jeux).
 

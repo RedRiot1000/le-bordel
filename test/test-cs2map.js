@@ -72,7 +72,7 @@ async function run() {
     if (a?.correct) correctCount++;
     if (i === 0) {
       check(game.q.map === right && game.q.mapName, `Révélation : c'était ${game.q.mapName}`);
-      check(a.correct && a.points >= 40 && a.points <= 100, `Bonne réponse en ${a.secs} s → ${a.points} points`);
+      check(a.correct && a.points >= 4 && a.points <= 10, `Bonne réponse en ${a.secs} s → ${a.points} points`);
     }
     if (i === 1) check(a && !a.correct && a.points === 0, "Mauvaise réponse → 0 point");
   }
