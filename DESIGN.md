@@ -491,6 +491,8 @@ Servira à Territoire, Boules de neige, Lampe torche.
 Arène 1280 × 800 vue en entier, 5 à 8 obstacles au hasard. Grille de peinture de 80 × 50 cases (16 px), on compte les cases.
 - **Marcher** peint (traînée de 20 px de rayon). **Clic gauche** = jet vers la souris (portée 180 px, vole par-dessus les
   obstacles, tache de 42 px, recharge 0,6 s). On repeint par-dessus les autres. **Pas de contact** entre joueurs (choix de Scotty).
+- **Viseur relatif** (demande de Scotty) : il garde sa position par rapport au bonhomme (il le suit quand on marche) ;
+  1er clic sur l’arène = souris capturée (pointer lock), Échap la libère.
 - Mode (réglage) : auto (équipes 🔴/🔵 dès 4 joueurs) / chacun pour soi / 2 équipes.
 - Bonus (caisse toutes les 7-10 s, 2 max) : 💣 bombe (tache de 115 px), 🧹 rouleau (traînée 46 px, 6 s), 👟 chaussures (×1,4, 5 s).
 - Durée 60/90/120 s (défaut 90) ; playlist 60/90. Classement à la surface (égalité = même place).

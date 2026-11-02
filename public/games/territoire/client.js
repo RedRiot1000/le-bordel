@@ -26,7 +26,9 @@
   let seq = 0, acc = 0;
   const off = { x: 0, y: 0 };
   const pressed = new Set();
-  const mouse = { x: W / 2, y: HGT / 2, down: false };
+  // Le viseur est RELATIF à mon bonhomme (ox, oy) : quand je marche, il me suit.
+  const mouse = { ox: 150, oy: 0, down: false };
+  const AIM_MAX = 320;          // distance max du viseur
   let particles = [];
   const seenFx = new Set();
   let prevPhase = null, playSeenAt = 0;
@@ -80,7 +82,7 @@
         <canvas id="te-canvas" width="${W}" height="${HGT}"></canvas>
         <div id="te-overlay" class="pt-overlay hidden"></div>
       </div>
-      <p class="muted pt-keys">ZQSD / flèches = marcher (et peindre) · Clic gauche = jet de peinture</p>
+      <p class="muted pt-keys">ZQSD / flèches = marcher (et peindre) · Clic gauche = jet de peinture · le viseur te suit (clique sur l'arène pour capturer la souris, Échap pour la libérer)</p>
     </div>`;
 
   // ===================================================================
@@ -111,8 +113,14 @@
       window.addEventListener("keydown", onKey);
       window.addEventListener("keyup", onKey);
       window.addEventListener("blur", () => { pressed.clear(); mouse.down = false; });
-      canvas.addEventListener("mousemove", onMouse);
-      canvas.addEventListener("mousedown", (e) => { if (e.button === 0) { mouse.down = true; onMouse(e); } });
+      window.addEventListener("mousemove", onMouse);
+      canvas.addEventListener("mousedown", (e) => {
+        if (e.button !== 0) return;
+        mouse.down = true;
+        // Le 1er clic capture la souris (comme dans un jeu de tir) : Échap la libère.
+        if (document.pointerLockElement !== canvas && ["play", "countdown"].includes(st?.phase)) canvas.requestPointerLock?.();
+        else onMouse(e);
+      });
       window.addEventListener("mouseup", onMouseUp);
       canvas.addEventListener("contextmenu", (e) => e.preventDefault());
       lastTs = performance.now();
@@ -127,6 +135,7 @@
       prevPhase = st.phase;
       phaseEndLocal = Date.now() + (st.phaseLeft || 0);
       timeEndLocal = Date.now() + (st.timeLeft || 0);
+      if (!["play", "countdown"].includes(st.phase) && document.pointerLockElement === canvas) document.exitPointerLock();
       if (st.phase === "setup") {
         $("te-play").classList.add("hidden");
         $("te-setup").classList.remove("hidden");
@@ -149,6 +158,8 @@
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("keyup", onKey);
       window.removeEventListener("mouseup", onMouseUp);
+      window.removeEventListener("mousemove", onMouse);
+      if (document.pointerLockElement === canvas) document.exitPointerLock();
       document.querySelector(".app").classList.remove("pt-wide");
       root.innerHTML = "";
     },
@@ -207,10 +218,21 @@
     e.preventDefault();
     if (e.type === "keydown") pressed.add(e.code); else pressed.delete(e.code);
   }
+  // Souris capturée : on déplace le viseur de ce que la souris a bougé.
+  // Pas capturée : le viseur va là où est la souris (par rapport à mon bonhomme).
+  function myPos() { if (pred) { const o = ownView(); return { x: o.x + off.x, y: o.y + off.y }; } return heroOf(me()); }
   function onMouse(e) {
-    const r = canvas.getBoundingClientRect();
-    mouse.x = ((e.clientX - r.left) / r.width) * W;
-    mouse.y = ((e.clientY - r.top) / r.height) * HGT;
+    if (!canvas) return;
+    const r = canvas.getBoundingClientRect(), k = W / r.width;
+    if (document.pointerLockElement === canvas) { mouse.ox += e.movementX * k; mouse.oy += e.movementY * k; }
+    else {
+      if (e.target !== canvas) return;
+      const p = myPos();
+      if (!p) return;
+      mouse.ox = (e.clientX - r.left) * k - p.x; mouse.oy = (e.clientY - r.top) * (HGT / r.height) - p.y;
+    }
+    const d = Math.hypot(mouse.ox, mouse.oy);
+    if (d > AIM_MAX) { mouse.ox *= AIM_MAX / d; mouse.oy *= AIM_MAX / d; }
   }
   function onMouseUp(e) { if (e.button === 0) mouse.down = false; }
   function keyMask() {
@@ -255,9 +277,9 @@
     const E = envMine();
     while (acc >= H.TICK) {
       const k = keyMask() & ~K.DASH;
-      const a = Math.atan2(mouse.y - pred.y, mouse.x - pred.x);
+      const a = Math.atan2(mouse.oy, mouse.ox);
       seq++;
-      api.send("in", { s: seq, k, a, tx: Math.round(mouse.x), ty: Math.round(mouse.y) });
+      api.send("in", { s: seq, k, a, tx: Math.round(pred.x + mouse.ox), ty: Math.round(pred.y + mouse.oy) });
       pending.push({ s: seq, k, a });
       if (pending.length > 90) pending.shift();
       prevPred = H.copy(pred);
@@ -465,12 +487,16 @@
     // Le viseur (portée du jet) autour de la souris.
     const mv = views.find((v) => v.id === me());
     if (mv && st.phase === "play") {
-      const d = Math.min(180, Math.hypot(mouse.x - mv.x, mouse.y - mv.y)), a = Math.atan2(mouse.y - mv.y, mouse.x - mv.x);
+      const d = Math.min(180, Math.hypot(mouse.ox, mouse.oy)), a = Math.atan2(mouse.oy, mouse.ox);
       const tx = mv.x + Math.cos(a) * d, ty = mv.y + Math.sin(a) * d;
       const ready = (heroOf(me())?.fireCd || 0) <= 0;
       c.strokeStyle = ready ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.3)"; c.lineWidth = 2;
       c.beginPath(); c.arc(tx, ty, 14, 0, Math.PI * 2); c.moveTo(tx - 20, ty); c.lineTo(tx - 8, ty); c.moveTo(tx + 8, ty); c.lineTo(tx + 20, ty);
       c.moveTo(tx, ty - 20); c.lineTo(tx, ty - 8); c.moveTo(tx, ty + 8); c.lineTo(tx, ty + 20); c.stroke();
+    }
+    if (mv && st.phase === "play" && document.pointerLockElement !== canvas) {
+      c.font = "bold 15px Segoe UI, sans-serif"; c.fillStyle = "rgba(255,255,255,0.85)";
+      c.fillText("🖱️ Clique sur l'arène : ton viseur te suivra", W / 2, HGT - 18);
     }
     if (mv) window.VehicleArt.markMe(c, mv.x, mv.y, ts, ownerColor(myOwner()),
       window.VehicleArt.markAlpha(st.phase === "countdown" ? "countdown" : st.phase, playSeenAt), Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)));
