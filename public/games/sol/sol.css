@@ -1,0 +1,12 @@
+/* SOL QUI S'EFFONDRE — styles (le reste vient de patate.css et chat.css : .pt-*, .ch-*) */
+#so-canvas {
+  display: block; width: 100%; height: auto; max-height: 74vh; object-fit: contain;
+  border-radius: var(--radius); border: 3px solid rgba(255, 255, 255, 0.2); box-shadow: var(--shadow);
+}
+.pt-arena-wrap.over #so-canvas { display: none; }
+.pt-arena-wrap.over .so-feed { display: none; }
+.so-feed {
+  position: absolute; left: 12px; top: 10px; list-style: none; display: flex; flex-direction: column; gap: 4px;
+  font-size: 14px; font-weight: 700; pointer-events: none;
+}
+.so-feed li { background: rgba(0, 0, 0, 0.55); padding: 3px 10px; border-radius: 8px; animation: fadeIn 0.2s both; }

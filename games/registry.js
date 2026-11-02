@@ -17,6 +17,7 @@ import * as chat from "./chat/server.js";
 import * as police from "./police/server.js";
 import * as pensepareil from "./pensepareil/server.js";
 import * as deuxverites from "./deuxverites/server.js";
+import * as sol from "./sol/server.js";
 
 // Les jeux jouables.
 export const GAMES = {
@@ -33,6 +34,7 @@ export const GAMES = {
   [police.meta.id]: police,
   [pensepareil.meta.id]: pensepareil,
   [deuxverites.meta.id]: deuxverites,
+  [sol.meta.id]: sol,
 };
 
 // Les jeux prévus (affichés grisés "bientôt" dans le menu).

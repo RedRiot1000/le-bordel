@@ -466,6 +466,25 @@ Un thème proposé par manche (79 dans `games/deuxverites/themes.js`, avec une a
 - Points : +1 si on trouve, l'auteur +1 par joueur piégé. Manches 1/2/3 (défaut 2) ; playlist 1/2.
 - Bots : 3 phrases prêtes du thème, une déclarée fausse au hasard ; ils votent juste environ 1 fois sur 3.
 
+## 7 quaterdecies. Moteur « bonhomme » + Sol qui s'effondre 🌋 — validé (« Go »)
+
+**Moteur bonhomme** (`public/games/pieton/engine.js` = `globalThis.Pieton`, partagé serveur/navigateur comme `physics.js`) :
+déplacement 8 directions avec inertie (230 px/s), dash (Espace, 680 px/s, 0,16 s, recharge 2 s), chocs entre joueurs
+(un dash projette l'autre, « lourd » = masse ×3), murs (bord + rectangles), visée optionnelle (angle souris). Prédiction réseau
+comme les voitures. **Dessin** (`hero-art.js` = `window.HeroArt`) : personnage **vu de dessus** (épaules à la couleur du joueur,
+bras qui balancent, mains, tête avec cheveux à l'arrière, yeux et nez vers l'avant). Peau/cheveux stables selon l'id du joueur.
+Servira à Territoire, Boules de neige, Lampe torche.
+
+**Sol qui s'effondre** : arène de petites dalles (40 px, grille 32 × 19) au-dessus du vide, forme tirée au sort
+(carré, rond, croix, anneau, îlots, gruyère), un peu plus grande à 5+ joueurs.
+- Réglage **Dalles** : **solides** (défaut) = 1er passage fissure, 2e passage → tombe 0,9 s après ; **fragiles** = tombe dès le 1er
+  passage (l'idée d'origine). Rester planté plus de 1,1 s fait tomber la dalle. Après 60 s, le bord s'effrite tout seul.
+  (Simulation : en « fragiles » l'arène se découpe en ~5-10 s de jeu à 4 ; en « solides » 12-22 s → défaut « solides ».)
+- Dash pour projeter les autres ; dalle dorée ★ toutes les ~7-11 s = **lourd 5 s**.
+- Points : 1 par joueur tombé avant toi. Manches 3/5/7 (défaut 3) ; playlist 3/5. Fin de manche : 1,5 s pour voir la dernière chute.
+- Bots : chemin de dalle intacte en dalle intacte (sans couper les coins) vers la zone la plus sûre ; dash sur un voisin
+  au bord seulement si l'atterrissage est sûr.
+
 ## 8. Feuille de route
 
 | Phase | Contenu | Objectif |

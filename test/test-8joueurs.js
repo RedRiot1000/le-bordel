@@ -55,6 +55,7 @@ const GAMES = {
   police: () => game.cars?.length === 8 && game.cars.every((c) => c.type === "f1"),
   pensepareil: () => game.who?.length === 8 && game.phase === "propose" && game.perPlayer === 1,
   deuxverites: () => game.who?.length === 8 && game.phase === "write",
+  sol: () => game.heroes?.length === 8,
 };
 
 async function run() {

@@ -238,5 +238,22 @@
       ],
       example: "Thème « <b>Ce que j'ai déjà mangé</b> ». Tu écris : A « J'ai mangé du crocodile », B « J'ai mangé 3 pizzas dans la soirée », C « Je n'ai jamais mangé d'huître ». Le mensonge, c'est B. Bob vote A (« impossible ! ») et Alice vote C : tu les as piégés tous les deux → <b>+2</b> pour toi.",
     },
+    sol: {
+      goal: "Rester debout sur l'arène le plus longtemps possible… et pousser les autres dans le vide.",
+      steps: [
+        "Tout le monde est sur une <b>arène de dalles</b> au-dessus du vide. Sa forme change à chaque manche (carré, rond, croix, anneau, îlots, gruyère).",
+        "Chaque dalle où tu passes <b>se fissure</b>. Si tu repasses sur une dalle fissurée, elle <b>tremble puis tombe</b> (en mode « fragiles », elle tombe dès le 1er passage).",
+        "<b>Rester planté</b> sur une dalle plus d'une seconde la fait tomber aussi : il faut toujours bouger !",
+        "Le <b>dash</b> (Espace) te fait foncer : si tu touches quelqu'un, il est <b>projeté</b>. Pousse-le vers un trou ! (recharge 2 s)",
+        "Une <b>dalle dorée ★</b> apparaît de temps en temps : prends-la pour devenir <b>lourd 5 s</b> (presque impossible à pousser, et tes coups sont plus forts).",
+        "Tomber dans le vide = éliminé. Le <b>dernier debout</b> gagne la manche.",
+      ],
+      controls: [
+        "<kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> / flèches : courir",
+        "<kbd>Espace</kbd> (ou <kbd>Shift</kbd>) : dash",
+      ],
+      points: ["<b>1 point par joueur tombé avant toi</b> : le dernier debout prend le plus de points."],
+      example: "Tu cours en laissant une traînée de dalles fissurées. Bob est coincé au bord d'un trou : tu fonces avec le dash, <b>BOUM</b>, il s'envole dans le vide. Mais en revenant, tu repasses sur ta propre traînée… la dalle tremble, tu sautes juste à temps sur une dalle intacte. Ouf.",
+    },
   };
 })();
