@@ -381,6 +381,7 @@ body.theme-violet { --accent: #7c5cff; --accent-2: #ff5c9d; --accent-3: #38e8c8;
 body.theme-ocean  { --accent: #2e9dff; --accent-2: #23e0d0; --accent-3: #7c5cff; --bg: #08131f; --surface: #0f2033; --surface-2: #17304a; --border: #204060; }
 body.theme-sunset { --accent: #ff7a3c; --accent-2: #ff3d7f; --accent-3: #ffd166; --bg: #1a0e14; --surface: #2a1620; --surface-2: #3a1f2c; --border: #5a2e40; }
 body.theme-forest { --accent: #35d07f; --accent-2: #a3e635; --accent-3: #22d3ee; --bg: #0a170f; --surface: #12241a; --surface-2: #1b3527; --border: #2b4d38; }
+body.theme-night  { --accent: #b48cff; --accent-2: #ffe27a; --accent-3: #5cff9d; --bg: #07060c; --surface: #14111e; --surface-2: #1f1a2e; --border: #352c4d; }
 body.theme-candy  { --accent: #ff5cae; --accent-2: #a25cff; --accent-3: #ffcf5c; --bg: #170a16; --surface: #271327; --surface-2: #391b38; --border: #55294f; }
 
 /* =================================================================

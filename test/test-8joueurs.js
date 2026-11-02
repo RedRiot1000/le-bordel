@@ -58,6 +58,7 @@ const GAMES = {
   sol: () => game.heroes?.length === 8,
   territoire: () => game.heroes?.length === 8,
   neige: () => game.heroes?.length === 8 && game.teamsMode,
+  lampe: () => game.heroes?.length === 8 && game.heroes.filter((h) => h.ghost).length === 1,
 };
 
 async function run() {

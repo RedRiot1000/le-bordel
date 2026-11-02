@@ -553,6 +553,29 @@ Arène 1280 × 800 enneigée, 6 à 9 **murets** (4 points de vie : chaque boule 
 - Bots : visent devant leur cible (anticipation), chargent selon la distance, tournent autour, se cachent derrière un muret
   pour refaire des boules. Simulation : manches de 15 à 50 s, ~1 touche pour 3-4 lancers.
 
+## 7 septendecies. Lampe torche 👻 — validé (« Go »)
+
+Choix de Scotty : contagion, lumière qui révèle + étourdit, manoir hanté aléatoire, batterie de lampe.
+- **Manoir** (`public/games/lampe/manor.js`, globalThis.Manoir, partagé, tiré d une seed) :
+  - grille de pièces de 300×260 (5×3 à 8×4 selon les joueurs), labyrinthe (tout est relié) + 35 % de portes en plus, 14 % de grandes ouvertures ;
+  - pièces typées (salon, chambre, cuisine, bibliothèque, salle de bain, grande salle) avec leurs meubles : contre les murs sans porte (au milieu du mur) ou au centre, toujours à plus de 50 px d une porte et des autres meubles ;
+  - grille de navigation de 20 px pour les bots ;
+  - la lumière : `M.inCone` (portée 340, demi-angle 0,42, les murs l arrêtent, pas les meubles), `M.cone` (contour du cône par lancer de rayons, pour le dessin).
+- **Rôles** : 1 fantôme de départ (chacun son tour, `firstGhosts`), endormi 3 s. **Contagion** : un humain touché devient fantôme, figé 1,5 s.
+- **Les fantômes** :
+  - même vitesse que les humains ; ils traversent les autres joueurs (pas les murs) ;
+  - **dans la lumière** : visibles et ralentis ×0,55 ; éclairés **1,5 s** d affilée = **étourdis** 2,5 s (repoussés), puis insensibles à la lumière 2 s ;
+  - vision de nuit à 420 px ; les lampes allumées se voient de partout.
+- **Humains** : lampe vers le viseur (relatif + pointer lock), clic = allumer/éteindre, Espace = pousser (marche aussi sur les fantômes).
+- **Batterie** : vide en 25 s allumée ; piles (+45 %, n+2 dans le manoir, réapparaissent ailleurs 8 s après).
+- **Points** : humain +1 par 15 s, +3 s il est encore humain à la fin ; fantôme +2 par humain touché.
+- **Réglages** : manches 3/5/8 (défaut 3), durée 60/90/120 s (défaut 90). Playlist : 3 ou 5 manches.
+- **Écran** (client) : calque noir percé par les auras et les cônes (arrêtés par les murs) + lueur chaude ; le fantôme n apparaît que s il est éclairé (`seen`) ; quand un fantôme est à moins de 200 px, l écran tremble et rougit (« 💓 IL EST TOUT PRÈS ! »). Le fantôme voit un cercle autour de lui et les lampes.
+- **Bots** :
+  - humains : ils sentent un fantôme à moins de 230 px (ou éclairé), fuient en remontant le champ de distance, braquent la lampe dessus et poussent ; sans menace, la lampe n est allumée que de temps en temps ; ils vont chercher une pile si la batterie est basse ;
+  - fantômes : ils ne voient que les lampes allumées et les humains à moins de 420 px ; sinon ils rôdent de pièce en pièce.
+- **Simulation** (bots) : humains attrapés entre 20 s et 90 s, rarement un survivant (les bots humains sont plus faibles que de vrais joueurs).
+
 ## 8. Feuille de route
 
 | Phase | Contenu | Objectif |

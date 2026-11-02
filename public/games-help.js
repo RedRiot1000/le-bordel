@@ -276,6 +276,28 @@
       ],
       example: "Tu es chez les 🔴. Tu fonces vers une grosse zone bleue en tirant des jets devant toi, tu ramasses le 🧹 et tu traverses toute l'arène en laissant une bande rouge énorme. À 10 s de la fin, la barre est à 48 % contre 47 %… tu attrapes la 💣 en plein milieu des bleus : victoire !",
     },
+    lampe: {
+      goal: "Humain : survivre dans le manoir hanté jusqu'à la fin du chrono. Fantôme : toucher les humains… qui deviennent fantômes à leur tour !",
+      steps: [
+        "Un <b>manoir</b> tiré au hasard (pièces, couloirs, portes, meubles), plongé dans le <b>noir</b>. Un joueur tiré au sort est le <b>fantôme</b> 👻 : il se réveille 3 s après le départ.",
+        "Les humains n'y voient qu'autour d'eux et dans le <b>cône de leur lampe</b>, qui éclaire vers le viseur (clique une fois dans le manoir pour capturer la souris, Échap pour la libérer). Les murs arrêtent la lumière.",
+        "Le fantôme est <b>invisible</b> dans le noir. Lui voit autour de lui (vision de nuit)… et les <b>lampes allumées de partout</b> : la lumière te trahit !",
+        "Un fantôme dans la lumière devient <b>visible et ralenti</b>. Éclairé <b>1,5 s</b> d'affilée (l'anneau jaune se remplit), il est <b>étourdi</b> 2,5 s et recule, puis la lumière ne lui fait plus rien pendant 2 s.",
+        "<b>Contagion</b> : chaque humain touché devient fantôme (figé 1,5 s) et chasse les autres. Quand un fantôme est tout près, l'écran tremble et rougit.",
+        "La <b>batterie</b> se vide en 25 s de lampe allumée. <b>Clic</b> pour l'éteindre et te cacher. Les <b>piles</b> 🔋 au sol (elles brillent en vert) la rechargent.",
+        "<b>Espace</b> : tu pousses ce qui est juste devant toi (un humain… ou un fantôme !).",
+      ],
+      controls: [
+        "<kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> / flèches : bouger",
+        "🖱️ Souris : viser avec la lampe · <b>clic</b> : allumer / éteindre",
+        "<kbd>Espace</kbd> : pousser",
+      ],
+      points: [
+        "Humain : <b>+1</b> toutes les 15 s passées humain, <b>+3</b> si tu l'es encore à la fin.",
+        "Fantôme : <b>+2</b> par humain que tu touches.",
+      ],
+      example: "Tu explores la bibliothèque, lampe éteinte pour économiser. L'écran se met à trembler : tu allumes et tu balaies… le drap blanc est là, à 2 m ! Tu le gardes dans le faisceau, il ralentit, l'anneau jaune se remplit : étourdi ! Tu files par la porte. Il reste 10 s, tu tiens jusqu'au bout : 6 + 3 = <b>9 points</b>.",
+    },
     neige: {
       goal: "Toucher les autres avec tes boules de neige sans te faire toucher. Dernier debout (ou dernière équipe) gagne la manche.",
       steps: [
