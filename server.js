@@ -356,7 +356,7 @@ io.on("connection", (socket) => {
       gameSettings: {},     // réglages mémorisés par jeu pour la soirée
       lastResult: null,
       lobbyMode: "single",  // "single" = un jeu, "playlist" = plusieurs au hasard
-      draft: { games: [], settingsMode: "default", count: 0 },
+      draft: { games: Object.keys(GAMES), settingsMode: "default", count: 0 },   // tous les jeux cochés par défaut
       playlist: null,       // playlist en cours : { order, index, settingsMode, choices }
       next: null,           // écran "prochain jeu" en cours
     };
@@ -453,6 +453,8 @@ io.on("connection", (socket) => {
     const room = roomOf();
     if (!room || !amHost() || room.phase !== "lobby" || !["single", "playlist"].includes(mode)) return;
     room.lobbyMode = mode;
+    // Passage en playlist avec rien de coché : on coche tout.
+    if (mode === "playlist" && !room.draft.games.length) room.draft.games = Object.keys(GAMES);
     sendHub(room);
   });
 
