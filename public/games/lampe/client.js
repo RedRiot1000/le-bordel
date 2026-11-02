@@ -1,9 +1,10 @@
 // ===================================================================
 //  LAMPE TORCHE — Client (s'affiche dans le hub Le Bordel)
-//  - Le manoir est refait ici à partir de sa seed (manor.js).
+//  - Le manoir (jardin + cave) est refait ici à partir de sa seed (manor.js).
 //  - MON bonhomme est calculé ici tout de suite (prédiction), puis recalé.
-//  - Le noir : un calque sombre percé par les lampes (cônes arrêtés par les murs).
-//  - Viseur RELATIF à mon bonhomme (la lampe éclaire vers lui), souris capturée au 1er clic.
+//  - Le noir : un calque sombre percé par les lumières (lampes, lustres, lune,
+//    éclairs) ; pour un fantôme, aussi par son cône de regard.
+//  - Viseur RELATIF à mon bonhomme (lampe ou regard), souris capturée au 1er clic.
 // ===================================================================
 
 (() => {
@@ -11,15 +12,16 @@
   const M = window.Manoir;
   const K = H.K;
   const W = 1280, HGT = 800;
-  const LIT_SLOW = 0.55, GHOST_SIGHT = 420;   // (les mêmes que games/lampe/server.js)
+  const GHOST_SPEED = 1.1, LIT_SLOW = 0.55, WEB_SLOW = 0.6;   // (les mêmes que games/lampe/server.js)
   const AIM_MAX = 320;
 
   let api = null, root = null;
   let st = null;
-  let phaseEndLocal = 0, finishEndLocal = 0, timeEndLocal = 0, wakeLocal = 0;
+  let phaseEndLocal = 0, finishEndLocal = 0, timeEndLocal = 0, wakeLocal = 0, flashLocal = 0;
   let rafId = null, lastTs = 0;
   let canvas = null, g2d = null, dark = null, dctx = null;
   let manor = null, manorKey = null, bg = null;
+  let doorsOpen = [], closedDoors = [], blockers = [], rectsNow = [], litRooms = new Map(), websAlive = [];
 
   let pred = null, prevPred = null;
   let pending = [];
@@ -28,9 +30,9 @@
   const off = { x: 0, y: 0 };
   const pressed = new Set();
   const mouse = { ox: 150, oy: 0, left: false };
-  let particles = [];
+  let particles = [], waves = [], trails = [], trailAt = 0;
   const seenFx = new Set();
-  let shake = 0, prevPhase = null, playSeenAt = 0, wasGhost = null, ghostFlash = 0;
+  let shake = 0, prevPhase = null, playSeenAt = 0, wasGhost = null, ghostFlash = 0, lastFlashId = 0;
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => api.escapeHtml(s);
@@ -53,10 +55,10 @@
         <div class="card">
           <h2>🎮 Règles & commandes</h2>
           <ul class="pt-help">
-            <li>👻 Un joueur est le <b>fantôme</b> : invisible dans le noir, il voit les <b>lampes allumées</b> de partout. Chaque humain qu'il touche devient fantôme à son tour !</li>
-            <li>🔦 Ta lampe éclaire vers ton viseur. Un fantôme éclairé est <b>visible et ralenti</b> ; éclairé <b>1,5 s</b> d'affilée, il est <b>étourdi</b>.</li>
-            <li>🔋 La lampe se vide (25 s) : <b>clic</b> pour l'éteindre et te cacher dans le noir. Ramasse des <b>piles</b> 🔋.</li>
-            <li><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> bouger · 🖱️ viser · clic = lampe on/off · <kbd>Espace</kbd> = pousser</li>
+            <li>👻 Un joueur est le <b>fantôme</b> : invisible dans le noir. Il voit dans son <b>cône de regard</b> (pas à travers les murs)… et les <b>lampes allumées de partout</b>. Chaque humain touché devient fantôme !</li>
+            <li>🔦 Un fantôme dans ta lampe est <b>visible et ralenti</b> ; éclairé <b>1,5 s</b>, il est <b>étourdi</b>. 🔋 La lampe se vide : <b>clic</b> pour l'éteindre, ramasse des piles.</li>
+            <li>🚪 <kbd>Espace</kbd> près d'une porte : la claquer (un fantôme met 2 s à la défoncer). Près d'un interrupteur : allumer le lustre 20 s. Sinon : pousser.</li>
+            <li>🏚️ Jardin sous la lune, cave par les escaliers, passages secrets, planches qui craquent, toiles d'araignée, éclairs…</li>
             <li>🏆 Humain : +1 toutes les 15 s, <b>+3</b> si tu tiens jusqu'au bout. Fantôme : <b>+2</b> par humain attrapé.</li>
           </ul>
         </div>
@@ -84,7 +86,7 @@
         <ul id="lt-feed" class="so-feed"></ul>
         <div id="lt-overlay" class="pt-overlay hidden"></div>
       </div>
-      <p class="muted pt-keys">ZQSD = bouger · souris = viser la lampe · clic = allumer/éteindre · Espace = pousser · Échap = libérer la souris</p>
+      <p class="muted pt-keys">ZQSD = bouger · souris = viser · clic = lampe on/off · Espace = porte / interrupteur / pousser · Échap = libérer la souris</p>
     </div>`;
 
   // ===================================================================
@@ -93,7 +95,7 @@
   window.GAMES.lampe = {
     mount(rootEl, hubApi) {
       api = hubApi; root = rootEl;
-      st = null; pred = prevPred = null; pending = []; particles = []; manorKey = null; wasGhost = null;
+      st = null; pred = prevPred = null; pending = []; particles = []; waves = []; trails = []; manorKey = null; wasGhost = null;
       seenFx.clear(); pressed.clear();
       root.innerHTML = TEMPLATE;
       api.setTheme("theme-night");
@@ -120,11 +122,12 @@
     update(state) {
       st = state;
       if (st.phase === "play" && prevPhase !== "play") playSeenAt = performance.now();
-      if (st.phase === "countdown" && prevPhase !== "countdown") { pending = []; pred = prevPred = null; history.clear(); wasGhost = null; }
+      if (st.phase === "countdown" && prevPhase !== "countdown") { pending = []; pred = prevPred = null; history.clear(); wasGhost = null; trails = []; }
       prevPhase = st.phase;
       phaseEndLocal = Date.now() + (st.phaseLeft || 0);
       timeEndLocal = Date.now() + (st.timeLeft || 0);
       wakeLocal = Date.now() + (st.wakeIn || 0);
+      if (st.flashId !== lastFlashId) { if (st.flashLeft > 0) { flashLocal = performance.now() + st.flashLeft; shake = Math.max(shake, 6); } lastFlashId = st.flashId; }
       if (!["play", "countdown"].includes(st.phase) && document.pointerLockElement === canvas) document.exitPointerLock();
       if (st.phase === "setup") {
         $("lt-play").classList.add("hidden");
@@ -135,6 +138,7 @@
       $("lt-setup").classList.add("hidden");
       $("lt-play").classList.remove("hidden");
       if (st.manor && st.manor.seed + ":" + st.manor.n !== manorKey) newManor();
+      syncWorld();
       const mine = heroOf(me());
       if (mine && wasGhost === false && mine.ghost) ghostFlash = 3;
       if (mine) wasGhost = mine.ghost;
@@ -158,6 +162,21 @@
       bg = manor = null;
     },
   };
+
+  // Les portes, lustres et toiles d'araignée du moment.
+  function syncWorld() {
+    if (!manor) return;
+    const ds = st.doors || "";
+    const changed = ds !== doorsOpen.map((o) => (o ? "1" : "0")).join("");
+    if (changed) {
+      doorsOpen = manor.doors.map((d, i) => ds[i] !== "0");
+      closedDoors = manor.doors.filter((d, i) => !doorsOpen[i]);
+      blockers = M.blockers(manor, closedDoors);
+      rectsNow = manor.rects.concat(closedDoors);
+    }
+    litRooms = new Map((st.lit || []).map(([id, left]) => [id, performance.now() + left]));
+    websAlive = manor.webs.map((w, i) => (st.webs || "")[i] !== "0");
+  }
 
   // ===================================================================
   //  CLAVIER + SOURIS
@@ -199,8 +218,8 @@
   //  PRÉDICTION DE MON BONHOMME
   // ===================================================================
   const envFor = (sc) => ({
-    walls: true, w: manor.w, h: manor.h, rects: manor.rects, push: !sc.ghost, noDash: true,
-    speedMul: sc.ghost ? (sc.seen && !sc.immune ? LIT_SLOW : 1) : 1,
+    walls: true, w: manor.w, h: manor.h, rects: rectsNow, push: !sc.ghost, noDash: true,
+    speedMul: sc.ghost ? GHOST_SPEED * (sc.slow && !sc.immune ? LIT_SLOW : 1) : sc.web >= 0 ? WEB_SLOW : 1,
   });
   const moveBits = (k, sc) => (sc.frozen || sc.dazed ? 0 : k & (K.UP | K.DOWN | K.LEFT | K.RIGHT | K.DASH));
   function ownView() {
@@ -220,12 +239,13 @@
     const oldPred = pred;
     pred = H.copy(sc);
     const E = envFor(sc);
-    pending.forEach((p, i) => { H.simulate(pred, moveBits(p.k, sc), sc.ghost ? null : p.a, E, othersAt((i + 1) * H.TICK)); history.set(p.s, H.copy(pred)); });
+    pending.forEach((p, i) => { H.simulate(pred, moveBits(p.k, sc), p.a, E, othersAt((i + 1) * H.TICK)); history.set(p.s, H.copy(pred)); });
     if (prevPred && oldPred) { prevPred.x += pred.x - oldPred.x; prevPred.y += pred.y - oldPred.y; }
     if (before) {
       const after = ownView();
       const dx = before.x - after.x, dy = before.y - after.y;
-      if (Math.hypot(dx, dy) < 120) { off.x += dx; off.y += dy; }
+      // (un escalier ou un passage secret : on saute, sans glisser)
+      if (Math.hypot(dx, dy) < 120) { off.x += dx; off.y += dy; } else { off.x = 0; off.y = 0; prevPred = null; }
     }
   }
   function driveLocal(dt) {
@@ -242,7 +262,7 @@
       pending.push({ s: seq, k, a });
       if (pending.length > 90) pending.shift();
       prevPred = H.copy(pred);
-      H.simulate(pred, moveBits(k, sc), sc.ghost ? null : a, E, othersAt(pending.length * H.TICK));
+      H.simulate(pred, moveBits(k, sc), a, E, othersAt(pending.length * H.TICK));
       history.set(seq, H.copy(pred));
       acc -= H.TICK;
     }
@@ -281,17 +301,21 @@
   // ===================================================================
   //  EFFETS
   // ===================================================================
-  const FX_COL = { catch: ["#b48cff", "#e9e0ff"], daze: ["#ffe27a", "#fff6c9"], pile: ["#5cff9d", "#d4ffe5"], push: ["#ffffff", "#cfd8e6"] };
+  const FX_COL = { catch: ["#b48cff", "#e9e0ff"], daze: ["#ffe27a", "#fff6c9"], pile: ["#5cff9d", "#d4ffe5"], push: ["#ffffff", "#cfd8e6"],
+    bang: ["#c08a50", "#6b4527"], secret: ["#b48cff", "#6b4a9e"], stairs: ["#cfc2a8", "#8d7f66"], web: ["#e8e8e8", "#bbbbbb"], switch: ["#ffe27a", "#fff"], door: ["#c08a50", "#6b4527"] };
   function handleFx() {
     for (const f of st.fx || []) {
       if (seenFx.has(f.id)) continue;
       seenFx.add(f.id);
-      const n = f.kind === "catch" ? 40 : f.kind === "daze" ? 26 : 12;
+      // Une planche qui craque : une onde (les fantômes la voient de partout).
+      if (f.kind === "creak") { waves.push({ x: f.x, y: f.y, t: performance.now() }); continue; }
+      const n = f.kind === "catch" ? 40 : f.kind === "daze" || f.kind === "bang" ? 26 : 12;
       for (let i = 0; i < n; i++) {
         const a = Math.random() * Math.PI * 2, v = 40 + Math.random() * (f.kind === "catch" ? 260 : 160);
         particles.push({ x: f.x, y: f.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.3 + Math.random() * 0.5, max: 0.8, r: 1.5 + Math.random() * 3, col: FX_COL[f.kind]?.[i % 2] || "#fff" });
       }
       if (f.kind === "catch") shake = 9;
+      if (f.kind === "bang" || f.kind === "door") shake = Math.max(shake, 4);
     }
     if (seenFx.size > 500) seenFx.clear();
   }
@@ -326,7 +350,8 @@
   function renderHud() {
     $("lt-round").textContent = `Manche ${st.round}/${st.settings.rounds}`;
     const mine = heroOf(me());
-    const txt = !mine ? "👀 Tu regardes" : mine.ghost ? "👻 FANTÔME : attrape les humains !" : "🔦 HUMAIN : survis !";
+    const where = mine && manor ? { cave: " · 🕳️ cave", jardin: " · 🌙 jardin", manoir: "" }[M.zoneOf(manor, mine.x, mine.y)] : "";
+    const txt = (!mine ? "👀 Tu regardes" : mine.ghost ? "👻 FANTÔME : attrape les humains !" : "🔦 HUMAIN : survis !") + where;
     const role = $("lt-role");
     if (role.textContent !== txt) { role.textContent = txt; role.className = "ch-role " + (mine?.ghost ? "cop" : "free"); }
     const hum = st.heroes.filter((h) => !h.ghost);
@@ -389,25 +414,31 @@
   //  LE MANOIR (dessiné une fois par manche)
   // ===================================================================
   const FLOORS = {
-    salon: ["#6b4a2f", "#5e4129"], chambre: ["#5a3a4a", "#50334a"], cuisine: ["#c9c3b4", "#8d877a"],
-    bibliotheque: ["#7a5636", "#6d4c2f"], bain: ["#9fb7c0", "#86a1ab"], salle: ["#4f3a2a", "#463325"],
+    salon: ["#6b4a2f", "#5e4129"], chambre: ["#5a3a4a", "#50334a"], cuisine: ["#c9c3b4", "#8d877a"], bibliotheque: ["#7a5636", "#6d4c2f"],
+    bain: ["#9fb7c0", "#86a1ab"], manger: ["#4f3a2a", "#463325"], hall: ["#d8d2c4", "#2b2622"], bal: ["#8a6a3e", "#7a5c34"],
+    couloir: ["#5b3f2a", "#7a2a35"], placard: ["#4d3a2c", "#433326"], bureau: ["#6d4c2f", "#5f4229"], cave: ["#4a4744", "#3e3b38"], chaufferie: ["#3d3b39", "#2f2d2b"],
   };
   const circle = (c, x, y, r) => { c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill(); };
-  function floor(c, r, kind, rnd) {
+  function floor(c, r, rnd) {
+    const kind = r.kind;
     const [a, b] = FLOORS[kind] || FLOORS.salon;
     c.fillStyle = a; c.fillRect(r.x, r.y, r.w, r.h);
-    if (kind === "cuisine" || kind === "bain") {
-      // Carrelage en damier.
-      const s = kind === "bain" ? 20 : 26;
+    if (kind === "cuisine" || kind === "bain" || kind === "hall") {
+      // Carrelage en damier (le hall : grand damier noir et blanc).
+      const s = kind === "bain" ? 20 : kind === "hall" ? 40 : 26;
       c.fillStyle = b;
       for (let x = 0; x < r.w; x += s) for (let y = 0; y < r.h; y += s) if (((x + y) / s) % 2 === 0) c.fillRect(r.x + x, r.y + y, Math.min(s, r.w - x), Math.min(s, r.h - y));
     } else if (kind === "chambre") {
-      // Moquette.
       for (let k = 0; k < (r.w * r.h) / 60; k++) { c.fillStyle = k % 2 ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.04)"; c.fillRect(r.x + rnd() * r.w, r.y + rnd() * r.h, 2, 2); }
+    } else if (kind === "cave" || kind === "chaufferie") {
+      // Dalles de pierre.
+      c.strokeStyle = "rgba(0,0,0,0.35)"; c.lineWidth = 2;
+      for (let y = 0; y < r.h; y += 34) { c.beginPath(); c.moveTo(r.x, r.y + y); c.lineTo(r.x + r.w, r.y + y); c.stroke(); for (let x = ((y / 34) % 2) * 25; x < r.w; x += 50) { c.beginPath(); c.moveTo(r.x + x, r.y + y); c.lineTo(r.x + x, r.y + y + 34); c.stroke(); } }
+      for (let k = 0; k < (r.w * r.h) / 3000; k++) { c.fillStyle = "rgba(60,80,50,0.25)"; circle(c, r.x + rnd() * r.w, r.y + rnd() * r.h, 6 + rnd() * 14); }
     } else {
-      // Parquet : lames décalées.
+      // Parquet : lames décalées (salle de bal : parquet clair en chevrons).
       c.strokeStyle = "rgba(0,0,0,0.25)"; c.lineWidth = 1;
-      const lh = 14;
+      const lh = kind === "bal" ? 18 : 14;
       for (let y = 0; y < r.h; y += lh) {
         c.beginPath(); c.moveTo(r.x, r.y + y); c.lineTo(r.x + r.w, r.y + y); c.stroke();
         for (let x = ((y / lh) % 3) * 30; x < r.w; x += 90) { c.beginPath(); c.moveTo(r.x + x, r.y + y); c.lineTo(r.x + x, r.y + y + lh); c.stroke(); }
@@ -415,6 +446,14 @@
       c.fillStyle = b; c.globalAlpha = 0.25;
       for (let y = 0; y < r.h; y += lh * 2) c.fillRect(r.x, r.y + y, r.w, lh);
       c.globalAlpha = 1;
+      // Le couloir : un long tapis rouge.
+      if (kind === "couloir") {
+        const hz = r.w > r.h;
+        c.fillStyle = "#7a2a35";
+        if (hz) c.fillRect(r.x + 10, r.y + r.h * 0.3, r.w - 20, r.h * 0.4); else c.fillRect(r.x + r.w * 0.3, r.y + 10, r.w * 0.4, r.h - 20);
+        c.strokeStyle = "#c8a24a"; c.lineWidth = 2;
+        if (hz) c.strokeRect(r.x + 14, r.y + r.h * 0.3 + 4, r.w - 28, r.h * 0.4 - 8); else c.strokeRect(r.x + r.w * 0.3 + 4, r.y + 14, r.w * 0.4 - 8, r.h - 28);
+      }
     }
   }
   function furniture(c, f, rnd) {
@@ -425,10 +464,10 @@
     switch (f.name) {
       case "lit": {
         wood("#4a2f1c");
-        const head = f.side;   // la tête du lit est contre le mur
+        const head = f.side;
         c.fillStyle = ["#8e2f3c", "#2f4f8e", "#3e7a4a", "#7a5a2e"][Math.floor(rnd() * 4)];
         c.fillRect(x + 4, y + 4, w - 8, h - 8);
-        c.fillStyle = "#e9e4d8";   // oreillers
+        c.fillStyle = "#e9e4d8";
         if (head === 0) { c.fillRect(x + 8, y + 6, w / 2 - 12, 18); c.fillRect(x + w / 2 + 4, y + 6, w / 2 - 12, 18); }
         else if (head === 2) { c.fillRect(x + 8, y + h - 24, w / 2 - 12, 18); c.fillRect(x + w / 2 + 4, y + h - 24, w / 2 - 12, 18); }
         else if (head === 1) { c.fillRect(x + w - 24, y + 8, 18, h / 2 - 12); c.fillRect(x + w - 24, y + h / 2 + 4, 18, h / 2 - 12); }
@@ -444,39 +483,45 @@
         c.fillStyle = "#e6e9ea"; c.fillRect(x, y, w, h); c.strokeStyle = "#a9b0b4"; c.lineWidth = 2; c.strokeRect(x + 1, y + 1, w - 2, h - 2);
         if (f.name === "lavabo") { c.fillStyle = "#9fc6d8"; circle(c, x + w / 2, y + h / 2, Math.min(w, h) / 3); }
         return;
-      case "four":
-        c.fillStyle = "#3b3d42"; c.fillRect(x, y, w, h);
+      case "four": case "chaudiere":
+        c.fillStyle = f.name === "four" ? "#3b3d42" : "#5a3a2a"; c.fillRect(x, y, w, h);
         c.strokeStyle = "#777"; c.lineWidth = 2; for (const [a, b] of [[0.3, 0.3], [0.7, 0.3], [0.3, 0.7], [0.7, 0.7]]) { c.beginPath(); c.arc(x + w * a, y + h * b, Math.min(w, h) * 0.14, 0, Math.PI * 2); c.stroke(); }
+        if (f.name === "chaudiere") { c.fillStyle = "#ff6a1a"; circle(c, x + w / 2, y + h / 2, 6); }
         return;
       case "comptoir":
         c.fillStyle = "#8c8f94"; c.fillRect(x, y, w, h); c.fillStyle = "#b9bcc1"; c.fillRect(x + 3, y + 3, w - 6, h - 6);
         c.fillStyle = "#9fc6d8"; if (horiz) c.fillRect(x + w * 0.6, y + 7, 30, h - 14); else c.fillRect(x + 7, y + h * 0.6, w - 14, 30);
         return;
       case "canape": {
-        const col = ["#7a2a35", "#2a4a7a", "#4a6a3a", "#6a4a7a"][Math.floor(rnd() * 4)];
-        c.fillStyle = col; c.fillRect(x, y, w, h);
+        c.fillStyle = ["#7a2a35", "#2a4a7a", "#4a6a3a", "#6a4a7a"][Math.floor(rnd() * 4)]; c.fillRect(x, y, w, h);
         c.fillStyle = "rgba(0,0,0,0.25)";
         if (horiz) c.fillRect(x, f.side === 0 ? y : y + h - 12, w, 12); else c.fillRect(f.side === 3 ? x : x + w - 12, y, 12, h);
-        c.strokeStyle = "rgba(255,255,255,0.15)"; c.lineWidth = 2;
-        for (let k = 1; k < 3; k++) { c.beginPath(); if (horiz) { c.moveTo(x + (w * k) / 3, y + 4); c.lineTo(x + (w * k) / 3, y + h - 4); } else { c.moveTo(x + 4, y + (h * k) / 3); c.lineTo(x + w - 4, y + (h * k) / 3); } c.stroke(); }
         return;
       }
       case "cheminee":
         c.fillStyle = "#7a3b2a"; c.fillRect(x, y, w, h);
-        c.strokeStyle = "rgba(0,0,0,0.35)"; c.lineWidth = 1;
-        for (let yy = y + 6; yy < y + h; yy += 6) { c.beginPath(); c.moveTo(x, yy); c.lineTo(x + w, yy); c.stroke(); }
         c.fillStyle = "#1a1210"; c.fillRect(x + w * 0.25, y + h * 0.25, w * 0.5, h * 0.5);
         c.fillStyle = "#ff8a2a"; circle(c, x + w / 2, y + h / 2, Math.min(w, h) * 0.18);
         return;
-      case "etagere": {
-        wood("#3f2716");
+      case "etagere": case "casier": {
+        wood(f.name === "casier" ? "#3a2a1c" : "#3f2716");
         const n = Math.floor((horiz ? w : h) / 7);
         for (let k = 0; k < n; k++) {
-          c.fillStyle = ["#8e2f3c", "#2f4f8e", "#3e7a4a", "#b08a3a", "#5a3a6a"][Math.floor(rnd() * 5)];
-          if (horiz) c.fillRect(x + 3 + k * 7, y + 4, 5, h - 8); else c.fillRect(x + 4, y + 3 + k * 7, w - 8, 5);
+          c.fillStyle = f.name === "casier" ? ["#3d1a22", "#2a3d22", "#4a1a1a"][k % 3] : ["#8e2f3c", "#2f4f8e", "#3e7a4a", "#b08a3a", "#5a3a6a"][Math.floor(rnd() * 5)];
+          if (f.name === "casier") { if (horiz) circle(c, x + 5 + k * 7, y + h / 2, 3); else circle(c, x + w / 2, y + 5 + k * 7, 3); }
+          else if (horiz) c.fillRect(x + 3 + k * 7, y + 4, 5, h - 8); else c.fillRect(x + 4, y + 3 + k * 7, w - 8, 5);
         }
         return;
       }
+      case "tonneau":
+        c.fillStyle = "#6b4527"; circle(c, x + w / 2, y + h / 2, w / 2);
+        c.strokeStyle = "#2b2420"; c.lineWidth = 3; c.beginPath(); c.arc(x + w / 2, y + h / 2, w / 2 - 3, 0, Math.PI * 2); c.stroke();
+        c.beginPath(); c.arc(x + w / 2, y + h / 2, w / 4, 0, Math.PI * 2); c.stroke();
+        return;
+      case "caisse":
+        wood("#8a6a3e"); c.strokeStyle = "rgba(0,0,0,0.4)"; c.lineWidth = 2;
+        c.beginPath(); c.moveTo(x, y); c.lineTo(x + w, y + h); c.moveTo(x + w, y); c.lineTo(x, y + h); c.stroke();
+        return;
       case "piano":
         c.fillStyle = "#141414"; c.fillRect(x, y, w, h);
         c.fillStyle = "#f2f2f2";
@@ -485,14 +530,27 @@
       case "horloge":
         wood("#4a2f1c"); c.fillStyle = "#e8dcb8"; circle(c, x + w / 2, y + h / 2, Math.min(w, h) * 0.32);
         return;
+      case "armure":
+        c.fillStyle = "#3a3d44"; c.fillRect(x, y, w, h);
+        c.fillStyle = "#a9b0bc"; circle(c, x + w / 2, y + h / 2, w * 0.38);
+        c.fillStyle = "#5d6470"; c.fillRect(x + w / 2 - 2, y + 3, 4, h - 6);
+        return;
+      case "plante":
+        c.fillStyle = "#6b4527"; circle(c, x + w / 2, y + h / 2, w / 2);
+        c.strokeStyle = "#5a5a3a"; c.lineWidth = 2;
+        for (let k = 0; k < 6; k++) { const a = k * 1.05; c.beginPath(); c.moveTo(x + w / 2, y + h / 2); c.lineTo(x + w / 2 + Math.cos(a) * w * 0.6, y + h / 2 + Math.sin(a) * h * 0.6); c.stroke(); }
+        return;
+      case "console":
+        wood("#4e3220"); c.fillStyle = "#e8dcb8"; circle(c, x + w * 0.3, y + h / 2, 4); circle(c, x + w * 0.7, y + h / 2, 4);
+        return;
       case "table": case "table_basse": case "bureau": {
         wood(f.name === "table_basse" ? "#3a2618" : "#6b4527");
         c.fillStyle = "rgba(255,255,255,0.08)"; c.fillRect(x + 4, y + 4, w - 8, h - 8);
-        if (f.name === "table") {   // des chaises autour
+        if (f.name === "table") {
           c.fillStyle = "#4a2f1c";
           if (horiz) for (let k = 0; k < Math.floor(w / 36); k++) { c.fillRect(x + 10 + k * 36, y - 12, 18, 10); c.fillRect(x + 10 + k * 36, y + h + 2, 18, 10); }
           else for (let k = 0; k < Math.floor(h / 36); k++) { c.fillRect(x - 12, y + 10 + k * 36, 10, 18); c.fillRect(x + w + 2, y + 10 + k * 36, 10, 18); }
-          c.fillStyle = "#e8dcb8"; circle(c, x + w / 2, y + h / 2, 5);   // une bougie
+          c.fillStyle = "#e8dcb8"; circle(c, x + w / 2, y + h / 2, 5);
         }
         if (f.name === "bureau") { c.fillStyle = "#e9e4d8"; c.fillRect(x + w * 0.2, y + h * 0.25, 20, 14); }
         return;
@@ -504,51 +562,120 @@
         c.fillStyle = "#c8a24a"; if (horiz) { circle(c, x + w / 2 - 5, y + h / 2, 2); circle(c, x + w / 2 + 5, y + h / 2, 2); } else { circle(c, x + w / 2, y + h / 2 - 5, 2); circle(c, x + w / 2, y + h / 2 + 5, 2); }
     }
   }
+  function gardenThing(c, o, rnd) {
+    const { x, y, w, h } = o;
+    if (o.name === "haie") {
+      c.fillStyle = "rgba(0,0,0,0.35)"; c.fillRect(x + 4, y + 6, w, h);
+      c.fillStyle = "#1f4a22"; c.fillRect(x, y, w, h);
+      c.fillStyle = "#2c6030";
+      for (let k = 0; k < (w * h) / 60; k++) circle(c, x + rnd() * w, y + rnd() * h, 4 + rnd() * 4);
+    } else if (o.name === "arbre") {
+      c.fillStyle = "rgba(0,0,0,0.35)"; circle(c, x + w / 2 + 8, y + h / 2 + 10, 34);
+      c.fillStyle = "#3a2a1c"; circle(c, x + w / 2, y + h / 2, 12);
+      c.fillStyle = "rgba(40,60,35,0.9)"; circle(c, x + w / 2, y + h / 2, 32);
+      c.fillStyle = "rgba(60,85,50,0.8)"; circle(c, x + w / 2 - 8, y + h / 2 - 8, 18);
+    } else if (o.name === "tombe") {
+      c.fillStyle = "rgba(0,0,0,0.4)"; c.fillRect(x + 3, y + 5, w, h);
+      c.fillStyle = "#8f8f8a"; c.beginPath(); c.moveTo(x, y + h); c.lineTo(x, y + w / 2); c.arc(x + w / 2, y + w / 2, w / 2, Math.PI, 0); c.lineTo(x + w, y + h); c.closePath(); c.fill();
+      c.fillStyle = "#5c5c58"; c.fillRect(x + w / 2 - 2, y + 8, 4, 14); c.fillRect(x + w / 2 - 6, y + 12, 12, 4);
+    } else if (o.name === "fontaine") {
+      c.fillStyle = "#8a8578"; circle(c, x + w / 2, y + h / 2, w / 2 + 8);
+      c.fillStyle = "#2d5a7a"; circle(c, x + w / 2, y + h / 2, w / 2 - 2);
+      c.fillStyle = "#b9b4a6"; circle(c, x + w / 2, y + h / 2, 12);
+    }
+  }
 
   function newManor() {
     manorKey = st.manor.seed + ":" + st.manor.n;
     manor = M.build(st.manor.seed, st.manor.n);
+    doorsOpen = []; closedDoors = []; blockers = M.blockers(manor, []); rectsNow = manor.rects;
     const rnd = M.seeded(st.manor.seed ^ 0x77aa);
     bg = document.createElement("canvas");
     bg.width = manor.w; bg.height = manor.h;
     const c = bg.getContext("2d");
-    c.fillStyle = "#16110e"; c.fillRect(0, 0, manor.w, manor.h);
+    c.fillStyle = "#020203"; c.fillRect(0, 0, manor.w, manor.h);
+    // Le jardin : herbe, allées de gravier.
+    const G = manor.gardenRect, MR = manor.manorRect;
+    c.fillStyle = "#26402a"; c.fillRect(G.x, G.y, G.w, G.h);
+    for (let k = 0; k < (G.w * G.h) / 300; k++) { c.fillStyle = k % 2 ? "rgba(0,0,0,0.12)" : "rgba(120,160,100,0.08)"; c.fillRect(G.x + rnd() * G.w, G.y + rnd() * G.h, 2, 3); }
+    c.fillStyle = "#6e6a5e";
+    c.fillRect(MR.x - 50, MR.y - 50, MR.w + 100, 34); c.fillRect(MR.x - 50, MR.y + MR.h + 16, MR.w + 100, 34);
+    c.fillRect(MR.x - 50, MR.y - 50, 34, MR.h + 100); c.fillRect(MR.x + MR.w + 16, MR.y - 50, 34, MR.h + 100);
+    for (const d of manor.doors.filter((d) => d.ext)) {
+      if (d.vert) c.fillRect(d.x < MR.x + 5 ? MR.x - 50 : MR.x + MR.w, d.y + 8, 50, d.h - 16); else c.fillRect(d.x + 8, d.y < MR.y + 5 ? MR.y - 50 : MR.y + MR.h, d.w - 16, 50);
+    }
+    // Les pièces (manoir + cave).
     for (const r of manor.rooms) {
-      floor(c, r, r.kind, rnd);
+      floor(c, r, rnd);
       if (r.rug) {
         const rw = r.w * 0.5, rh = r.h * 0.45;
         c.fillStyle = "#6e1f26"; c.fillRect(r.x + (r.w - rw) / 2, r.y + (r.h - rh) / 2, rw, rh);
         c.strokeStyle = "#c8a24a"; c.lineWidth = 3; c.strokeRect(r.x + (r.w - rw) / 2 + 6, r.y + (r.h - rh) / 2 + 6, rw - 12, rh - 12);
       }
     }
-    // Les seuils des portes (et les grandes ouvertures) : du sol aussi.
-    for (const d of manor.doors) { c.fillStyle = d.open ? FLOORS.salle[0] : "#5a4330"; c.fillRect(d.x, d.y, d.w, d.h); }
+    for (const d of manor.doors) { c.fillStyle = "#5a4330"; c.fillRect(d.x, d.y, d.w, d.h); }
+    // Planches qui craquent (un peu plus sombres, si on regarde bien).
+    for (const p of manor.creaks) {
+      c.fillStyle = "rgba(0,0,0,0.22)"; c.fillRect(p.x, p.y, p.w, p.h);
+      c.strokeStyle = "rgba(0,0,0,0.35)"; c.lineWidth = 1; c.beginPath(); c.moveTo(p.x + 6, p.y + p.h * 0.4); c.lineTo(p.x + p.w - 8, p.y + p.h * 0.55); c.stroke();
+    }
+    // Rayons de lune près des fenêtres (bleutés).
+    for (const w of manor.windows) { c.fillStyle = "rgba(140,170,230,0.12)"; c.fillRect(w.patch.x, w.patch.y, w.patch.w, w.patch.h); }
     // Ombre le long des murs (dans les pièces).
     c.fillStyle = "rgba(0,0,0,0.35)";
-    for (const w of manor.walls) { if (w.w > w.h) c.fillRect(w.x, w.y + w.h, w.w, 6); else c.fillRect(w.x + w.w, w.y, 6, w.h); }
+    for (const w of manor.walls) { if (w.void) continue; if (w.w > w.h) c.fillRect(w.x, w.y + w.h, w.w, 6); else c.fillRect(w.x + w.w, w.y, 6, w.h); }
+    // Lustres (au plafond, au milieu des pièces qui ont un interrupteur).
+    for (const r of manor.rooms) {
+      if (r.lamp === undefined) continue;
+      const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+      c.strokeStyle = "rgba(200,162,74,0.6)"; c.lineWidth = 2; c.beginPath(); c.arc(cx, cy, 22, 0, Math.PI * 2); c.stroke();
+      c.fillStyle = "#c8a24a"; circle(c, cx, cy, 5);
+      for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2; c.fillStyle = "#e8dcb8"; circle(c, cx + Math.cos(a) * 22, cy + Math.sin(a) * 22, 3); }
+    }
     for (const f of manor.furniture) furniture(c, f, rnd);
-    // Les murs : pierre sombre, liseré clair dessus.
+    for (const o of manor.garden) gardenThing(c, o, rnd);
+    // Escaliers (des marches qui descendent / montent) et passages secrets (une bibliothèque contre le mur, avec une fine fissure).
+    for (const p of manor.portals) for (const e of [p.a, p.b]) {
+      const nx = (e.ex - e.x) / 46, ny = (e.ey - e.y) / 46, ang = Math.atan2(ny, nx);
+      c.save(); c.translate(e.x, e.y); c.rotate(ang);
+      if (p.kind === "stairs") {
+        for (let k = 0; k < 5; k++) { c.fillStyle = `rgb(${110 - k * 16},${95 - k * 14},${80 - k * 12})`; c.fillRect(-24 + k * 6, -24, 7, 48); }
+        c.strokeStyle = "#2b2420"; c.lineWidth = 2; c.strokeRect(-24, -24, 34, 48);
+      } else {
+        c.fillStyle = "#3f2716"; c.fillRect(-24, -26, 14, 52);
+        for (let k = 0; k < 7; k++) { c.fillStyle = ["#8e2f3c", "#2f4f8e", "#3e7a4a", "#b08a3a"][k % 4]; c.fillRect(-22, -24 + k * 7, 10, 5); }
+        c.strokeStyle = "rgba(0,0,0,0.6)"; c.lineWidth = 1; c.beginPath(); c.moveTo(-10, -26); c.lineTo(-10, 26); c.stroke();
+      }
+      c.restore();
+    }
+    // Les murs : pierre sombre, liseré clair dessus (le vide autour de la cave : noir).
     for (const w of manor.walls) {
-      c.fillStyle = "#2b2420"; c.fillRect(w.x, w.y, w.w, w.h);
+      const big = !!w.void;
+      c.fillStyle = big ? "#020203" : "#2b2420"; c.fillRect(w.x, w.y, w.w, w.h);
+      if (big) continue;
       c.fillStyle = "#4a3d33"; if (w.w > w.h) c.fillRect(w.x, w.y, w.w, 4); else c.fillRect(w.x, w.y, 4, w.h);
     }
-    // Les portes entrouvertes (un battant contre le mur).
-    c.strokeStyle = "#7a5430"; c.lineWidth = 5;
-    for (const d of manor.doors) {
-      if (d.open) continue;
-      c.beginPath();
-      if (d.vert) { c.moveTo(d.x + d.w / 2, d.y + 2); c.lineTo(d.x + d.w / 2 + 34, d.y + 12); }
-      else { c.moveTo(d.x + 2, d.y + d.h / 2); c.lineTo(d.x + 12, d.y + d.h / 2 + 34); }
-      c.stroke();
+    // Tableaux accrochés aux murs (côté pièce).
+    for (const r of manor.rooms) {
+      if (r.cave || rnd() > 0.6) continue;
+      const px = r.x + 30 + rnd() * Math.max(1, r.w - 90), py = r.y - 3;
+      c.fillStyle = "#c8a24a"; c.fillRect(px, py, 40, 7);
+      c.fillStyle = ["#3a5a7a", "#7a3a3a", "#4a6a3a", "#6a5a3a"][Math.floor(rnd() * 4)]; c.fillRect(px + 3, py + 1, 34, 4);
     }
-    // Toiles d'araignée dans quelques coins.
-    c.strokeStyle = "rgba(220,220,220,0.25)"; c.lineWidth = 1;
+    // Fenêtres sur les murs extérieurs.
+    for (const w of manor.windows) {
+      c.fillStyle = "#6d88b8";
+      if (w.vert) c.fillRect(w.at + 3, w.c - 26, M.T - 6, 52); else c.fillRect(w.c - 26, w.at + 3, 52, M.T - 6);
+      c.fillStyle = "#2b2420";
+      if (w.vert) c.fillRect(w.at + 3, w.c - 1, M.T - 6, 2); else c.fillRect(w.c - 1, w.at + 3, 2, M.T - 6);
+    }
+    // Toiles d'araignée dans les coins.
+    c.strokeStyle = "rgba(220,220,220,0.22)"; c.lineWidth = 1;
     for (const r of manor.rooms) {
       if (rnd() > 0.45) continue;
       const cx = rnd() < 0.5 ? r.x : r.x + r.w, cy = rnd() < 0.5 ? r.y : r.y + r.h;
       const sx = cx === r.x ? 1 : -1, sy = cy === r.y ? 1 : -1;
       for (let k = 1; k <= 4; k++) { c.beginPath(); c.moveTo(cx + sx * k * 9, cy); c.quadraticCurveTo(cx + sx * k * 5, cy + sy * k * 5, cx, cy + sy * k * 9); c.stroke(); }
-      for (const a of [0.15, 0.5, 0.85]) { c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + sx * 40 * Math.cos(a * Math.PI / 2), cy + sy * 40 * Math.sin(a * Math.PI / 2)); c.stroke(); }
     }
   }
 
@@ -606,10 +733,11 @@
       c.fillStyle = "#ffd23f"; c.font = "12px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
       for (let k = 0; k < 3; k++) { const a = ts / 250 + k * 2.1; c.fillText("★", Math.cos(a) * 22, -26 + Math.sin(a) * 6); }
     } else {
-      c.beginPath(); c.ellipse(-7, -6, 4, 6, 0, 0, Math.PI * 2); c.ellipse(7, -6, 4, 6, 0, 0, Math.PI * 2); c.fill();
+      // Les yeux regardent où il regarde.
+      const lx = Math.cos(v.aim || 0) * 2.5, ly = Math.sin(v.aim || 0) * 2.5;
+      c.beginPath(); c.ellipse(-7 + lx, -6 + ly, 4, 6, 0, 0, Math.PI * 2); c.ellipse(7 + lx, -6 + ly, 4, 6, 0, 0, Math.PI * 2); c.fill();
       c.beginPath(); c.ellipse(0, 6, 4, 5, 0, 0, Math.PI * 2); c.fill();
     }
-    // La lumière qui l'étourdit : un anneau jaune qui se remplit.
     if (lit > 0 && !v.dazed) {
       c.strokeStyle = "rgba(255,226,122,0.3)"; c.lineWidth = 4; c.beginPath(); c.arc(0, 0, R + 9, 0, Math.PI * 2); c.stroke();
       c.strokeStyle = "#ffe27a"; c.beginPath(); c.arc(0, 0, R + 9, -Math.PI / 2, -Math.PI / 2 + lit * Math.PI * 2); c.stroke();
@@ -617,32 +745,69 @@
     c.restore();
   }
 
+  // Ce qui bouge dans le décor : portes, interrupteurs, toiles d'araignée, piles, traces d'ectoplasme.
+  function drawDynamic(c, ts) {
+    manor.doors.forEach((d, i) => {
+      if (!doorsOpen[i]) {
+        // Porte fermée : un battant en bois avec sa poignée.
+        c.fillStyle = "#6b4527"; c.fillRect(d.x - (d.vert ? 1 : 0), d.y - (d.vert ? 0 : 1), d.w + (d.vert ? 2 : 0), d.h + (d.vert ? 0 : 2));
+        c.strokeStyle = "#3a2618"; c.lineWidth = 2; c.strokeRect(d.x + 1, d.y + 1, d.w - 2, d.h - 2);
+        c.fillStyle = "#c8a24a"; if (d.vert) circle(c, d.x + d.w / 2, d.y + d.h - 12, 3); else circle(c, d.x + d.w - 12, d.y + d.h / 2, 3);
+      } else {
+        // Ouverte : le battant contre le mur.
+        c.strokeStyle = "#7a5430"; c.lineWidth = 5; c.beginPath();
+        if (d.vert) { c.moveTo(d.x + d.w / 2, d.y + 2); c.lineTo(d.x + d.w / 2 + 30, d.y + 18); } else { c.moveTo(d.x + 2, d.y + d.h / 2); c.lineTo(d.x + 18, d.y + d.h / 2 + 30); }
+        c.stroke();
+      }
+    });
+    for (const sw of manor.switches) {
+      const on = (litRooms.get(sw.room) || 0) > performance.now();
+      c.fillStyle = "#e8dcb8"; c.fillRect(sw.x - 7, sw.y - 9, 14, 18);
+      c.fillStyle = on ? "#ffd23f" : "#555"; c.fillRect(sw.x - 3, sw.y - 5, 6, 10);
+    }
+    manor.webs.forEach((wb, i) => {
+      if (!websAlive[i]) return;
+      const cx = wb.x + wb.w / 2, cy = wb.y + wb.h / 2;
+      c.strokeStyle = "rgba(235,235,235,0.55)"; c.lineWidth = 1;
+      for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.cos(a) * 28, cy + Math.sin(a) * 28); c.stroke(); }
+      for (const r of [8, 15, 22]) { c.beginPath(); for (let k = 0; k <= 8; k++) { const a = (k / 8) * Math.PI * 2; const px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r; if (k) c.lineTo(px, py); else c.moveTo(px, py); } c.stroke(); }
+    });
+    for (const p of st.piles || []) pileArt(c, p.x, p.y);
+    // Traces d'ectoplasme : elles brillent quelques secondes, seulement dans la lumière.
+    const now = performance.now();
+    trails = trails.filter((t) => now - t.t < 3000);
+    for (const t of trails) { c.fillStyle = `rgba(140,255,200,${0.35 * (1 - (now - t.t) / 3000)})`; c.beginPath(); c.ellipse(t.x, t.y, 7, 4, t.a, 0, Math.PI * 2); c.fill(); }
+  }
+
   function draw(ts, dt) {
     const c = g2d;
     const mine = heroOf(me());
     const iAmGhost = !!mine?.ghost;
     const views = st.heroes.map((h) => {
-      if (h.id === me() && pred) { const o = ownView(); return { ...h, ...o, x: o.x + off.x, y: o.y + off.y, aim: mine.ghost ? h.aim : Math.atan2(mouse.oy, mouse.ox) }; }
-      return { ...shownHero(h), ghost: h.ghost, lamp: h.lamp, seen: h.seen, dazed: h.dazed, frozen: h.frozen, lit: h.lit, aim: h.aim, bat: h.bat };
+      if (h.id === me() && pred) { const o = ownView(); return { ...h, ...o, x: o.x + off.x, y: o.y + off.y, aim: Math.atan2(mouse.oy, mouse.ox) }; }
+      return { ...shownHero(h), ghost: h.ghost, lamp: h.lamp, seen: h.seen, moon: h.moon, exp: h.exp, dazed: h.dazed, frozen: h.frozen, lit: h.lit, aim: h.aim, bat: h.bat };
     });
+    // Traces des fantômes.
+    if (ts - trailAt > 180 && st.phase === "play") {
+      trailAt = ts;
+      for (const v of views) if (v.ghost && Math.hypot(v.vx, v.vy) > 40) trails.push({ x: v.x, y: v.y + 14, a: Math.atan2(v.vy, v.vx), t: performance.now() });
+    }
     const mv = views.find((v) => v.id === me());
-    // Caméra : sur moi (ou sur un humain si je regarde).
     const follow = mv || views.find((v) => !v.ghost) || views[0];
-    const camX = manor.w <= W ? (manor.w - W) / 2 : Math.max(0, Math.min(manor.w - W, follow.x - W / 2));
+    const camX = Math.max(0, Math.min(manor.w - W, follow.x - W / 2));
     const camY = manor.h <= HGT ? (manor.h - HGT) / 2 : Math.max(0, Math.min(manor.h - HGT, follow.y - HGT / 2));
     // Un fantôme tout près de moi (humain) : le cœur s'emballe.
     let fear = 0;
     if (mv && !iAmGhost && st.phase === "play") for (const v of views) if (v.ghost && !v.frozen) fear = Math.max(fear, 1 - Math.hypot(v.x - mv.x, v.y - mv.y) / 200);
     if (fear > 0) shake = Math.max(shake, fear * 3 * (0.6 + 0.4 * Math.sin(ts / 90)));
+    const flash = performance.now() < flashLocal;
 
     c.save();
-    c.fillStyle = "#050407"; c.fillRect(0, 0, W, HGT);
+    c.fillStyle = "#020203"; c.fillRect(0, 0, W, HGT);
     if (shake > 0.3) { c.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake); shake *= Math.pow(0.85, dt * 60); } else shake = 0;
     c.translate(-camX, -camY);
     c.drawImage(bg, 0, 0);
-    // Piles.
-    for (const p of st.piles || []) pileArt(c, p.x, p.y, ts);
-    // Humains (avec leur lampe à la main).
+    drawDynamic(c, ts);
     c.textAlign = "center"; c.textBaseline = "middle";
     for (const v of views) {
       if (v.ghost) continue;
@@ -652,42 +817,57 @@
         item: (cc) => { cc.fillStyle = "#333"; cc.fillRect(10, 11, 12, 6); cc.fillStyle = v.lamp ? "#fff3b0" : "#666"; cc.fillRect(21, 10, 4, 8); },
       });
     }
-    // Les fantômes : visibles seulement dans la lumière (ou pour les autres fantômes).
+    // Les fantômes : pour les humains, seulement s'ils sont éclairés (ou à moitié sous la lune) ; les fantômes se voient entre eux.
     for (const v of views) {
       if (!v.ghost) continue;
       if (iAmGhost) ghostArt(c, v, ts, v.id === me() ? 0.95 : 0.7, v.lit);
       else if (v.seen || v.dazed) ghostArt(c, v, ts, 0.95, v.lit);
+      else if (v.moon) ghostArt(c, v, ts, 0.4, 0);
     }
     drawParticles(dt);
     c.restore();
 
-    drawDark(views, camX, camY, iAmGhost, mv, ts);
+    drawDark(views, camX, camY, iAmGhost, mv, ts, flash);
 
-    // Par-dessus le noir : les noms, les fantômes étourdis (on les voit fuir), mes repères.
+    // Par-dessus le noir : ondes des planches, regards des fantômes alliés, noms, passages secrets (pour les fantômes), mon viseur.
     c.save();
     c.translate(-camX, -camY);
     c.textAlign = "center"; c.textBaseline = "middle";
+    const now = performance.now();
+    waves = waves.filter((w) => now - w.t < 1200);
+    for (const w of waves) {
+      const k = (now - w.t) / 1200;
+      c.strokeStyle = `rgba(255,190,120,${0.7 * (1 - k)})`; c.lineWidth = 3;
+      for (const r of [20, 45]) { c.beginPath(); c.arc(w.x, w.y, r + k * 60, 0, Math.PI * 2); c.stroke(); }
+    }
+    if (iAmGhost) {
+      for (const v of views) {
+        if (!v.ghost || v.id === me()) continue;
+        const pts = M.cone(blockers, v.x, v.y, v.aim ?? 0, M.SIGHT_RANGE, M.SIGHT_HALF, 24);
+        c.strokeStyle = "rgba(180,140,255,0.35)"; c.lineWidth = 2; c.fillStyle = "rgba(180,140,255,0.05)";
+        c.beginPath(); c.moveTo(pts[0].x, pts[0].y); for (const p of pts) c.lineTo(p.x, p.y); c.closePath(); c.fill(); c.stroke();
+      }
+      for (const p of manor.portals) if (p.kind === "secret") for (const e of [p.a, p.b]) { c.strokeStyle = "rgba(180,140,255,0.8)"; c.lineWidth = 2; c.beginPath(); c.arc(e.x, e.y, 16 + Math.sin(ts / 200) * 3, 0, Math.PI * 2); c.stroke(); }
+    }
     for (const v of views) {
       if (v.ghost && !iAmGhost && v.dazed && !v.seen) ghostArt(c, v, ts, 0.45, 0);
-      const showName = v.id === me() || (iAmGhost ? (!v.ghost ? (v.lamp || (mv && Math.hypot(v.x - mv.x, v.y - mv.y) < GHOST_SIGHT)) : true) : !v.ghost);
+      const showName = v.id === me() || (iAmGhost ? v.ghost : !v.ghost);
       if (!showName) continue;
       c.font = "bold 13px Segoe UI, sans-serif";
       c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,0.85)"; c.strokeText((v.ghost ? "👻 " : "") + pseudoOf(v.id), v.x, v.y - 32);
       c.fillStyle = v.ghost ? "#cbb8ff" : "#fff"; c.fillText((v.ghost ? "👻 " : "") + pseudoOf(v.id), v.x, v.y - 32);
     }
-    // Les piles brillent un peu dans le noir.
     for (const p of st.piles || []) { c.fillStyle = `rgba(92,255,157,${0.35 + 0.2 * Math.sin(ts / 200 + p.x)})`; circle(c, p.x, p.y, 4); }
-    if (mv && st.phase === "play" && !iAmGhost) {
+    if (mv && st.phase === "play") {
       const a = Math.atan2(mouse.oy, mouse.ox), d = Math.hypot(mouse.oy, mouse.ox);
       const tx = mv.x + Math.cos(a) * d, ty = mv.y + Math.sin(a) * d;
-      c.strokeStyle = "rgba(255,240,190,0.7)"; c.lineWidth = 2;
+      c.strokeStyle = iAmGhost ? "rgba(203,184,255,0.7)" : "rgba(255,240,190,0.7)"; c.lineWidth = 2;
       c.beginPath(); c.arc(tx, ty, 10, 0, Math.PI * 2); c.moveTo(tx - 15, ty); c.lineTo(tx - 5, ty); c.moveTo(tx + 5, ty); c.lineTo(tx + 15, ty); c.moveTo(tx, ty - 15); c.lineTo(tx, ty - 5); c.moveTo(tx, ty + 5); c.lineTo(tx, ty + 15); c.stroke();
     }
     if (mv) window.VehicleArt.markMe(c, mv.x, mv.y, ts, iAmGhost ? "#b48cff" : playerOf(me())?.color || "#fff",
       ghostFlash > 0 ? 1 : window.VehicleArt.markAlpha(st.phase === "countdown" ? "countdown" : st.phase, playSeenAt), Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)));
     c.restore();
 
-    // La peur : un voile rouge qui bat sur les bords.
     if (fear > 0) {
       const beat = 0.5 + 0.5 * Math.abs(Math.sin(ts / (220 - fear * 100)));
       const gr = c.createRadialGradient(W / 2, HGT / 2, HGT * 0.35, W / 2, HGT / 2, W * 0.7);
@@ -695,32 +875,31 @@
       c.fillStyle = gr; c.fillRect(0, 0, W, HGT);
     }
 
-    // Bandeaux.
     if (st.phase === "countdown") {
       const left = Math.ceil((phaseEndLocal - Date.now()) / 1000);
       band(left > 0 ? String(left) : "GO !", iAmGhost ? "👻 Tu es le FANTÔME. Tu te réveilles 3 s après les autres…" : "🔦 Tu es HUMAIN. Un fantôme rôde dans le manoir…");
     } else if (st.phase === "play" && Date.now() < wakeLocal) {
-      band("🕯️ " + Math.ceil((wakeLocal - Date.now()) / 1000), iAmGhost ? "Tu te réveilles… les humains se dispersent." : "Le fantôme se réveille… cache-toi !", "#cbb8ff");
+      band("🕯️ " + Math.ceil((wakeLocal - Date.now()) / 1000), iAmGhost ? "Tu te réveilles… vise avec la souris : tu vois là où tu regardes." : "Le fantôme se réveille… cache-toi !", "#cbb8ff");
     } else if (ghostFlash > 0) {
       ghostFlash -= dt;
-      band("👻 ATTRAPÉ !", "Tu es un fantôme maintenant : attrape les autres !", "#b48cff");
+      band("👻 ATTRAPÉ !", "Tu es un fantôme : vise avec la souris pour regarder, attrape les autres !", "#b48cff");
     } else if (fear > 0.35) {
       smallBand("💓 IL EST TOUT PRÈS !", "#ff6b7d");
     } else if (mv && !iAmGhost && mv.bat <= 0.01 && st.phase === "play") {
       smallBand("🔋 Lampe vide : trouve une pile !", "#5cff9d");
     }
-    if (mv && st.phase === "play" && document.pointerLockElement !== canvas && !iAmGhost) {
+    if (mv && st.phase === "play" && document.pointerLockElement !== canvas) {
       c.font = "bold 15px Segoe UI, sans-serif"; c.fillStyle = "rgba(255,240,200,0.85)"; c.textAlign = "center";
-      c.fillText("🖱️ Clique dans le manoir : ta lampe suivra ton viseur", W / 2, HGT - 18);
+      c.fillText(iAmGhost ? "🖱️ Clique dans le manoir : ton regard suivra ton viseur" : "🖱️ Clique dans le manoir : ta lampe suivra ton viseur", W / 2, HGT - 18);
     }
   }
 
-  // Le noir : un calque sombre, percé par les auras et les cônes des lampes.
-  function drawDark(views, camX, camY, iAmGhost, mv, ts) {
+  // Le noir : un calque sombre, percé par les lumières (et, pour un fantôme, par son regard).
+  function drawDark(views, camX, camY, iAmGhost, mv, ts, flash) {
     const d = dctx;
     d.globalCompositeOperation = "source-over";
     d.clearRect(0, 0, W, HGT);
-    d.fillStyle = iAmGhost ? "rgba(6,4,18,0.92)" : "rgba(3,3,8,0.95)";
+    d.fillStyle = iAmGhost ? "rgba(6,4,18,0.94)" : "rgba(3,3,8,0.95)";
     d.fillRect(0, 0, W, HGT);
     d.globalCompositeOperation = "destination-out";
     const hole = (x, y, r, k = 1) => {
@@ -728,29 +907,59 @@
       gr.addColorStop(0, `rgba(0,0,0,${k})`); gr.addColorStop(0.6, `rgba(0,0,0,${k * 0.7})`); gr.addColorStop(1, "rgba(0,0,0,0)");
       d.fillStyle = gr; d.beginPath(); d.arc(x, y, r, 0, Math.PI * 2); d.fill();
     };
-    // Vision de nuit du fantôme.
-    if (iAmGhost && mv) hole(mv.x - camX, mv.y - camY, GHOST_SIGHT, 0.75);
-    for (const v of views) {
-      if (v.ghost) continue;
-      const x = v.x - camX, y = v.y - camY;
-      hole(x, y, v.id === me() ? 85 : 55, 0.85);
-      if (!v.lamp) continue;
-      const pts = M.cone(manor, v.x, v.y, v.aim ?? v.face, 30);
-      const gr = d.createRadialGradient(x, y, 10, x, y, M.LAMP_RANGE);
-      gr.addColorStop(0, "rgba(0,0,0,1)"); gr.addColorStop(0.7, "rgba(0,0,0,0.9)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+    const poly = (pts, x, y, R, k) => {
+      const gr = d.createRadialGradient(x - camX, y - camY, 10, x - camX, y - camY, R);
+      gr.addColorStop(0, `rgba(0,0,0,${k})`); gr.addColorStop(0.7, `rgba(0,0,0,${k * 0.9})`); gr.addColorStop(1, "rgba(0,0,0,0)");
       d.fillStyle = gr;
       d.beginPath(); d.moveTo(pts[0].x - camX, pts[0].y - camY);
       for (const p of pts) d.lineTo(p.x - camX, p.y - camY);
       d.closePath(); d.fill();
+    };
+    // L'éclair : tout s'illumine (sauf la cave, qui n'a pas de fenêtre).
+    if (flash) {
+      d.fillStyle = "rgba(0,0,0,0.85)"; d.fillRect(0, 0, W, HGT);
+    }
+    // La lune : le jardin à moitié éclairé, les rayons près des fenêtres.
+    const G = manor.gardenRect, MR = manor.manorRect;
+    d.fillStyle = "rgba(0,0,0,0.42)";
+    d.fillRect(G.x - camX, G.y - camY, G.w, MR.y - G.y);
+    d.fillRect(G.x - camX, MR.y + MR.h - camY, G.w, G.y + G.h - MR.y - MR.h);
+    d.fillRect(G.x - camX, MR.y - camY, MR.x - G.x, MR.h);
+    d.fillRect(MR.x + MR.w - camX, MR.y - camY, G.x + G.w - MR.x - MR.w, MR.h);
+    d.fillStyle = "rgba(0,0,0,0.5)";
+    for (const w of manor.windows) d.fillRect(w.patch.x - camX, w.patch.y - camY, w.patch.w, w.patch.h);
+    // Les lustres allumés (ils grésillent avant de s'éteindre).
+    const now = performance.now();
+    for (const r of manor.rooms) {
+      const until = litRooms.get(r.id);
+      if (!until || until < now) continue;
+      if (until - now < 3000 && Math.random() < 0.3) continue;
+      d.fillStyle = "rgba(0,0,0,0.88)"; d.fillRect(r.x - camX, r.y - camY, r.w, r.h);
+    }
+    // Mon regard (fantôme) : un grand cône, arrêté par les murs et les portes fermées.
+    if (iAmGhost && mv) {
+      poly(M.cone(blockers, mv.x, mv.y, mv.aim, M.SIGHT_RANGE, M.SIGHT_HALF, 40), mv.x, mv.y, M.SIGHT_RANGE, 0.8);
+      hole(mv.x - camX, mv.y - camY, 50, 0.8);
+    }
+    for (const v of views) {
+      if (v.ghost) continue;
+      // L'aura autour des humains (les fantômes ne la voient pas : il faut les voir avec son regard).
+      if (!iAmGhost) hole(v.x - camX, v.y - camY, v.id === me() ? 85 : 55, 0.85);
+      if (v.lamp) poly(M.cone(blockers, v.x, v.y, v.aim ?? v.face, M.LAMP_RANGE, M.LAMP_HALF, 30), v.x, v.y, M.LAMP_RANGE, 1);
     }
     d.globalCompositeOperation = "source-over";
+    // La cave reste dans le noir total pendant un éclair.
+    if (flash) {
+      const C = manor.caveRect;
+      d.fillStyle = "rgba(3,3,8,0.85)"; d.fillRect(C.x - camX, C.y - camY, C.w, C.h);
+    }
     g2d.drawImage(dark, 0, 0);
-    // Une lueur chaude dans les cônes.
+    // Lueurs : chaude dans les cônes, dorée sous les lustres, bleue sous la lune, blanche pendant l'éclair.
     g2d.save();
     g2d.globalCompositeOperation = "lighter";
     for (const v of views) {
       if (v.ghost || !v.lamp) continue;
-      const pts = M.cone(manor, v.x, v.y, v.aim ?? v.face, 30);
+      const pts = M.cone(blockers, v.x, v.y, v.aim ?? v.face, M.LAMP_RANGE, M.LAMP_HALF, 30);
       const x = v.x - camX, y = v.y - camY;
       const gr = g2d.createRadialGradient(x, y, 10, x, y, M.LAMP_RANGE);
       gr.addColorStop(0, `rgba(255,220,150,${0.16 + 0.02 * Math.sin(ts / 60)})`); gr.addColorStop(1, "rgba(255,220,150,0)");
@@ -759,10 +968,20 @@
       for (const p of pts) g2d.lineTo(p.x - camX, p.y - camY);
       g2d.closePath(); g2d.fill();
     }
+    for (const r of manor.rooms) {
+      const until = litRooms.get(r.id);
+      if (!until || until < now) continue;
+      const cx = r.x + r.w / 2 - camX, cy = r.y + r.h / 2 - camY;
+      const gr = g2d.createRadialGradient(cx, cy, 10, cx, cy, Math.max(r.w, r.h) * 0.7);
+      gr.addColorStop(0, "rgba(255,200,110,0.18)"); gr.addColorStop(1, "rgba(255,200,110,0)");
+      g2d.fillStyle = gr; g2d.fillRect(r.x - camX, r.y - camY, r.w, r.h);
+    }
+    for (const w of manor.windows) { g2d.fillStyle = "rgba(90,120,200,0.07)"; g2d.fillRect(w.patch.x - camX, w.patch.y - camY, w.patch.w, w.patch.h); }
+    if (flash) { g2d.fillStyle = "rgba(200,210,255,0.18)"; g2d.fillRect(0, 0, W, HGT); }
     g2d.restore();
   }
 
-  function pileArt(c, x, y, ts) {
+  function pileArt(c, x, y) {
     c.save(); c.translate(x, y); c.rotate(0.4);
     c.fillStyle = "rgba(0,0,0,0.35)"; c.fillRect(-7, -12, 18, 26);
     c.fillStyle = "#222"; c.fillRect(-9, -14, 18, 26);
@@ -799,7 +1018,7 @@
   function myScreen() {
     const v = pred ? ownView() : heroOf(me());
     if (!v || !manor) return null;
-    const camX = manor.w <= W ? (manor.w - W) / 2 : Math.max(0, Math.min(manor.w - W, v.x - W / 2));
+    const camX = Math.max(0, Math.min(manor.w - W, v.x - W / 2));
     const camY = manor.h <= HGT ? (manor.h - HGT) / 2 : Math.max(0, Math.min(manor.h - HGT, v.y - HGT / 2));
     return { x: v.x - camX, y: v.y - camY };
   }

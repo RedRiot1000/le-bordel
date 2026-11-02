@@ -279,24 +279,23 @@
     lampe: {
       goal: "Humain : survivre dans le manoir hanté jusqu'à la fin du chrono. Fantôme : toucher les humains… qui deviennent fantômes à leur tour !",
       steps: [
-        "Un <b>manoir</b> tiré au hasard (pièces, couloirs, portes, meubles), plongé dans le <b>noir</b>. Un joueur tiré au sort est le <b>fantôme</b> 👻 : il se réveille 3 s après le départ.",
-        "Les humains n'y voient qu'autour d'eux et dans le <b>cône de leur lampe</b>, qui éclaire vers le viseur (clique une fois dans le manoir pour capturer la souris, Échap pour la libérer). Les murs arrêtent la lumière.",
-        "Le fantôme est <b>invisible</b> dans le noir. Lui voit autour de lui (vision de nuit)… et les <b>lampes allumées de partout</b> : la lumière te trahit !",
-        "Un fantôme dans la lumière devient <b>visible et ralenti</b>. Éclairé <b>1,5 s</b> d'affilée (l'anneau jaune se remplit), il est <b>étourdi</b> 2,5 s et recule, puis la lumière ne lui fait plus rien pendant 2 s.",
-        "<b>Contagion</b> : chaque humain touché devient fantôme (figé 1,5 s) et chasse les autres. Quand un fantôme est tout près, l'écran tremble et rougit.",
-        "La <b>batterie</b> se vide en 25 s de lampe allumée. <b>Clic</b> pour l'éteindre et te cacher. Les <b>piles</b> 🔋 au sol (elles brillent en vert) la rechargent.",
-        "<b>Espace</b> : tu pousses ce qui est juste devant toi (un humain… ou un fantôme !).",
+        "Un <b>manoir</b> tiré au hasard, plongé dans le <b>noir</b> : hall d'entrée, salle de bal, long couloir, chambres, cuisine, placards… Autour, un <b>jardin</b> sous la lune (haies, fontaine, cimetière). Des <b>escaliers</b> descendent à la <b>cave</b>, et des <b>passages secrets</b> (des bibliothèques contre un mur) relient deux pièces : marche dedans pour ressortir à l'autre bout.",
+        "Un joueur tiré au sort est le <b>fantôme</b> 👻, il se réveille 3 s après le départ. Invisible dans le noir, il voit dans un grand <b>cône de regard</b> (vise avec la souris) mais <b>pas à travers les murs</b>. Il voit aussi de partout les <b>lampes allumées</b>, ce qui est sous la lune ou sous un lustre, et les planches qui craquent.",
+        "Les humains voient autour d'eux et dans le <b>cône de leur lampe</b>. Un fantôme éclairé devient <b>visible et ralenti</b> ; éclairé <b>1,5 s</b> d'affilée (l'anneau jaune se remplit), il est <b>étourdi</b> 2,5 s. Sous la lune, on le devine à peine.",
+        "<b>Espace</b> près d'une <b>porte</b> : tu la claques (elle arrête aussi la lumière et le regard). Un fantôme met <b>2 s</b> à la défoncer. Près d'un <b>interrupteur</b> : le lustre éclaire la pièce 20 s (un fantôme dedans est visible et ralenti), puis il grésille et s'éteint. Ailleurs : tu <b>pousses</b>.",
+        "<b>Pièges</b> : les planches un peu plus sombres <b>craquent</b> (les fantômes te repèrent 2 s), les <b>toiles d'araignée</b> te ralentissent. Et de temps en temps, un <b>éclair</b> illumine tout le manoir… sauf la cave !",
+        "<b>Contagion</b> : chaque humain touché devient fantôme. La <b>batterie</b> se vide en 25 s : <b>clic</b> pour éteindre et te cacher, ramasse des <b>piles</b> 🔋. Quand un fantôme est tout près, l'écran tremble et rougit.",
       ],
       controls: [
         "<kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> / flèches : bouger",
-        "🖱️ Souris : viser avec la lampe · <b>clic</b> : allumer / éteindre",
-        "<kbd>Espace</kbd> : pousser",
+        "🖱️ Souris : viser (la lampe, ou le regard du fantôme) · <b>clic</b> : lampe on / off",
+        "<kbd>Espace</kbd> : porte / interrupteur / pousser",
       ],
       points: [
         "Humain : <b>+1</b> toutes les 15 s passées humain, <b>+3</b> si tu l'es encore à la fin.",
         "Fantôme : <b>+2</b> par humain que tu touches.",
       ],
-      example: "Tu explores la bibliothèque, lampe éteinte pour économiser. L'écran se met à trembler : tu allumes et tu balaies… le drap blanc est là, à 2 m ! Tu le gardes dans le faisceau, il ralentit, l'anneau jaune se remplit : étourdi ! Tu files par la porte. Il reste 10 s, tu tiens jusqu'au bout : 6 + 3 = <b>9 points</b>.",
+      example: "Tu fouilles la bibliothèque, lampe éteinte. L'écran se met à trembler : tu files dans le couloir et tu claques la porte derrière toi. BAM, BAM… elle cède ! Tu allumes le lustre de la salle de bal : le drap blanc apparaît, ralenti. Tu le gardes dans ta lampe, étourdi ! Tu fonces dans la bibliothèque du fond… passage secret, tu ressors à l'autre bout du manoir. Tu tiens jusqu'au bout : <b>9 points</b>.",
     },
     neige: {
       goal: "Toucher les autres avec tes boules de neige sans te faire toucher. Dernier debout (ou dernière équipe) gagne la manche.",

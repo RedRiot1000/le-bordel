@@ -576,6 +576,30 @@ Choix de Scotty : contagion, lumière qui révèle + étourdit, manoir hanté al
   - fantômes : ils ne voient que les lampes allumées et les humains à moins de 420 px ; sinon ils rôdent de pièce en pièce.
 - **Simulation** (bots) : humains attrapés entre 20 s et 90 s, rarement un survivant (les bots humains sont plus faibles que de vrais joueurs).
 
+### Refonte du manoir (brainstorm validé, « Go »)
+- **Forme** (`manor.js`, cases de 150×130) :
+  - les cases sont regroupées en pièces de 1×1 à 3×2 : placard, salle de bain, bureau, salon, chambre, cuisine, bibliothèque, salle à manger ;
+  - pièces imposées : **hall** 3×2 (avec la grande porte), **long couloir** horizontal (tapis rouge), parfois un couloir vertical, **salle de bal** 4×2 ou 4×3 ;
+  - portes : un arbre couvrant (tout est relié) + des portes en plus (55 % autour des couloirs, du hall et de la salle de bal, 25 % ailleurs) ;
+  - murs fusionnés par ligne de la grille ; 8 + 0,9 × n cases de large, 6 ou 7 de haut.
+- **Jardin** (340 px autour) : allées, haies, arbres, fontaine devant la grande porte, petit cimetière dans un coin, clôture. 2 ou 3 portes vers le jardin, fermées au départ.
+- **Cave** : à droite, à part (dans le vide), 5 ou 6 × 4 cases (caves à vin, chaufferie). On y descend par 1 ou 2 **escaliers**.
+- **Passages secrets** (2 ou 3, entre deux pièces éloignées) : une bibliothèque contre un mur.
+  - On y entre en marchant **vers le mur** (sinon on se ferait téléporter en frôlant), et on ressort 46 px devant l'autre bout, 1,2 s avant le suivant.
+  - Les fantômes les voient (cercle violet). Un passage dont la sortie est bloquée est retiré ; un manoir sans escalier utilisable est re-tiré (seed + 7919).
+- **Portes** (`doors` en "0101…") : Espace à moins de 52 px = claquer ou rouvrir (pas sur quelqu'un). Une porte fermée bloque les humains, la lumière et le regard ; un fantôme qui pousse dessus la défonce en 2 s.
+- **Lustres** : un interrupteur dans les grandes pièces ; Espace = 20 s de lumière (fantôme dedans révélé et ralenti, pas étourdi), puis 15 s d'attente. Un fantôme qui touche l'interrupteur l'éteint. Ça grésille les 3 dernières secondes.
+- **Pièges** : planches qui craquent (repéré 2 s par les fantômes, onde visible), toiles d'araignée (humains ×0,6, déchirées en sortant).
+- **Ambiance** : fenêtres sur les murs extérieurs avec rayons de lune ; éclair toutes les 15 à 30 s (tout s'illumine 0,26 s, sauf la cave) ; tableaux, armures, plantes mortes, lustres, toiles ; traces d'ectoplasme derrière les fantômes (visibles seulement dans la lumière).
+- **Regard du fantôme** (demande de Scotty) :
+  - cône de **520 px / 110°** vers son viseur (relatif + pointer lock aussi), arrêté par les murs et les portes fermées ;
+  - il voit aussi les humains « exposés » de partout : lampe allumée, lune, lustre, planche qui craque, éclair ;
+  - vitesse ×1,1 dans le noir ; les cônes des fantômes alliés sont dessinés en violet.
+- **Bots** :
+  - humains : ils ouvrent les portes quand ils sont coincés et allument un lustre si un fantôme approche ;
+  - fantômes : ils ne voient que ce que voit un vrai fantôme, retiennent le dernier endroit où ils ont vu (ou entendu) un humain pendant 6 s, et balaient du regard.
+- **Simulation** : équilibré (selon les manches, le fantôme gagne ou 1 à 3 humains survivent).
+
 ## 8. Feuille de route
 
 | Phase | Contenu | Objectif |

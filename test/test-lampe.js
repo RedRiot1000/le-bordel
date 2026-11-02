@@ -31,11 +31,19 @@ console.log("— Manoir —");
   check(same, "40 manoirs : même seed = même manoir");
   check(reach, "Toutes les pièces sont accessibles");
   const m2 = M.build(5, 2), m8 = M.build(5, 8);
-  check(m2.w * m2.h < m8.w * m8.h, `Plus grand à 8 joueurs (${m2.nx}×${m2.ny} → ${m8.nx}×${m8.ny} pièces)`);
-  // La lumière : dans le cône oui, derrière soi non, et les murs l'arrêtent.
-  const r = m8.rooms[0], cx = r.x + 40, cy = r.y + r.h / 2;
-  check(M.inCone(m8, cx, cy, 0, cx + 150, cy) && !M.inCone(m8, cx, cy, Math.PI, cx + 150, cy), "Le cône de la lampe éclaire devant, pas derrière");
-  check(!M.inCone(m8, r.x + r.w / 2, r.y + 30, -Math.PI / 2, r.x + r.w / 2, r.y - 60), "Les murs arrêtent la lumière");
+  check(m2.rooms.length < m8.rooms.length, `Plus grand à 8 joueurs (${m2.rooms.length} → ${m8.rooms.length} pièces)`);
+  const kinds = new Set(m8.rooms.map((r) => r.kind));
+  check(["hall", "bal", "couloir"].every((k) => kinds.has(k)) && m8.rooms.some((r) => r.cave), "Hall, salle de bal, couloir… et une cave");
+  check(m8.portals.some((p) => p.kind === "stairs") && m8.portals.some((p) => p.kind === "secret"), `Escaliers et passages secrets (${m8.portals.length})`);
+  check(m8.switches.length > 0 && m8.creaks.length > 0 && m8.webs.length > 0 && m8.windows.length > 0 && m8.garden.length > 5, "Lustres, planches qui craquent, toiles, fenêtres, jardin");
+  // La lumière : dans le cône oui, derrière soi non, et les murs (et les portes fermées) l'arrêtent.
+  const blk = M.blockers(m8, []);
+  const r = m8.rooms.find((x) => !x.cave && x.w > 200), cx = r.x + 40, cy = r.y + r.h / 2;
+  check(M.inCone(blk, cx, cy, 0, cx + 150, cy) && !M.inCone(blk, cx, cy, Math.PI, cx + 150, cy), "Le cône de la lampe éclaire devant, pas derrière");
+  check(!M.inCone(blk, r.x + r.w / 2, r.y + 30, -Math.PI / 2, r.x + r.w / 2, r.y - 60), "Les murs arrêtent la lumière");
+  const d0 = m8.doors.find((d) => !d.ext), dc = { x: d0.x + d0.w / 2, y: d0.y + d0.h / 2 };
+  const a = d0.vert ? { x: dc.x - 60, y: dc.y } : { x: dc.x, y: dc.y - 60 }, b = d0.vert ? { x: dc.x + 60, y: dc.y } : { x: dc.x, y: dc.y + 60 };
+  check(M.los(blk, a.x, a.y, b.x, b.y) && !M.los(M.blockers(m8, [d0]), a.x, a.y, b.x, b.y), "Une porte fermée arrête la lumière et le regard");
 }
 
 const socket = io(URL, { transports: ["websocket"], forceNew: true });
@@ -66,6 +74,7 @@ async function run() {
   const ghosts0 = game.heroes.filter((h) => h.ghost);
   check(game.phase === "countdown" && game.heroes.length === 4 && ghosts0.length === 1, "4 joueurs : 1 fantôme, 3 humains");
   check(game.heroes.filter((h) => !h.ghost).every((h) => h.lamp && h.bat === 1), "Les humains commencent lampe allumée, batterie pleine");
+  check(game.doors.length > 10 && game.doors.includes("0") && game.doors.includes("1"), "Portes du manoir ouvertes, portes du jardin fermées");
   check(game.piles.length >= 5, `${game.piles.length} piles dans le manoir`);
   const m = M.build(game.manor.seed, game.manor.n);
   check(game.heroes.every((h) => m.nav.free[M.cellOf(m.nav, h.x, h.y)]), "Tout le monde démarre dans une pièce (pas dans un mur ni un meuble)");
