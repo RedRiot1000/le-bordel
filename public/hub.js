@@ -162,7 +162,8 @@ function renderPause() {
     ov = document.createElement("div");
     ov.id = "pause-overlay";
     ov.className = "pause-overlay";
-    document.body.appendChild(ov);
+    // Dans .app (même « couche » que la barre du haut) : la barre reste au-dessus et cliquable.
+    document.querySelector(".app").appendChild(ov);
   }
   const names = pz.votes.map((id) => escapeHtml(hub.players.find((p) => p.id === id)?.pseudo || "?"));
   const why = pz.host ? "L'hôte a mis la partie en pause." : `${names.join(", ")} ${pz.votes.length > 1 ? "ont" : "a"} demandé la pause.`;

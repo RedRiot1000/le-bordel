@@ -193,3 +193,5 @@
 .pause-card p { font-size: 17px; margin: 6px 0; }
 .pause-actions { margin: 16px 0 8px; display: flex; justify-content: center; }
 .pause-note { font-size: 14px; }
+/* La barre du haut reste cliquable pendant la pause (Reprendre, Arrêter le jeu, Quitter). */
+.hub-bar { position: relative; z-index: 950; }
