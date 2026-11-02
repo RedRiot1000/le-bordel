@@ -21,7 +21,7 @@ export const meta = {
   family: "Action",
   minPlayers: 2,
   maxPlayers: 8,
-  description: "En F1 dans une ville, la police arrive de partout. Tiens jusqu'au bout !",
+  description: "En F1 dans une ville, la police arrive de partout. Tiens jusqu'au bout, puis file vers la sortie !",
 };
 
 const TICK_MS = 1000 / 30;
@@ -51,12 +51,15 @@ export const COP_MIX = [
 // il faut semer la police dans les rues, pas juste tenir la ligne droite.
 export const COP_POWER = (stars) => 0.95 + 0.06 * stars;
 const HELI_STARS = 4;
-export const SURVIVE_BONUS = 3, PER_20S = 1, COP_ARREST = 2;
+export const SURVIVE_BONUS = 3, PER_20S = 1, COP_ARREST = 2;   // SURVIVE_BONUS = bonus d'évasion (sorti à temps)
+export const FROM_STATION = 0.9;       // 90 % des flics partent du commissariat, 10 % arrivent par les sorties
+export const SAFE_SPAWN = 400;         // ... sauf si un fugitif est à moins de 400 px de là
+const EXIT_GUARD = 3;                  // pendant « FUYEZ ! », 1 flic sur 3 va garder une sortie
 
 const COP_COLOR = "#16213e";
 
 function defaultSettings() {
-  return { rounds: 3, duration: 120 };
+  return { rounds: 3, duration: 120, flee: 30 };
 }
 
 export const playlist = {
@@ -102,6 +105,10 @@ export function createGame(ctx) {
     timeUpAt: 0,
     endAt: 0,
     stars: 1,
+    flee: false,          // fin du chrono : « FUYEZ ! », les sorties sont ouvertes
+    fleeEnd: 0,
+    escapes: [],          // { id, at } : sortis à temps
+    exitFields: [],       // distances vers chaque sortie (IA)
     heli: null,           // { target, x, y, a, orbit, sx, sy, on, locked }
     fields: {},           // id joueur libre -> distances (pour l'IA)
     copField: null,       // distance aux flics (pour les bots qui fuient)
@@ -120,6 +127,7 @@ export function createGame(ctx) {
   const players = () => ctx.players();
   const freeIds = () => Object.keys(g.cars).filter((id) => g.cars[id].role === "free");
   const durationMs = () => g.settings.duration * 1000;
+  const fleeMs = () => g.settings.flee * 1000;
 
   // Tous les véhicules de police (IA + joueurs arrêtés).
   function policeCars() {
@@ -141,7 +149,7 @@ export function createGame(ctx) {
       round: g.round,
       players: players().map((p) => ({ ...p, score: g.scores[p.id] || 0 })),
       city: g.city && { seed: g.city.seed, n: g.city.nPlayers },
-      cars: Object.entries(g.cars).map(([id, s]) => ({ id, role: s.role, seq: s.seq, arrest: Math.min(1, s.arrest / ARREST_MS), ...carOut(s.car) })),
+      cars: Object.entries(g.cars).filter(([, s]) => s.role !== "out").map(([id, s]) => ({ id, role: s.role, seq: s.seq, arrest: Math.min(1, s.arrest / ARREST_MS), ...carOut(s.car) })),
       // Flics IA : arrondis (ils peuvent être 32 : on allège ce qu'on envoie 30 fois par seconde).
       cops: g.cops.map(({ id, car: c }) => ({
         id, type: c.type, st: c.st, boost: c.boost,
@@ -157,6 +165,9 @@ export function createGame(ctx) {
       phaseLeft: Math.max(0, g.phaseEnd - t),
       copsIn: g.phase === "play" ? Math.max(0, g.playAt + COPS_DELAY - t) : COPS_DELAY,
       timeLeft: g.phase === "play" ? Math.max(0, g.timeUpAt - t) : g.phase === "countdown" ? durationMs() : 0,
+      flee: g.flee,
+      fleeLeft: g.flee ? Math.max(0, g.fleeEnd - t) : 0,
+      escapes: g.escapes,
       lastRound: g.lastRound,
       fx: g.fx.filter((f) => t - f.t < 600),
       playlist: ctx.playlist && { final: g.final },
@@ -181,19 +192,24 @@ export function createGame(ctx) {
     g.city = C.build(seed, list.length);
     g.city.nPlayers = list.length;
     g.env = { w: g.city.w, h: g.city.h, grip: 1, oils: [], obstacles: g.city.obstacles, nitro: true };
-    // Les rues atteignables (la plus grande zone reliée).
+    g.open = false;
+    // Les rues atteignables (dans la ville : pas sur les bretelles de sortie).
     const nav = g.city.nav;
-    const start = nav.free.findIndex((v, i) => v && i > nav.cols * 2);
-    const d = C.field(nav, [start]);
     g.roadCells = [];
-    for (let i = 0; i < d.length; i++) if (d[i] >= 0) g.roadCells.push(i);
-    // Départs : éparpillés dans la ville, loin les uns des autres.
+    for (let i = 0; i < nav.free.length; i++) {
+      const p = C.centerOf(nav, i);
+      if (nav.free[i] && C.inCity(g.city, p.x, p.y)) g.roadCells.push(i);
+    }
+    g.exitFields = g.city.exits.map((e) => C.field(nav, [C.nearestFree(nav, C.cellOf(nav, e.zone.x + e.zone.w / 2, e.zone.y + e.zone.h / 2))]));
+    // Départs : éparpillés dans la ville, loin les uns des autres et loin du commissariat.
     g.cars = {};
     const spots = [];
+    const st = g.city.station;
     for (const p of shuffle(list)) {
       let best = null, bestD = -1;
-      for (let k = 0; k < 40; k++) {
+      for (let k = 0; k < 60; k++) {
         const c = C.centerOf(nav, pick(g.roadCells));
+        if (dist(c, { x: st.x + st.w / 2, y: st.y + st.h / 2 }) < 900 && k < 50) continue;
         const dd = spots.length ? Math.min(...spots.map((s) => dist(s, c))) : rand(0, 1);
         if (dd > bestD) { bestD = dd; best = c; }
       }
@@ -206,6 +222,9 @@ export function createGame(ctx) {
     g.arrests = [];
     g.gains = {};
     g.stars = 1;
+    g.flee = false;
+    g.fleeEnd = 0;
+    g.escapes = [];
     g.heli = null;
     g.fields = {};
     g.copField = null;
@@ -239,7 +258,7 @@ export function createGame(ctx) {
     const t = now();
     const at = t - g.playAt;
     g.arrests.push({ id, at, by });
-    g.gains[id] = (g.gains[id] || 0) + Math.floor(at / 20000) * PER_20S;
+    g.gains[id] = (g.gains[id] || 0) + Math.floor(Math.min(at, durationMs()) / 20000) * PER_20S;
     for (const cid of by) g.gains[cid] = (g.gains[cid] || 0) + COP_ARREST;
     // Il devient flic : un van de police, au même endroit.
     const c = s.car;
@@ -255,10 +274,14 @@ export function createGame(ctx) {
   function endRound() {
     stopLoop();
     const t = now();
-    const survivors = freeIds();
-    for (const id of survivors) g.gains[id] = (g.gains[id] || 0) + Math.floor(durationMs() / 20000) * PER_20S + SURVIVE_BONUS;
+    // Sortis à temps : points de temps + bonus d'évasion. Encore dans la ville : arrêtés, points de temps seulement.
+    const survivors = g.escapes.map((e) => e.id).filter((id) => g.cars[id]);
+    const late = freeIds();
+    const timePts = Math.floor(durationMs() / 20000) * PER_20S;
+    for (const id of survivors) g.gains[id] = (g.gains[id] || 0) + timePts + SURVIVE_BONUS;
+    for (const id of late) g.gains[id] = (g.gains[id] || 0) + timePts;
     for (const [id, n] of Object.entries(g.gains)) g.scores[id] = (g.scores[id] || 0) + n;
-    g.lastRound = { survivors, arrests: g.arrests, gains: { ...g.gains }, stars: g.stars };
+    g.lastRound = { survivors, late, escapes: g.escapes, arrests: g.arrests, gains: { ...g.gains }, stars: g.stars };
     const last = g.round >= g.settings.rounds;
     g.phase = last ? "over" : "roundOver";
     if (last && ctx.playlist) {
@@ -289,9 +312,9 @@ export function createGame(ctx) {
     const free = freeIds();
     const max = Math.min(MAX_TOTAL, MAX_COPS[g.stars - 1] * free.length);
     if (free.length && g.cops.length < max && t >= g.nextSpawnAt) {
-      spawnCop(free);
       // Plus il y a de fugitifs, plus ça arrive vite.
-      g.nextSpawnAt = t + Math.max(350, ((3000 - g.stars * 400) / Math.max(1, free.length / 2)) * rand(0.7, 1.2));
+      if (spawnCop(free)) g.nextSpawnAt = t + Math.max(300, ((2600 - g.stars * 360) / Math.max(1, free.length / 2)) * rand(0.7, 1.2));
+      else g.nextSpawnAt = t + 250;
     }
     // L'hélico : à partir de ⭐⭐⭐⭐, il suit un joueur libre.
     if (g.stars >= HELI_STARS && free.length) {
@@ -325,23 +348,35 @@ export function createGame(ctx) {
     h.locked = h.on && Math.hypot(tc.x - h.sx, tc.y - h.sy) < 120;
   }
 
+  // 90 % des flics sortent de la cour du commissariat, 10 % arrivent par une sortie.
+  // Si un fugitif traîne juste à côté, on prend l'autre endroit (puis, en dernier recours, une rue au hasard).
   function spawnCop(free) {
     const targets = free.map((id) => g.cars[id].car);
     const others = policeCars();
+    const near = (p) => Math.min(...targets.map((t) => dist(t, p))) < SAFE_SPAWN;
+    const busy = (p) => others.some((o) => dist(o, p) < 60);
+    const station = g.city.station.spots, exits = g.city.exits.map((e) => e.spawn);
+    let pool = Math.random() < FROM_STATION ? station : exits;
+    if (pool.every(near)) pool = pool === station ? exits : station;
     let spot = null;
+    if (!pool.every(near)) {
+      spot = shuffle(pool).find((p) => !near(p) && !busy(p));
+      if (!spot) return false;   // la cour est encore pleine : on réessaie juste après
+    }
     for (let k = 0; k < 60 && !spot; k++) {
       const c = C.centerOf(g.city.nav, pick(g.roadCells));
       const dMin = Math.min(...targets.map((t) => dist(t, c)));
       if (dMin < SPAWN_MIN_DIST || dMin > SPAWN_MAX_DIST) continue;
       if (others.some((o) => dist(o, c) < 70)) continue;
-      spot = c;
+      spot = { ...c, a: roadAngle(c) };
     }
-    if (!spot) return;
+    if (!spot) return false;
     const mix = COP_MIX[g.stars - 1];
     let r = Math.random() * 100, type = "sport";
     for (const [ty, w] of Object.entries(mix)) { if ((r -= w) < 0) { type = ty; break; } }
-    const car = P.newCar(spot.x, spot.y, roadAngle(spot), type);
+    const car = P.newCar(spot.x, spot.y, spot.a, type);
     g.cops.push({ id: "cop" + ++g.copId, car, ai: {} });
+    return true;
   }
 
   // Les distances (en suivant les rues) vers chaque joueur libre, et vers les flics.
@@ -405,6 +440,13 @@ export function createGame(ctx) {
     if (!ai.target || !g.fields[ai.target]) return steerTo(c, ai, null);
     const t = g.cars[ai.target].car;
     const d = dist(c, t);
+    // « FUYEZ ! » : 1 flic sur 3 file se poster devant une sortie (sauf si un fugitif est tout près).
+    if (g.flee && idx % EXIT_GUARD === 2 && d > 300) {
+      const k = Math.floor(idx / EXIT_GUARD) % g.city.exits.length;
+      const post = g.city.exits[k].spawn;
+      if (dist(c, post) < 70) return steerTo(c, ai, null);
+      return steerTo(c, ai, C.lookAhead(nav, g.exitFields[k], c.x, c.y, 3), { corner: CORNER[c.type] || 210, nitro: c.type !== "truck" });
+    }
     // Vans et camions visent devant le joueur (pour lui couper la route), les autres le percutent.
     const lead = c.type === "minivan" || c.type === "truck" ? 0.8 : 0.35;
     let target;
@@ -421,6 +463,15 @@ export function createGame(ctx) {
   // Un bot fugitif : il choisit un point loin des flics et y va par les rues.
   function fleeKeys(id, s) {
     const c = s.car, ai = s.ai, nav = g.city.nav;
+    if (g.flee) {
+      // Direction la sortie la plus proche (par la route).
+      const cell = C.nearestFree(nav, C.cellOf(nav, c.x, c.y));
+      let best = 0;
+      g.exitFields.forEach((f, k) => { if (f[cell] >= 0 && (g.exitFields[best][cell] < 0 || f[cell] < g.exitFields[best][cell])) best = k; });
+      const z = g.city.exits[best].zone;
+      const target = g.exitFields[best][cell] <= 3 ? { x: z.x + z.w / 2, y: z.y + z.h / 2 } : C.lookAhead(nav, g.exitFields[best], c.x, c.y, 3);
+      return steerTo(c, ai, target, { corner: 250, nitro: true });
+    }
     ai.think = (ai.think || 0) - P.TICK;
     const near = Math.min(1e9, ...policeCars().map((o) => dist(o, c)));
     if (ai.think <= 0 || (near < 160 && !ai.panic) || (ai.goal && dist(ai.goal, c) < 80)) {
@@ -447,17 +498,18 @@ export function createGame(ctx) {
   const bonusOf = (car, isCop) => (isCop ? COP_POWER(g.stars) : 1);
   function allCars() {
     const list = [];
-    for (const [id, s] of Object.entries(g.cars)) list.push({ id, car: s.car });
+    for (const [id, s] of Object.entries(g.cars)) if (s.role !== "out") list.push({ id, car: s.car });
     for (const c of g.cops) list.push({ id: c.id, car: c.car });
     return list;
   }
 
   function advanceCar(car, k, isCop, selfId) {
     const dt = P.TICK / P.SUB;
+    const env = { ...g.env, obstacles: C.near(g.city, car.x, car.y, g.open) };
     const others = allCars().filter((o) => o.id !== selfId && Math.abs(o.car.x - car.x) < 140 && Math.abs(o.car.y - car.y) < 140);
     for (let sub = 0; sub < P.SUB; sub++) {
-      P.drive(car, k, dt, g.env, bonusOf(car, isCop));
-      const hit = P.collideStatic(car, g.env);
+      P.drive(car, k, dt, env, bonusOf(car, isCop));
+      const hit = P.collideStatic(car, env);
       if (hit > 220) addFx(car.x, car.y, hit);
       for (const o of others) {
         const res = P.collideCars(car, o.car);
@@ -480,6 +532,18 @@ export function createGame(ctx) {
         if (s.arrest >= ARREST_MS) arrest(id, around.map((p) => p.id).filter(Boolean));
       } else s.arrest = Math.max(0, s.arrest - TICK_MS * 2);
     }
+  }
+
+  // Sorti de la ville par une bretelle = évadé ! (il disparaît de la carte)
+  function checkEscapes(t) {
+    for (const id of freeIds()) {
+      const s = g.cars[id];
+      if (!g.city.exits.some((e) => C.inRect(s.car, e.zone))) continue;
+      s.role = "out";
+      g.escapes.push({ id, at: t - g.playAt });
+      if (g.heli?.target === id) g.heli.target = null;
+    }
+    if (freeIds().length === 0) g.endAt = t + END_DELAY;
   }
 
   function addFx(x, y, s, big = false) {
@@ -506,11 +570,21 @@ export function createGame(ctx) {
       updateFields(t);
       g.cops.forEach((cop, i) => advanceCar(cop.car, copKeys(cop, i), true, cop.id));
       for (const [id, s] of Object.entries(g.cars)) {
+        if (s.role === "out") continue;
         if (s.bot) advanceCar(s.car, s.role === "cop" ? copKeys(s, 0) : fleeKeys(id, s), s.role === "cop", id);
         else if (t - s.lastInputAt > 200) advanceCar(s.car, 0, s.role === "cop", id);   // onglet en pause
       }
       if (!g.endAt) checkArrests();
-      if (!g.endAt && t >= g.timeUpAt) g.endAt = t + END_DELAY;
+      if (!g.endAt && g.flee) checkEscapes(t);
+      // Fin du chrono : « FUYEZ ! » (s'il reste des fugitifs), puis fin de la manche.
+      if (!g.endAt && !g.flee && t >= g.timeUpAt) {
+        g.flee = true;
+        g.fleeEnd = t + fleeMs();
+        g.open = true;
+        g.env = { ...g.env, obstacles: g.city.obstaclesOpen };
+        g.stars = 5;
+      }
+      if (!g.endAt && g.flee && t >= g.fleeEnd) g.endAt = t + END_DELAY;
       if (g.endAt && t >= g.endAt) return endRound();
     }
     ctx.update();
@@ -534,6 +608,7 @@ export function createGame(ctx) {
       const s = { ...g.settings, ...settings };
       if (![2, 3, 5].includes(s.rounds)) s.rounds = 3;
       if (![90, 120, 180].includes(s.duration)) s.duration = 120;
+      if (![20, 30, 45].includes(s.flee)) s.flee = 30;
       g.settings = s;
       ctx.saveSettings({ ...s });
       ctx.update();

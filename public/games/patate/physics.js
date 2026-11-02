@@ -210,6 +210,8 @@
       }
       // Obstacles rectangulaires.
       for (const o of env.obstacles) {
+        // Portique (Avis de recherche) : seuls les véhicules étroits passent dessous (pas les vans ni les camions).
+        if (o.gate && spec(c).W < 26) continue;
         const qx = Math.max(o.x, Math.min(s.x, o.x + o.w));
         const qy = Math.max(o.y, Math.min(s.y, o.y + o.h));
         const dx = s.x - qx, dy = s.y - qy;

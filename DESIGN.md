@@ -446,6 +446,41 @@ Idée de Scotty : tout le monde en **F1**, la police (IA) arrive de plus en plus
 - Bots fugitifs : choisissent un point loin des flics (par la route) et y vont ; arrêtés, ils deviennent flics IA.
 - Simulation bots contre police (2 min) : 4 joueurs → arrestations entre 30 s et 110 s, 1-2 survivants ; 8 joueurs → 2-3 survivants.
 
+### Refonte de la ville + commissariat + sorties (brainstorm validé, « Go »)
+- **Ville** (`city.js`) :
+  - **3 quartiers** : centre-ville au milieu (tours, ruelles), zone industrielle et banlieue dans deux coins opposés.
+    Chaque pâté prend le quartier dont le centre est le plus proche.
+  - **Rivière** : une colonne ou une rangée de pâtés remplie d'eau. On la traverse par 2-3 ponts, plus le périphérique des deux côtés.
+  - **Boulevards** : 1 ou 2 rues élargies de 50 px de chaque côté, avec un terre-plein arboré. L'un d'eux passe forcément par un pont.
+  - **Ronds-points** : 2-3, de préférence aux croisements de boulevards. L'îlot est fait de 2 rectangles en croix (la physique ne gère que des rectangles).
+  - **Avenue en diagonale** : 3 esplanades en escalier, avec des kiosques dans les coins.
+  - **Périphérique** : la rue du bord, élargie de 110 px. Au-delà, 240 px de campagne (obstacle).
+  - **2 sorties** : deux bretelles sur un même bord, fermées par une barrière (`exitGate`) jusqu'à « FUYEZ ! ».
+- **Raccourcis à portique** : `gate: true`. Dans `physics.js`, un portique est ignoré par les véhicules de moins de 26 px de large : F1, sportive, supercar et moto passent ; van et camion sont bloqués.
+  - On en trouve dans les ruelles du centre (50 %), les parkings clôturés de la zone industrielle (camions garés) et les lotissements de banlieue (4 maisons, allées en croix).
+  - La grille de navigation de l'IA les traite comme des murs : **la police ne connaît pas les raccourcis**.
+  - Cette grille ne garde que la zone reliée au périphérique.
+- **Commissariat** : le pâté du centre le plus central, avec le bâtiment au fond et une cour ouverte sur la rue (3 places).
+  - **90 % des flics** sortent de la cour et **10 %** arrivent par les sorties.
+  - Si un fugitif est à moins de 400 px, ils arrivent par l'autre endroit. En dernier recours, dans une rue à 550-1200 px.
+  - Cour embouteillée : on réessaie 0,25 s plus tard.
+  - Les joueurs démarrent à plus de 900 px du commissariat.
+- **« FUYEZ ! »** (fin du chrono) :
+  - les barrières des sorties sautent, la police passe à ⭐⭐⭐⭐⭐ ;
+  - on a 20/30/45 s pour entrer dans la zone de sortie (réglage `flee`, 30 s par défaut). Une flèche verte pointe vers la sortie la plus proche ;
+  - sorti = rôle `out` : la voiture disparaît et la caméra suit un fugitif encore en ville ;
+  - 1 flic sur 3 va se poster devant une sortie (sauf si un fugitif est à moins de 300 px) ;
+  - les bots foncent vers la sortie la plus proche.
+- **Points** : sorti à temps = points de 20 s + 3. Pas sorti à temps = points de 20 s seulement. Les points de temps sont plafonnés à la durée de la manche.
+- **Look** :
+  - trottoirs avec voitures garées et lampadaires ;
+  - toits de tour : héliport, piscine, panneaux solaires, jardin, climatiseurs ;
+  - ombres plus longues pour les grands immeubles ; entrepôts en tôle avec verrières ; maisons à 2 pentes avec jardins et piscines ;
+  - campagne et arbres, rivière, ponts avec garde-corps, panneaux « SORTIE ».
+- **Mini-carte** : rues claires, quartiers colorés, rivière, commissariat 🚓, sorties en vert (elles clignotent pendant « FUYEZ ! »). **M** = la carte en grand au milieu de l'écran.
+- **Serveur** : il ne teste que les obstacles proches de chaque voiture (cases de 200 px, `C.near`).
+- **Simulation** (bots, 2 min) : arrestations entre 15 s et 140 s. Les bots sont presque tous pris avant la fin, l'un d'eux est sorti à 93 s (manche de 90 s).
+
 ## 7 duodecies. Pense pareil 🧠 — validé (« Go les deux »)
 
 Un thème (360 dans `games/pensepareil/prompts.js`), chacun écrit UNE réponse en secret (20/30/45 s).
