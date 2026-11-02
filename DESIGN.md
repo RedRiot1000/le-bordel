@@ -480,7 +480,8 @@ Servira à Territoire, Boules de neige, Lampe torche.
 - Réglage **Dalles** : **solides** (défaut) = 1er passage fissure, 2e passage → tombe 0,9 s après ; **fragiles** = tombe dès le 1er
   passage (l'idée d'origine). Rester planté plus de 1,1 s fait tomber la dalle. Après 60 s, le bord s'effrite tout seul.
   (Simulation : en « fragiles » l'arène se découpe en ~5-10 s de jeu à 4 ; en « solides » 12-22 s → défaut « solides ».)
-- Dash pour projeter les autres ; dalle dorée ★ toutes les ~7-11 s = **lourd 5 s**.
+- **Espace = pousser** (demande de Scotty, à la place du dash) : bras tendus, ceux qui sont juste devant (≈ 30 px, ±70°) sont
+  repoussés (540 px/s, moins s'ils sont lourds), on ne bouge pas ; recharge 0,9 s. Dalle dorée ★ toutes les ~7-11 s = **lourd 5 s**.
 - Points : 1 par joueur tombé avant toi. Manches 3/5/7 (défaut 3) ; playlist 3/5. Fin de manche : 1,5 s pour voir la dernière chute.
 - Bots : chemin de dalle intacte en dalle intacte (sans couper les coins) vers la zone la plus sûre ; dash sur un voisin
   au bord seulement si l'atterrissage est sûr.

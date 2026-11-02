@@ -20,12 +20,18 @@
   H.KNOCK = 560;            // force d'un coup de dash
   H.STUN = 0.35;            // temps où on contrôle mal après un coup (s)
   H.HEAVY_MASS = 3;         // masse quand on est « lourd » (bonus)
+  // Poussée (env.push : Espace = on tend les bras, sans bouger ; ceux qui sont juste devant sont repoussés)
+  H.PUSH_CD = 0.9;          // recharge (s)
+  H.PUSH_TIME = 0.2;        // bras tendus (pour le dessin)
+  H.PUSH_REACH = 30;        // portée devant soi (en plus des deux corps)
+  H.PUSH_ANGLE = 1.25;      // demi-angle devant soi (rad, ~70°)
+  H.PUSH_FORCE = 540;       // vitesse donnée à celui qu'on pousse
 
   // Touches (les mêmes bits pour tous les jeux à pied).
   H.K = { UP: 1, DOWN: 2, LEFT: 4, RIGHT: 8, DASH: 16, FIRE: 32 };
 
-  H.newHero = (x, y, face = 0) => ({ x, y, vx: 0, vy: 0, face, dash: 0, dashT: 0, stun: 0, heavy: 0, walk: 0 });
-  H.copy = (h) => ({ x: h.x, y: h.y, vx: h.vx, vy: h.vy, face: h.face, dash: h.dash, dashT: h.dashT, stun: h.stun, heavy: h.heavy, walk: h.walk });
+  H.newHero = (x, y, face = 0) => ({ x, y, vx: 0, vy: 0, face, dash: 0, dashT: 0, pushT: 0, stun: 0, heavy: 0, walk: 0 });
+  H.copy = (h) => ({ x: h.x, y: h.y, vx: h.vx, vy: h.vy, face: h.face, dash: h.dash, dashT: h.dashT, pushT: h.pushT || 0, stun: h.stun, heavy: h.heavy, walk: h.walk });
   H.mass = (h) => (h.heavy > 0 ? H.HEAVY_MASS : 1);
 
   // Direction voulue d'après les touches (vecteur de longueur 1, ou 0).
@@ -45,11 +51,14 @@
     const speed = H.SPEED * (env.speedMul || 1);
     h.dash = Math.max(0, h.dash - dt);
     h.heavy = Math.max(0, h.heavy - dt);
+    h.pushT = Math.max(0, (h.pushT || 0) - dt);
+    // Mode « poussée » : Espace = bras tendus (on ne bouge pas plus vite). Le jeu applique la poussée (H.applyPush).
+    if (env.push && k & H.K.DASH && h.dash <= 0) { h.pushT = H.PUSH_TIME; h.dash = H.PUSH_CD; h.pushed = true; }
     if (h.dashT > 0) {
       h.dashT = Math.max(0, h.dashT - dt);          // en plein dash : on file tout droit
     } else {
       // Dash : dans la direction où on va (sinon devant soi).
-      if (k & H.K.DASH && h.dash <= 0 && !env.noDash) {
+      if (k & H.K.DASH && h.dash <= 0 && !env.noDash && !env.push) {
         const d = w.x || w.y ? w : { x: Math.cos(h.face), y: Math.sin(h.face) };
         h.vx = d.x * H.DASH_SPEED; h.vy = d.y * H.DASH_SPEED;
         h.dashT = H.DASH_TIME; h.dash = H.DASH_CD;
@@ -128,6 +137,23 @@
       if (!fixedB) { b.vx += (j / mb) * nx; b.vy += (j / mb) * ny; }
     }
     return { touch: true, dash: false, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  };
+
+  // La poussée de « a » : tous ceux qui sont juste devant lui sont repoussés (moins s'ils sont lourds).
+  // Renvoie la liste des bonshommes touchés.
+  H.applyPush = function (a, others) {
+    const hits = [];
+    for (const b of others) {
+      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+      if (d > H.R * 2 + H.PUSH_REACH || d < 0.01) continue;
+      const diff = Math.atan2(Math.sin(Math.atan2(dy, dx) - a.face), Math.cos(Math.atan2(dy, dx) - a.face));
+      if (Math.abs(diff) > H.PUSH_ANGLE) continue;
+      const f = H.PUSH_FORCE * Math.min(2, H.mass(a) / H.mass(b));
+      b.vx += (dx / d) * f; b.vy += (dy / d) * f;
+      b.stun = H.STUN;
+      hits.push(b);
+    }
+    return hits;
   };
 
   // Un calcul complet (1/30 s) pour UN bonhomme : déplacement, murs, chocs avec les autres.

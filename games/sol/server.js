@@ -165,7 +165,8 @@ export function createGame(ctx) {
   const players = () => ctx.players();
   const pseudo = (id) => players().find((p) => p.id === id)?.pseudo || "?";
   const alive = () => Object.keys(g.heroes).filter((id) => g.heroes[id].alive);
-  const ENV = { walls: false, speedMul: 0.85 };   // on marche un peu moins vite ici (sinon l'arène fond trop vite)
+  // On marche un peu moins vite ici (sinon l'arène fond trop vite) ; Espace = POUSSÉE (pas de dash).
+  const ENV = { walls: false, speedMul: 0.85, push: true };
 
   // =================================================================
   //  ÉTAT PUBLIC (30 fois/s)
@@ -192,7 +193,7 @@ export function createGame(ctx) {
       arena: g.tiles && { shape: g.shape, cols: COLS, rows: ROWS, tile: TILE, tiles: tileString(), gold: g.gold },
       heroes: Object.entries(g.heroes).map(([id, s]) => ({
         id, seq: s.seq, alive: s.alive, falling: s.falling ? Math.min(1, (t - s.fallAt) / FALL_MS) : 0,
-        x: s.h.x, y: s.h.y, vx: s.h.vx, vy: s.h.vy, face: s.h.face, dash: s.h.dash, dashT: s.h.dashT, stun: s.h.stun, heavy: s.h.heavy, walk: s.h.walk,
+        x: s.h.x, y: s.h.y, vx: s.h.vx, vy: s.h.vy, face: s.h.face, dash: s.h.dash, dashT: s.h.dashT, pushT: s.h.pushT, stun: s.h.stun, heavy: s.h.heavy, walk: s.h.walk,
       })),
       phaseLeft: Math.max(0, g.phaseEnd - t),
       feed: g.feed.slice(-4),
@@ -308,15 +309,20 @@ export function createGame(ctx) {
     const dt = H.TICK / H.SUB;
     for (let sub = 0; sub < H.SUB; sub++) {
       H.drive(s.h, k, null, dt, ENV);
+      // Il vient d'appuyer sur Espace : ceux qui sont juste devant lui sont repoussés.
+      if (s.h.pushed) {
+        s.h.pushed = false;
+        const others = Object.entries(g.heroes).filter(([oid, o]) => oid !== id && o.alive && !o.falling);
+        const hits = H.applyPush(s.h, others.map(([, o]) => o.h));
+        for (const hh of hits) {
+          const oid = others.find(([, o]) => o.h === hh)[0];
+          g.lastHits[oid] = { by: id, t: now() };
+          addFx((s.h.x + hh.x) / 2, (s.h.y + hh.y) / 2, true);
+        }
+      }
       for (const [oid, o] of Object.entries(g.heroes)) {
         if (oid === id || !o.alive || o.falling) continue;
-        const res = H.collideHeroes(s.h, o.h);
-        if (!res.touch) continue;
-        if (res.dash) {
-          const by = res.by === "a" ? id : oid, to = by === id ? oid : id;
-          g.lastHits[to] = { by, t: now() };
-          addFx(res.x, res.y, true);
-        }
+        H.collideHeroes(s.h, o.h);
       }
     }
   }
@@ -408,18 +414,19 @@ export function createGame(ctx) {
     else ang = h.face;
     ai.dir = Math.round(((ang + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8;
     let k = DIRKEYS[ai.dir];
-    // Dash sur un voisin proche du bord (s'il est devant nous).
+    // Poussée : un voisin juste devant nous, près du bord → on le pousse (on se tourne vers lui).
     if (h.dash <= 0) {
       for (const [oid, o] of Object.entries(g.heroes)) {
         if (oid === id || !o.alive || o.falling) continue;
         const dx = o.h.x - h.x, dy = o.h.y - h.y, d = Math.hypot(dx, dy);
         const oi = tileAt(o.h.x, o.h.y);
-        if (d < 80 && oi >= 0 && vd[oi] <= 2 && Math.random() < 0.12) {
+        if (d < H.R * 2 + H.PUSH_REACH - 4 && oi >= 0 && vd[oi] <= 3 && Math.random() < 0.3) {
           const a = Math.round(((Math.atan2(dy, dx) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8;
-          // Seulement si on atterrit sur du solide (un dash fait ~2 dalles) : sinon on tombe soi-même !
+          // On ne s'avance vers lui que si la dalle devant nous est sûre.
           const [ux, uy] = DIRS[a];
-          const land = [45, 90, 135].map((st) => tileAt(h.x + ux * st, h.y + uy * st));
-          if (land.some((li) => li < 0 || !g.tiles[li] || g.crackAt[li])) continue;
+          const li = tileAt(h.x + ux * 30, h.y + uy * 30);
+          if (li < 0 || !g.tiles[li] || g.crackAt[li]) continue;
+          h.face = Math.atan2(dy, dx);
           k = DIRKEYS[a] | K.DASH;
           break;
         }

@@ -51,8 +51,17 @@
       c.beginPath(); c.arc(0, 0, 21, 0, Math.PI * 2); c.stroke();
     }
     // Bras + mains (de chaque côté, ils balancent en opposition).
+    const pushing = h.pushT > 0;
     for (const side of [-1, 1]) {
-      const fx = swing * side;
+      const fx = pushing ? 0 : swing * side;
+      if (pushing) {
+        // Bras tendus devant (la poussée).
+        c.fillStyle = shade(color, 0.75);
+        c.beginPath(); c.ellipse(8, side * 9, 9, 4, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = skin;
+        c.beginPath(); c.arc(18, side * 8, 4.5, 0, Math.PI * 2); c.fill();
+        continue;
+      }
       c.fillStyle = shade(color, 0.75);
       c.beginPath(); c.ellipse(fx * 0.5, side * 13, 6, 4.5, 0, 0, Math.PI * 2); c.fill();
       c.fillStyle = skin;

@@ -25,7 +25,7 @@
   const seenFx = new Set();
   let shake = 0, prevPhase = null, playSeenAt = 0;
   const falling = {};             // tombés : on garde leur dernière position pour l'animation
-  const ENV = { walls: false, speedMul: 0.85 };   // (le même que games/sol/server.js)
+  const ENV = { walls: false, speedMul: 0.85, push: true };   // (le même que games/sol/server.js)
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => api.escapeHtml(s);
@@ -47,9 +47,9 @@
         <div class="card">
           <h2>🎮 Règles & commandes</h2>
           <ul class="pt-help">
-            <li><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> / flèches pour courir · <kbd>Espace</kbd> <b>dash</b> (recharge 2 s)</li>
+            <li><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> / flèches pour courir · <kbd>Espace</kbd> <b>pousser</b> (ceux qui sont juste devant toi)</li>
             <li>🟫 Les dalles où tu passes <b>se fissurent</b>, puis <b>tombent</b> (au 2e passage, ou dès le 1er en « fragiles »). Rester planté les fait tomber aussi.</li>
-            <li>💥 Le dash <b>projette</b> les autres : pousse-les dans le vide !</li>
+            <li>💥 Mets-toi face à quelqu'un et appuie sur Espace : il est <b>repoussé</b>. Envoie-le dans le vide !</li>
             <li>🟨 Dalle dorée : tu deviens <b>lourd 5 s</b> (impossible à pousser, tes coups sont plus forts).</li>
             <li>🏆 1 point par joueur tombé avant toi. Le dernier debout gagne la manche.</li>
           </ul>
@@ -67,14 +67,14 @@
       <div class="ch-hud">
         <span class="pill" id="so-round"></span>
         <span id="so-alive" class="ch-role"></span>
-        <div id="so-dash" class="pt-nitro" title="Dash (Espace)"><span>DASH</span><div class="bar"><i></i></div></div>
+        <div id="so-dash" class="pt-nitro" title="Pousser (Espace)"><span>POUSSÉE</span><div class="bar"><i></i></div></div>
       </div>
       <div class="pt-arena-wrap">
         <canvas id="so-canvas"></canvas>
         <ul id="so-feed" class="so-feed"></ul>
         <div id="so-overlay" class="pt-overlay hidden"></div>
       </div>
-      <p class="muted pt-keys">ZQSD / flèches = courir · Espace = dash</p>
+      <p class="muted pt-keys">ZQSD / flèches = courir · Espace = pousser</p>
     </div>`;
 
   // ===================================================================
@@ -404,7 +404,7 @@
     // Jauge de dash.
     const mine = pred || heroOf(me());
     const bar = document.querySelector("#so-dash i");
-    if (bar && mine) { bar.style.width = Math.round((1 - Math.min(1, (mine.dash || 0) / H.DASH_CD)) * 100) + "%"; bar.parentElement.classList.toggle("on", (mine.dash || 0) <= 0); }
+    if (bar && mine) { bar.style.width = Math.round((1 - Math.min(1, (mine.dash || 0) / H.PUSH_CD)) * 100) + "%"; bar.parentElement.classList.toggle("on", (mine.dash || 0) <= 0); }
   }
 
   function band(big, small) {

@@ -31,6 +31,14 @@ console.log("— Moteur bonhomme —");
   const c2 = H.newHero(100, 100), hv = { ...H.newHero(150, 100), heavy: 5 };
   for (let i = 0; i < 6; i++) { H.simulate(c2, K.RIGHT | K.DASH, null, {}); H.collideHeroes(c2, hv); H.drive(hv, 0, null, H.TICK, {}); }
   check(hv.vx < b.vx * 0.5, "Un joueur « lourd » est bien plus dur à pousser");
+  // La poussée (Sol qui s'effondre) : on ne bouge pas, celui qui est devant est repoussé.
+  const p = H.newHero(100, 100, 0), front = H.newHero(140, 100), behind = H.newHero(60, 100);
+  H.simulate(p, K.DASH, null, { push: true });
+  check(p.pushed && p.pushT > 0 && Math.hypot(p.vx, p.vy) < 1, "Poussée : bras tendus, sans avancer");
+  const hits = H.applyPush(p, [front, behind]);
+  check(hits.length === 1 && hits[0] === front && front.vx > 400 && behind.vx === 0, "Seul celui qui est DEVANT est repoussé");
+  H.simulate(p, K.DASH, null, { push: true });
+  check(p.dash > 0.5, "Recharge avant de pouvoir repousser");
   const w = H.newHero(20, 20);
   for (let i = 0; i < 20; i++) H.simulate(w, K.LEFT | K.UP, null, { walls: true, w: 400, h: 400, rects: [] });
   check(w.x >= H.R - 0.01 && w.y >= H.R - 0.01, "Les murs l'arrêtent");
