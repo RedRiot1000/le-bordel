@@ -1,0 +1,7 @@
+/* ROI DE LA COLLINE — styles (le reste vient de patate.css, chat.css et sol.css : .pt-*, .ch-*, .so-feed) */
+#kc-canvas {
+  display: block; width: 100%; height: auto; max-height: 72vh; object-fit: contain; cursor: crosshair;
+  border-radius: var(--radius); border: 3px solid rgba(255, 210, 63, 0.45); box-shadow: var(--shadow);
+}
+.pt-arena-wrap.over #kc-canvas { display: none; }
+.pt-arena-wrap.over #kc-feed { display: none; }

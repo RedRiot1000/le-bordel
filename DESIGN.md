@@ -664,6 +664,18 @@ Choix : s'échapper par les fusibles, 2 coups pour tuer, cachettes + portes + ob
   - tueur : il ne voit que ce que voit un vrai tueur, va voir les bruits, se souvient 7 s du dernier endroit, patrouille autour des fusibles et du tableau, fouille les cachettes qu'il croise.
 - **Simulation** : le tueur bot gagne souvent contre les bots humains (qui fuient mal) ; une partie des humains branche des fusibles et s'échappe de temps en temps.
 
+## 7 novodecies. Roi de la colline 👑 — validé (« Go »)
+
+Idée de Scotty : tout le monde a une batte, apparaît en cercle autour d'une zone dorée ; chaque seconde dans la zone = 1 point.
+Choix : la zone se déplace, une zone contestée ne rapporte rien, coup de batte simple, obstacles.
+- **Arène** sur un écran (1280×800), palissade autour, 6 à 9 obstacles (piliers, caisses) loin du centre. Tout le monde apparaît en cercle (rayon 250) autour de la zone, chaque équipe de son côté.
+- **Zone dorée** : rayon 110, au centre au départ, puis elle saute ailleurs toutes les 20 s (loin de l'ancienne, pas sur un obstacle). On voit la suivante 3 s avant : cercle en pointillé, compte à rebours, flèche.
+- **Points** : chaque seconde, si un seul camp (un joueur, ou une équipe) est dans la zone, ceux qui y sont gagnent 1 s. Plusieurs camps = contestée (anneau rouge qui clignote), personne ne marque. Le score de soirée = total des secondes personnelles.
+- **Batte** : clic, 64 px devant soi, ±1,05 rad, recharge 0,65 s. La victime part à 640 px/s (direction du coup et un peu vers l'extérieur) et contrôle mal pendant 0,45 s. Pas de coup ami en équipes.
+- **Modes** : `aleatoire` (défaut : 1 chance sur 2 d'être en équipes à partir de 4 joueurs), `equipes` (à partir de 3), `solo`. Manches 3 / 5 / 7, durée 60 / 90 / 120 s.
+- **Bots** : ils vont dans la zone (ou la suivante juste avant le saut) ; près d'un ennemi, ils se placent pour le frapper vers l'extérieur de la zone.
+- **Simulation** : zone contestée 20 à 40 % du temps, des centaines de coups par manche.
+
 ## 8. Feuille de route
 
 | Phase | Contenu | Objectif |

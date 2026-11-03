@@ -276,6 +276,25 @@
       ],
       example: "Tu es chez les 🔴. Tu fonces vers une grosse zone bleue en tirant des jets devant toi, tu ramasses le 🧹 et tu traverses toute l'arène en laissant une bande rouge énorme. À 10 s de la fin, la barre est à 48 % contre 47 %… tu attrapes la 💣 en plein milieu des bleus : victoire !",
     },
+    colline: {
+      goal: "Rester dans la zone dorée le plus longtemps possible, seul (ou seule ton équipe), en virant les autres à coups de batte.",
+      steps: [
+        "Tout le monde apparaît <b>en cercle autour de la zone dorée</b>, dans une arène fermée avec des piliers et des caisses. Chacun a une <b>batte</b>.",
+        "Chaque seconde passée dans la zone rapporte <b>1 point</b>… seulement si personne d'autre (ou aucune autre équipe) n'y est. Sinon la zone est <b>contestée</b> : elle clignote en rouge et personne ne marque.",
+        "<b>Clic</b> : un coup de batte dans la direction du viseur (il te suit quand tu marches ; clique une fois sur l'arène pour capturer la souris). Le coup <b>propulse fort</b> ceux qui sont juste devant toi.",
+        "Toutes les <b>20 s</b>, la zone saute ailleurs : on voit 3 s avant où elle va (cercle en pointillé, compte à rebours, flèche). Tout le monde court !",
+        "Modes : <b>aléatoire</b> (par défaut : chaque manche est tirée au sort), <b>équipes</b> 🔴 contre 🔵 (pas de coup ami) ou <b>chacun pour soi</b>.",
+      ],
+      controls: [
+        "<kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> / flèches : bouger",
+        "🖱️ Souris : viser · <b>clic</b> : coup de batte",
+      ],
+      points: [
+        "<b>+1 par seconde</b> passée dans la zone pendant que ton camp la tient seul.",
+        "Le classement final = le total des secondes sur toutes les manches.",
+      ],
+      example: "La zone va sauter près du pilier : tu cours avant les autres, tu es seul dedans, 1, 2, 3 s… Bob arrive, contesté ! Tu vises et PAF, coup de batte : il glisse hors de la zone. Tu reprends le compte jusqu'au prochain saut.",
+    },
     tueur: {
       goal: "Humain : rapporter les fusibles au tableau électrique pour ouvrir le portail, puis s'échapper. Tueur : tuer tout le monde avant.",
       steps: [
