@@ -138,15 +138,17 @@ export function createGame(ctx) {
 
   // Une place pour la zone : loin des obstacles (et de l'ancienne zone).
   function zoneSpot(avoid) {
+    // On garde la place la plus loin de l'ancienne zone (jamais la même), sans obstacle dedans.
     let best = null, bd = -1;
-    for (let k = 0; k < 60; k++) {
+    for (let k = 0; k < 80; k++) {
       const z = { x: rand(ZONE_R + 60, W - ZONE_R - 60), y: rand(ZONE_R + 50, HGT - ZONE_R - 50), r: ZONE_R };
       if (g.rects.some((r) => overlap({ x: z.x - z.r, y: z.y - z.r, w: 2 * z.r, h: 2 * z.r }, r, 10))) continue;
-      const d = avoid ? Math.hypot(z.x - avoid.x, z.y - avoid.y) : 0;
-      if (avoid && d < 350) continue;
-      if (d > bd || !avoid) { bd = d; best = z; if (!avoid) break; }
+      if (!avoid) return z;
+      const d = Math.hypot(z.x - avoid.x, z.y - avoid.y);
+      if (d > bd) { bd = d; best = z; }
+      if (d > 450 && Math.random() < 0.3) break;
     }
-    return best || { x: W / 2, y: HGT / 2, r: ZONE_R };
+    return best || (avoid && Math.hypot(avoid.x - W / 2, avoid.y - HGT / 2) < 50 ? { x: W / 2 + (Math.random() < 0.5 ? -360 : 360), y: HGT / 2, r: ZONE_R } : { x: W / 2, y: HGT / 2, r: ZONE_R });
   }
 
   function startRound() {
