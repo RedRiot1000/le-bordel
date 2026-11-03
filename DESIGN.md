@@ -487,6 +487,24 @@ Idée de Scotty : tout le monde en **F1**, la police (IA) arrive de plus en plus
   - **Formes variées** (dessin seulement, tiré de la seed) : tour simple, rangée de 2 à 4 immeubles de hauteurs différentes, tour sur esplanade, immeuble en L avec jardin, immeuble autour d une cour, entrepôt + bureaux, entrepôt + silos.
 - **Simulation** (bots, 2 min) : arrestations entre 15 s et 140 s. Les bots sont presque tous pris avant la fin, l'un d'eux est sorti à 93 s (manche de 90 s).
 
+### Ville refaite (demande de Scotty : « trop grille », trottoirs incohérents, ronds-points au hasard, périph collé)
+- **Monde en tuiles de 30 px** (`city.js`). Une tuile est soit roulable (route, trottoir, place, pont, périphérique, ruelle, cour, bretelle, garage), soit bloquante (terrain, eau, îlot, clôture).
+  - Les obstacles = les tuiles bloquantes regroupées en rectangles.
+  - **Tous les trottoirs se montent** : ce qui ressemble à du bitume ou du pavé se roule, le reste (bâtiments, jardins, parcs, champs) bloque.
+  - Grille de navigation = les tuiles (une tuile roulable qui ne touche pas d'obstacle), sans les raccourcis à portique.
+- **3 villes séparées** côte à côte : zone industrielle et banlieue de chaque côté (au hasard), centre-ville au milieu. Entre elles, la campagne et une rivière (8 tuiles).
+  - Une **grande rue est-ouest** traverse les 3 villes (même ligne) et passe les rivières par de longs ponts.
+  - Chaque ville a une **grande avenue nord-sud**, prolongée par des **voies d'accès** jusqu'au périphérique.
+  - **Un seul rond-point par ville**, au croisement avenue × grande rue (place centrale).
+  - Le reste de chaque quart de ville est découpé au hasard (BSP) : des rues en T, jamais de quadrillage régulier, pas de route qui fait le tour de la ville.
+  - Rues de 3 tuiles (centre, banlieue) ou 4 (usines).
+- **Périphérique** (7 tuiles, 2 × 2 voies) loin des villes (8 tuiles de campagne), voies d'insertion dessinées en face de chaque accès, panneaux bleus avec le nom de la ville. 2 sorties : des bretelles vers l'extérieur, au-dessus des villes de côté.
+- **Pâtés** (trottoir d'1 tuile tout autour) :
+  - centre : îlot d'immeubles à l'alignement de la rue, de hauteurs différentes, avec cour intérieure ; tours sur pelouse ; place pavée roulable avec fontaine ; parc ; parfois une ruelle à portiques ;
+  - usines : entrepôt, usine (cheminées), cour clôturée traversable (portiques aux 2 entrées, conteneurs) ;
+  - banlieue : maisons sur les 4 côtés face à la rue (jardins, piscines, haies), impasse avec rond de retournement, parc, terrain de foot, allée à portiques.
+- **Commissariat** : le grand pâté du centre-ville le plus central, garage ouvert sur l'avenue.
+
 ## 7 duodecies. Pense pareil 🧠 — validé (« Go les deux »)
 
 Un thème (360 dans `games/pensepareil/prompts.js`), chacun écrit UNE réponse en secret (20/30/45 s).

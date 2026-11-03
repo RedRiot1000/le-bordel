@@ -34,10 +34,16 @@ console.log("— Ville —");
   }
   check(ok, "60 villes : même seed = même ville, et (presque) toutes les rues se rejoignent");
   const c8 = C.build(4242, 8);
-  check(c8.exits.length === 2 && c8.station.spots.length === 3 && c8.water.length >= 2 && c8.rounds.length >= 2 && c8.gates.length > 0,
-    `Ville complète : rivière (${c8.bridges.length} ponts), ${c8.rounds.length} ronds-points, ${c8.gates.length} portiques, commissariat, 2 sorties`);
-  const dists = new Set(c8.blocks.map((b) => b.d));
-  check(dists.size === 3, "3 quartiers : " + [...dists].join(", "));
+  check(c8.exits.length === 2 && c8.station.spots.length === 3 && c8.rivers.length === 2 && c8.rounds.length === 3 && c8.gates.length > 0,
+    `Ville complète : 2 rivières, ${c8.rounds.length} ronds-points (au centre de chaque ville), ${c8.gates.length} portiques, commissariat, 2 sorties`);
+  const dists = new Set(c8.towns.map((t) => t.d));
+  check(dists.size === 3 && c8.towns[1].d === "centre", "3 villes séparées, le centre-ville au milieu : " + c8.towns.map((t) => t.d).join(", "));
+  // Le périphérique n'est pas collé aux villes.
+  check(c8.towns.every((t) => t.y - (c8.highway.y + c8.highway.lane) >= 150), "Le périphérique passe loin des villes (voies d'accès)");
+  // Les trottoirs se montent : tous les trottoirs sont roulables.
+  let sw = 0, swOk = 0;
+  for (let i = 0; i < c8.grid.length; i++) if (c8.grid[i] === C.KIND.SIDEWALK) { sw++; const x = (i % c8.TW) * C.TILE + 15, y = Math.floor(i / c8.TW) * C.TILE + 15; if (!c8.obstacles.some((o) => x > o.x && x < o.x + o.w && y > o.y && y < o.y + o.h)) swOk++; }
+  check(sw > 100 && swOk === sw, `Tous les trottoirs sont montables (${sw} tuiles)`);
   // Portique : une F1 passe dessous, un van non.
   const gateEnv = { w: 2000, h: 2000, grip: 1, oils: [], obstacles: [{ x: 600, y: 900, w: 10, h: 200, gate: true }], nitro: false };
   const through = (type) => { const car = P.newCar(400, 1000, 0, type); for (let k = 0; k < 90; k++) P.simulate(car, P.K.UP, gateEnv, 1, []); return car.x > 620; };
