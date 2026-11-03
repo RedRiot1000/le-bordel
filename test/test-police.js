@@ -34,16 +34,28 @@ console.log("— Ville —");
   }
   check(ok, "60 villes : même seed = même ville, et (presque) toutes les rues se rejoignent");
   const c8 = C.build(4242, 8);
-  check(c8.exits.length === 2 && c8.station.spots.length === 3 && c8.rivers.length === 2 && c8.rounds.length === 3 && c8.gates.length > 0,
-    `Ville complète : 2 rivières, ${c8.rounds.length} ronds-points (au centre de chaque ville), ${c8.gates.length} portiques, commissariat, 2 sorties`);
-  const dists = new Set(c8.towns.map((t) => t.d));
-  check(dists.size === 3 && c8.towns[1].d === "centre", "3 villes séparées, le centre-ville au milieu : " + c8.towns.map((t) => t.d).join(", "));
-  // Le périphérique n'est pas collé aux villes.
-  check(c8.towns.every((t) => t.y - (c8.highway.y + c8.highway.lane) >= 150), "Le périphérique passe loin des villes (voies d'accès)");
+  check(c8.exits.length === 2 && c8.station.spots.length === 3, `Ville complète : commissariat, ${c8.gates.length} portiques, 2 sorties`);
   // Les trottoirs se montent : tous les trottoirs sont roulables.
   let sw = 0, swOk = 0;
   for (let i = 0; i < c8.grid.length; i++) if (c8.grid[i] === C.KIND.SIDEWALK) { sw++; const x = (i % c8.TW) * C.TILE + 15, y = Math.floor(i / c8.TW) * C.TILE + 15; if (!c8.obstacles.some((o) => x > o.x && x < o.x + o.w && y > o.y && y < o.y + o.h)) swOk++; }
   check(sw > 100 && swOk === sw, `Tous les trottoirs sont montables (${sw} tuiles)`);
+  // On ne passe pas à travers les bâtiments : tout ce qui est dessiné (pâtés) est sur des tuiles qui bloquent.
+  let leak = 0, straight = 0;
+  for (let s = 1; s <= 60; s++) {
+    const c = C.build(s * 104729, 2 + (s % 7));
+    for (const l of c.lots) {
+      if (["plaza", "station"].includes(l.type)) continue;
+      for (let j = l.y; j < l.y + l.h; j++) for (let i = l.x; i < l.x + l.w; i++) if (c.grid[j * c.TW + i] !== C.KIND.GROUND) leak++;
+    }
+    // Rues qui traversent toute la ville tout droit (lignes de tuiles de route d'un bord à l'autre).
+    const R = { x: c.cityRect.x / C.TILE, y: c.cityRect.y / C.TILE, w: c.cityRect.w / C.TILE, h: c.cityRect.h / C.TILE };
+    let rows = 0, cols = 0;
+    for (let j = R.y; j < R.y + R.h; j++) { let ok = true; for (let i = R.x; i < R.x + R.w; i++) if (c.grid[j * c.TW + i] !== C.KIND.ROAD) { ok = false; break; } if (ok) rows++; }
+    for (let i = R.x; i < R.x + R.w; i++) { let ok = true; for (let j = R.y; j < R.y + R.h; j++) if (c.grid[j * c.TW + i] !== C.KIND.ROAD) { ok = false; break; } if (ok) cols++; }
+    straight = Math.max(straight, rows / 3 + cols / 3);
+  }
+  check(leak === 0, "Aucun bâtiment sur une tuile roulable (60 villes)");
+  check(straight <= 3, `On ne traverse pas la ville tout droit, sauf par ${straight} grandes rues au plus`);
   // Portique : une F1 passe dessous, un van non.
   const gateEnv = { w: 2000, h: 2000, grip: 1, oils: [], obstacles: [{ x: 600, y: 900, w: 10, h: 200, gate: true }], nitro: false };
   const through = (type) => { const car = P.newCar(400, 1000, 0, type); for (let k = 0; k < 90; k++) P.simulate(car, P.K.UP, gateEnv, 1, []); return car.x > 620; };

@@ -606,9 +606,6 @@
         i += n;
       }
     }
-    // Reflets sur l'eau.
-    c.strokeStyle = "rgba(255,255,255,0.16)"; c.lineWidth = 2;
-    for (const r of city.rivers) for (let k = 0; k < (r.w * r.h) / 4000; k++) { const x = r.x + rnd() * r.w, y = r.y + rnd() * r.h; if (C.kindAt(city, x, y) !== KD.WATER) continue; c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + 4, y + 10, x, y + 20); c.stroke(); }
     // Grain du bitume.
     for (let k = 0; k < (W * H) / 900; k++) {
       const x = rnd() * W, y = rnd() * H;
@@ -669,38 +666,6 @@
         prev = it;
       }
     }
-    // Le périphérique : lignes de bord, voies, et voies d'insertion en face des accès.
-    const hw = city.highway, L = hw.lane;
-    c.strokeStyle = "rgba(255,255,255,0.55)"; c.lineWidth = 3;
-    c.strokeRect(hw.x + 6, hw.y + 6, hw.w - 12, hw.h - 12); c.strokeRect(hw.x + L - 6, hw.y + L - 6, hw.w - 2 * L + 12, hw.h - 2 * L + 12);
-    c.strokeStyle = "rgba(255,210,80,0.6)"; c.lineWidth = 2;
-    c.strokeRect(hw.x + L / 2 - 3, hw.y + L / 2 - 3, hw.w - L + 6, hw.h - L + 6); c.strokeRect(hw.x + L / 2 + 3, hw.y + L / 2 + 3, hw.w - L - 6, hw.h - L - 6);
-    c.strokeStyle = "rgba(255,255,255,0.4)"; c.setLineDash([24, 20]);
-    c.strokeRect(hw.x + L / 4, hw.y + L / 4, hw.w - L / 2, hw.h - L / 2); c.strokeRect(hw.x + (3 * L) / 4, hw.y + (3 * L) / 4, hw.w - 1.5 * L, hw.h - 1.5 * L);
-    c.setLineDash([]);
-    for (const a of city.accesses) {
-      // La voie d'insertion : une bande pointillée épaisse le long du périphérique, de chaque côté de l'accès, qui finit en biseau.
-      const y = a.top ? hw.y + L - 12 : hw.y + hw.h - L + 4;
-      c.fillStyle = "rgba(255,255,255,0.5)";
-      for (let k = 0; k < 9; k++) { c.fillRect(a.x - 40 - k * 36, y, 22, 8); c.fillRect(a.x + a.w + 18 + k * 36, y, 22, 8); }
-      c.fillStyle = "rgba(255,255,255,0.35)";
-      for (const sx of [-1, 1]) {
-        const x0 = sx < 0 ? a.x - 360 : a.x + a.w + 360;
-        c.beginPath(); c.moveTo(x0, y + 4); c.lineTo(x0 - sx * 50, y + (a.top ? -40 : 48)); c.lineTo(x0 - sx * 70, y + (a.top ? -40 : 48)); c.closePath(); c.fill();
-      }
-      // Panneau bleu de la ville.
-      const sy = a.top ? a.y + a.h - 40 : a.y + 40, sx = a.x + a.w + 26;
-      c.fillStyle = "#1f4fa8"; c.fillRect(sx, sy - 14, 70, 28); c.strokeStyle = "#fff"; c.lineWidth = 2; c.strokeRect(sx + 3, sy - 11, 64, 22);
-    }
-    // Ronds-points : îlot fleuri.
-    for (const r of city.rounds) {
-      c.strokeStyle = "rgba(255,255,255,0.35)"; c.lineWidth = 3; c.setLineDash([14, 12]);
-      c.beginPath(); c.arc(r.x, r.y, r.r + 30, 0, Math.PI * 2); c.stroke(); c.setLineDash([]);
-      c.fillStyle = CURB; circle(c, r.x, r.y, r.r + 2);
-      c.fillStyle = "#4f8a3c"; circle(c, r.x, r.y, r.r - 2);
-      for (let k = 0; k < 10; k++) { const a = k * 0.63; c.fillStyle = k % 2 ? "#e85d75" : "#ffd23f"; circle(c, r.x + Math.cos(a) * r.r * 0.65, r.y + Math.sin(a) * r.r * 0.65, 3); }
-      tree(c, r.x, r.y, r.r * 0.4);
-    }
     // 5) Les pâtés : jardins, cours, puis ombres et toits.
     const parts = [];
     let stationDrawn = false;
@@ -758,6 +723,11 @@
           c.fillStyle = "rgba(255,255,255,0.6)"; circle(c, cx, cy, 6);
           break;
         }
+        case "fill": {
+          const R = px(lot);
+          parts.push({ x: R.x, y: R.y, w: R.w, h: R.h, hgt: 0.45 + rnd() * 0.5, roof: DIST.centre.roofs[Math.floor(rnd() * DIST.centre.roofs.length)] });
+          break;
+        }
         case "station": stationDrawn = true; break;
         default: break;
       }
@@ -775,7 +745,7 @@
     // 6) Arbres dans la campagne (jamais sur une route).
     for (let k = 0; k < (W * H) / 25000; k++) {
       const x = rnd() * W, y = rnd() * H;
-      if (C.kindAt(city, x, y) !== KD.GROUND || C.districtAt(city, x, y)) continue;
+      if (C.kindAt(city, x, y) !== KD.GROUND || C.inRect({ x, y }, city.cityRect)) continue;
       if ([[22, 0], [-22, 0], [0, 22], [0, -22]].some(([a, b]) => C.kindAt(city, x + a, y + b) !== KD.GROUND)) continue;
       tree(c, x, y, 14 + rnd() * 10, rnd() < 0.5 ? "#2f6b2a" : "#386f2c");
     }
@@ -788,26 +758,18 @@
     }
     // 8) Les sorties : flèches au sol et panneau vert.
     for (const e of city.exits) {
-      const r = e.ramp, out = e.side === 0 ? -Math.PI / 2 : Math.PI / 2;
+      const r = e.ramp, out = e.side === 3 ? Math.PI : 0;
       c.fillStyle = "rgba(255,255,255,0.45)";
       for (let k = 0; k < 2; k++) {
-        c.save(); c.translate(r.x + r.w / 2, r.y + r.h * (0.25 + k * 0.4)); c.rotate(out);
+        c.save(); c.translate(r.x + r.w * (0.25 + k * 0.4), r.y + r.h / 2); c.rotate(out);
         c.beginPath(); c.moveTo(26, 0); c.lineTo(-6, -22); c.lineTo(-6, -9); c.lineTo(-26, -9); c.lineTo(-26, 9); c.lineTo(-6, 9); c.lineTo(-6, 22); c.closePath(); c.fill();
         c.restore();
       }
-      const sx = r.x + r.w + 76, sy = r.y + r.h / 2;
+      const sx = r.x + r.w / 2, sy = r.y - 40;
       c.fillStyle = "#0b7a3e"; c.fillRect(sx - 60, sy - 24, 120, 48);
       c.strokeStyle = "#fff"; c.lineWidth = 3; c.strokeRect(sx - 56, sy - 20, 112, 40);
       c.fillStyle = "#fff"; c.font = "bold 22px Segoe UI, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("SORTIE", sx, sy + 1);
     }
-    // Les noms des 3 villes, à l'entrée (sur le panneau bleu).
-    const NAMES = { centre: "CENTRE", usine: "ZONE IND.", banlieue: "LES PINS" };
-    city.towns.forEach((t) => {
-      for (const a of city.accesses.filter((a) => a.x > t.x && a.x < t.x + t.w)) {
-        const sy = a.top ? a.y + a.h - 40 : a.y + 40, sx = a.x + a.w + 61;
-        c.fillStyle = "#fff"; c.font = "bold 11px Segoe UI, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(NAMES[t.d], sx, sy + 1);
-      }
-    });
     c.lineWidth = 12; c.strokeStyle = "#111"; c.strokeRect(6, 6, W - 12, H - 12);
 
     // ---------------- Mini-carte : routes claires, quartiers colorés ----------------
@@ -816,7 +778,7 @@
     mini.width = Math.round(W * f); mini.height = Math.round(H * f);
     const mc = mini.getContext("2d");
     mc.fillStyle = "#2f4a2a"; mc.fillRect(0, 0, mini.width, mini.height);
-    for (const t of city.towns) { mc.fillStyle = DIST[t.d].mini; mc.fillRect(t.x * f, t.y * f, t.w * f, t.h * f); }
+    { const t = city.cityRect; mc.fillStyle = DIST.centre.mini; mc.fillRect(t.x * f, t.y * f, t.w * f, t.h * f); }
     const MCOL = { [KD.WATER]: "#3d7fc4", [KD.ISLAND]: "#5e9a4e" };
     for (let j = 0; j < TH; j++) for (let i = 0; i < TW; i++) {
       const k = grid[j * TW + i];

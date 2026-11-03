@@ -505,6 +505,19 @@ Idée de Scotty : tout le monde en **F1**, la police (IA) arrive de plus en plus
   - banlieue : maisons sur les 4 côtés face à la rue (jardins, piscines, haies), impasse avec rond de retournement, parc, terrain de foot, allée à portiques.
 - **Commissariat** : le grand pâté du centre-ville le plus central, garage ouvert sur l'avenue.
 
+### Ville simple (dernière version, demande de Scotty)
+Problèmes de la version « 3 villes » : on passait à travers certains bâtiments, des rues s'arrêtaient dans le vide. Scotty a demandé une ville simple : 1 seul quartier, pas de rivière, pas de pont, pas de périphérique, mais une ville qu'on ne traverse pas tout droit.
+- **Une seule ville** (centre-ville), entourée de 7 tuiles de campagne. 7×5 pâtés (8×6 à partir de 5 joueurs), de tailles différentes. Rues de 3 tuiles (90 px).
+- **Réseau de rues** :
+  - on part d'une grille de rues, puis on en retire environ 35 %, et les pâtés de part et d'autre fusionnent ;
+  - sur chaque ligne de la grille, au moins un tronçon disparaît, sauf **la grande rue** et **la grande avenue** (tirées au hasard), qui vont tout droit d'un bout à l'autre ;
+  - jamais de cul-de-sac : un carrefour garde 0 ou au moins 2 rues ;
+  - tout reste relié (vérifié à chaque tronçon retiré).
+- **Trottoirs** : toutes les tuiles de terrain qui touchent une rue (diagonales comprises). Ils se roulent.
+- **Bâtiments posés uniquement sur des tuiles qui bloquent** : îlots d'immeubles, tours, ruelles à portiques, places pavées avec fontaine, parcs. Une rue retirée devient un immeuble (façade continue). Le test vérifie sur 60 villes qu'aucun bâtiment n'est posé sur une tuile roulable.
+- **2 sorties** : une route qui quitte la ville à gauche, une à droite (bretelles vers le bord de la carte).
+- **Commissariat** : un pâté entouré de 4 rues, près du centre, garage ouvert sur une rue.
+
 ## 7 duodecies. Pense pareil 🧠 — validé (« Go les deux »)
 
 Un thème (360 dans `games/pensepareil/prompts.js`), chacun écrit UNE réponse en secret (20/30/45 s).
