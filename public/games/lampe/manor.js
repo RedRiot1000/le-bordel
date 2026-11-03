@@ -13,11 +13,10 @@
 
 (function (root) {
   const M = {};
-  M.CW = 150;          // largeur d'une case (mur compris)
-  M.CH = 130;          // hauteur d'une case
+  M.CW = 180;          // largeur d'une case (mur compris)
+  M.CH = 156;          // hauteur d'une case
   M.T = 14;            // épaisseur des murs
   M.DOOR = 70;         // largeur d'une porte
-  M.GARDEN = 340;      // largeur du jardin autour du manoir
   M.NAV = 20;          // case de la grille de navigation (bots)
   M.LAMP_RANGE = 340;  // portée de la lampe
   M.LAMP_HALF = 0.42;  // demi-angle du cône de lumière (rad)
@@ -197,11 +196,15 @@
 
   M.build = function (seed, nPlayers) {
     const rnd = seeded(seed);
-    const { CW, CH, T, GARDEN } = M;
+    const { CW, CH, T } = M;
     const out = { walls: [], doors: [], windows: true };
     // ---------------- Le manoir ----------------
+    // Le jardin : devant (en bas) + sur UN côté (gauche ou droite). Derrière et de l'autre côté : rien.
+    const sideLeft = rnd() < 0.5;
+    const SD = 460, FD = 520;   // largeur du jardin de côté, profondeur du jardin de devant
     const gx = 8 + Math.ceil(nPlayers * 0.9), gy = nPlayers >= 5 ? 7 : 6;
-    const MX = GARDEN, MY = GARDEN;
+    const MWp = gx * CW + T, MHp = gy * CH + T;
+    const MX = sideLeft ? SD : 0, MY = 0;
     const cr = 2 + Math.floor(rnd() * (gy - 4));                  // la rangée du long couloir
     const hallX = Math.floor(gx / 2) - 1;
     const specials = [
@@ -211,59 +214,113 @@
     ];
     if (rnd() < 0.6) specials.push({ kind: "couloir", w: 1, h: Math.max(2, cr), at: [rnd() < 0.5 ? 1 + Math.floor(rnd() * 2) : gx - 2 - Math.floor(rnd() * 2), 0] });
     const P = partition(gx, gy, rnd, specials, null);
-    // Portes vers le jardin : la grande porte (bas du hall) et une porte de derrière (en haut).
-    const exits = [{ side: 2, cell: hallX + 1 }, { side: 0, cell: 1 + Math.floor(rnd() * (gx - 2)) }];
-    if (rnd() < 0.5) exits.push({ side: rnd() < 0.5 ? 1 : 3, cell: Math.floor(rnd() * gy) });
+    // Portes vers le jardin : la grande porte (bas du hall) et 1 ou 2 portes sur le côté jardin.
+    const gSide = sideLeft ? 3 : 1;
+    const exits = [{ side: 2, cell: hallX + 1 }, { side: gSide, cell: 1 + Math.floor(rnd() * (gy - 2)) }];
+    if (rnd() < 0.5) { const c2 = Math.floor(rnd() * gy); if (c2 !== exits[1].cell) exits.push({ side: gSide, cell: c2 }); }
     const winRaw = buildWalls(gx, gy, P, MX, MY, rnd, exits, out);
     const rooms = P.rooms;
-    const manorRect = { x: MX, y: MY, w: gx * CW + T, h: gy * CH + T };
+    const manorRect = { x: MX, y: MY, w: MWp, h: MHp };
+    const GW = MWp + SD, H = MHp + FD;
+    const gardenRect = { x: 0, y: 0, w: GW, h: H };
+    const front = { x: MX, y: MHp, w: MWp, h: FD };
+    const sideR = { x: sideLeft ? 0 : MWp, y: 0, w: SD, h: H };
 
     // ---------------- La cave (à droite, à part) ----------------
     const cgx = 5 + (nPlayers >= 5 ? 1 : 0), cgy = 4;
-    const CX = manorRect.x + manorRect.w + GARDEN + 200, CY = MY + Math.max(0, (manorRect.h - (cgy * CH + T)) / 2);
+    const CX = GW + 200, CY = Math.max(T, (MHp - (cgy * CH + T)) / 2);
     out.windows = false;
     const PC = partition(cgx, cgy, rnd, [{ kind: "chaufferie", w: 2, h: 1 }], ["cave", "cave", "cave", "chaufferie"]);
     buildWalls(cgx, cgy, PC, CX, CY, rnd, [], out);
     const caveRooms = PC.rooms.map((r) => ({ ...r, id: P.rooms.length + r.id, cave: true }));
     const caveRect = { x: CX, y: CY, w: cgx * CW + T, h: cgy * CH + T };
-    const W = caveRect.x + caveRect.w + 60, H = manorRect.y + manorRect.h + GARDEN;
-    const gardenRect = { x: 0, y: 0, w: manorRect.x + manorRect.w + GARDEN, h: H };
+    const W = caveRect.x + caveRect.w + 60;
 
     const walls = out.walls, doors = out.doors;
-    // Clôture du jardin.
-    walls.push({ x: 0, y: 0, w: gardenRect.w, h: T }, { x: 0, y: H - T, w: gardenRect.w, h: T }, { x: 0, y: 0, w: T, h: H }, { x: gardenRect.w - T, y: 0, w: T, h: H });
-    // Le vide entre le jardin et la cave : un gros bloc.
-    walls.push({ x: gardenRect.w, y: 0, w: W - gardenRect.w, h: caveRect.y, void: true }, { x: gardenRect.w, y: caveRect.y + caveRect.h, w: W - gardenRect.w, h: H - caveRect.y - caveRect.h, void: true },
-      { x: gardenRect.w, y: caveRect.y, w: caveRect.x - gardenRect.w, h: caveRect.h, void: true }, { x: caveRect.x + caveRect.w, y: caveRect.y, w: W - caveRect.x - caveRect.w, h: caveRect.h, void: true });
+    // Le mur d'enceinte du domaine.
+    walls.push({ x: 0, y: 0, w: GW, h: T, fence: true }, { x: 0, y: H - T, w: GW, h: T, fence: true }, { x: 0, y: 0, w: T, h: H, fence: true }, { x: GW - T, y: 0, w: T, h: H, fence: true });
+    // Le vide entre le domaine et la cave : de gros blocs.
+    walls.push({ x: GW, y: 0, w: W - GW, h: caveRect.y, void: true }, { x: GW, y: caveRect.y + caveRect.h, w: W - GW, h: H - caveRect.y - caveRect.h, void: true },
+      { x: GW, y: caveRect.y, w: caveRect.x - GW, h: caveRect.h, void: true }, { x: caveRect.x + caveRect.w, y: caveRect.y, w: W - caveRect.x - caveRect.w, h: caveRect.h, void: true });
 
     // ---------------- Meubles ----------------
     const furniture = [];
     for (const r of rooms) furnish(r, rnd, doors, furniture);
     for (const r of caveRooms) furnish(r, rnd, doors, furniture);
 
-    // ---------------- Le jardin : haies, fontaine, arbres, cimetière ----------------
-    const garden = [];   // obstacles du jardin { x, y, w, h, name }
+    // ---------------- Le jardin ----------------
+    const garden = [];   // obstacles { x, y, w, h, name }
+    const deco = [];     // décor sans collision { kind, ... }
     const extDoors = doors.filter((d) => d.ext);
-    const gOk = (o) => !overlap(o, manorRect, 60) && o.x > T + 40 && o.y > T + 40 && o.x + o.w < gardenRect.w - T - 40 && o.y + o.h < H - T - 40
-      && garden.every((p) => !overlap(o, p, 60)) && extDoors.every((d) => !overlap(o, { x: d.x - 120, y: d.y - 120, w: d.w + 240, h: d.h + 240 }, 0));
-    // La fontaine devant la grande porte (un peu décalée), le cimetière dans un coin.
-    const front = extDoors[0];
-    const fo = { x: front.x + front.w / 2 + (rnd() < 0.5 ? -260 : 180), y: manorRect.y + manorRect.h + GARDEN / 2 - 40, w: 80, h: 80, name: "fontaine" };
-    if (gOk(fo)) garden.push(fo);
-    const corner = Math.floor(rnd() * 4);
-    const gx0 = corner % 2 === 0 ? 60 : gardenRect.w - 60 - 260, gy0 = corner < 2 ? 60 : H - 60 - 200;
-    for (let k = 0; k < 9; k++) {
-      const o = { x: gx0 + (k % 3) * 90 + rnd() * 10, y: gy0 + Math.floor(k / 3) * 70 + rnd() * 8, w: 26, h: 36, name: "tombe" };
-      if (rnd() < 0.8 && !overlap(o, manorRect, 50) && garden.every((p) => !overlap(o, p, 34))) garden.push(o);
+    const inside = (o, part, m = 30) => o.x >= part.x + m && o.y >= part.y + m && o.x + o.w <= part.x + part.w - m && o.y + o.h <= part.y + part.h - m;
+    const gOk = (o, gap = 50, doorGap = 110) => (inside(o, front) || inside(o, sideR)) && !overlap(o, manorRect, 50)
+      && garden.every((p) => !overlap(o, p, gap)) && extDoors.every((d) => !overlap(o, { x: d.x - doorGap, y: d.y - doorGap, w: d.w + 2 * doorGap, h: d.h + 2 * doorGap }, 0));
+    const paths = [];
+    const put = (o, gap, doorGap) => { if (gOk(o, gap, doorGap) && paths.every((p) => !overlap(o, p, 24))) { garden.push(o); return true; } return false; };
+
+    // DEVANT : jardin à la française. Une allée de la grande porte au portail, la fontaine au milieu,
+    // des parterres fleuris de chaque côté, des bancs, des statues, des lanternes.
+    const fd = extDoors[0], fx = fd.x + fd.w / 2;
+    deco.push({ kind: "path", x: fx - 40, y: front.y, w: 80, h: front.h });
+    paths.push({ x: fx - 40, y: front.y, w: 80, h: front.h }, { x: front.x, y: front.y, w: front.w, h: 40 });
+    deco.push({ kind: "portail", x: fx - 60, y: H - T, w: 120 });
+    const fy = front.y + front.h * 0.52;
+    deco.push({ kind: "ring", x: fx, y: fy, r: 110 });
+    garden.push({ x: fx - 46, y: fy - 46, w: 92, h: 92, name: "fontaine" });
+    for (const sx of [-1, 1]) {
+      for (const [dy, ph] of [[90, 120], [front.h - 210, 120]]) {
+        const pw = 170 + rnd() * 50;
+        const o = { x: sx < 0 ? fx - 150 - pw : fx + 150, y: front.y + dy, w: pw, h: ph, name: "parterre", flowers: Math.floor(rnd() * 4) };
+        put(o, 60, 90);
+      }
+      put({ x: fx + sx * 160 - 30, y: fy - 10, w: 60, h: 20, name: "banc" }, 30, 60);
+      put({ x: fx + sx * 100 - 14, y: front.y + 40, w: 28, h: 28, name: "statue" }, 20, 20);
+      for (let k = 0; k < 3; k++) deco.push({ kind: "lanterne", x: fx + sx * 58, y: front.y + 120 + k * (front.h - 200) / 2 });
     }
-    for (let t = 0; t < 40 && garden.filter((g) => g.name === "haie").length < 6 + nPlayers; t++) {
-      const horiz = rnd() < 0.5, len = 110 + rnd() * 130;
-      const o = horiz ? { x: rnd() * gardenRect.w, y: rnd() * H, w: len, h: 26, name: "haie" } : { x: rnd() * gardenRect.w, y: rnd() * H, w: 26, h: len, name: "haie" };
-      if (gOk(o)) garden.push(o);
+    // Des buis taillés en boule le long de l'allée.
+    for (const sx of [-1, 1]) for (let y = front.y + 70; y < front.y + front.h - 60; y += 95) put({ x: fx + sx * 82 - 15, y, w: 30, h: 30, name: "buis" }, 30, 70);
+    // Plus loin de chaque côté : un kiosque (d'un côté), d'autres parterres, des statues, des bancs, des haies.
+    const far = [fx - 520, fx + 420];
+    const kSide = rnd() < 0.5 ? 0 : 1;
+    put({ x: far[kSide] - 10, y: front.y + front.h * 0.3, w: 120, h: 120, name: "kiosque" }, 60, 110);
+    for (let t = 0; t < 40; t++) {
+      const big = rnd() < 0.5;
+      const o = big ? { x: front.x + rnd() * front.w, y: front.y + 60 + rnd() * (front.h - 200), w: 150 + rnd() * 60, h: 100, name: "parterre", flowers: Math.floor(rnd() * 4) }
+        : { x: front.x + rnd() * front.w, y: front.y + 60 + rnd() * (front.h - 160), w: 30, h: 30, name: rnd() < 0.5 ? "statue" : "buis" };
+      put(o, 70, 110);
+      if (garden.filter((g) => g.name === "parterre").length >= 8) break;
     }
-    for (let t = 0; t < 60 && garden.filter((g) => g.name === "arbre").length < 10 + nPlayers; t++) {
-      const o = { x: rnd() * gardenRect.w, y: rnd() * H, w: 30, h: 30, name: "arbre" };
-      if (gOk(o)) garden.push(o);
+    for (let t = 0; t < 20 && garden.filter((g) => g.name === "banc").length < 5; t++) put({ x: front.x + rnd() * front.w, y: front.y + 60 + rnd() * (front.h - 160), w: 60, h: 20, name: "banc" }, 50, 90);
+    for (let t = 0; t < 30 && garden.filter((g) => g.name === "haie").length < 4; t++) {
+      const horiz = rnd() < 0.6, len = 120 + rnd() * 120;
+      put(horiz ? { x: front.x + rnd() * front.w, y: front.y + 60 + rnd() * (front.h - 140), w: len, h: 24, name: "haie" } : { x: front.x + rnd() * front.w, y: front.y + 60 + rnd() * (front.h - 200), w: 24, h: len, name: "haie" }, 80, 120);
+    }
+    // Rangée d'arbres le long du mur du fond.
+    for (let x = front.x + 60; x < front.x + front.w - 60; x += 110 + rnd() * 50) put({ x, y: H - 90, w: 30, h: 30, name: "arbre" }, 40, 80);
+
+    // CÔTÉ : le cimetière (clôturé, avec une crypte), la serre, le puits, le potager, des arbres morts.
+    const sx0 = sideR.x, sw = sideR.w;
+    // (on laisse un large passage entre le cimetière et le manoir)
+    const cem = { x: sideLeft ? sx0 + 40 : sx0 + 120, y: 40, w: sw - 160, h: Math.min(320, MHp * 0.45) };
+    const F = 8, gapW = 80, gate = cem.x + cem.w / 2 - gapW / 2;
+    garden.push({ x: cem.x, y: cem.y, w: cem.w, h: F, name: "grille" }, { x: cem.x, y: cem.y, w: F, h: cem.h, name: "grille" }, { x: cem.x + cem.w - F, y: cem.y, w: F, h: cem.h, name: "grille" },
+      { x: cem.x, y: cem.y + cem.h - F, w: gate - cem.x, h: F, name: "grille" }, { x: gate + gapW, y: cem.y + cem.h - F, w: cem.x + cem.w - gate - gapW, h: F, name: "grille" });
+    deco.push({ kind: "cimetiere", ...cem });
+    garden.push({ x: cem.x + cem.w / 2 - 50, y: cem.y + 24, w: 100, h: 70, name: "crypte" });
+    for (let r = 0; r < 2; r++) for (let k = 0; k < 4; k++) {
+      const o = { x: cem.x + 40 + k * ((cem.w - 110) / 3), y: cem.y + 130 + r * 80, w: 26, h: 36, name: "tombe" };
+      if (o.y + o.h < cem.y + cem.h - 40 && rnd() < 0.85 && !(o.x + o.w > gate - 20 && o.x < gate + gapW + 20 && r === 1)) garden.push(o);
+    }
+    const midY = cem.y + cem.h + 60;
+    const serre = { x: sx0 + 60 + rnd() * (sw - 280), y: midY + rnd() * 120, w: 160, h: 100, name: "serre" };
+    put(serre, 60, 110);
+    put({ x: sx0 + 60 + rnd() * (sw - 160), y: midY + 260 + rnd() * 120, w: 44, h: 44, name: "puits" }, 60, 110);
+    const pot = { kind: "potager", x: sx0 + 50 + rnd() * (sw - 260), y: H - 260 - rnd() * 100, w: 180, h: 110 };
+    if (!garden.some((p) => overlap(pot, p, 30)) && !overlap(pot, manorRect, 40)) deco.push(pot);
+    for (let t = 0; t < 60 && garden.filter((g) => g.name === "arbre_mort").length < 7; t++) put({ x: sx0 + rnd() * sw, y: rnd() * H, w: 26, h: 26, name: "arbre_mort" }, 70, 110);
+    for (let t = 0; t < 30 && garden.filter((g) => g.name === "haie").length < 3; t++) {
+      const horiz = rnd() < 0.5, len = 110 + rnd() * 90;
+      put(horiz ? { x: sx0 + rnd() * sw, y: rnd() * H, w: len, h: 24, name: "haie" } : { x: sx0 + rnd() * sw, y: rnd() * H, w: 24, h: len, name: "haie" }, 80, 120);
     }
 
     // ---------------- Fenêtres + rayons de lune ----------------
@@ -345,7 +402,7 @@
 
     const m = {
       seed, w: W, h: H, gx, gy, walls, doors, rooms: allRooms, furniture, garden, windows, portals, switches, creaks, webs,
-      manorRect, caveRect, gardenRect,
+      manorRect, caveRect, gardenRect, gardenParts: [front, sideR], deco,
     };
     m.rects = walls.concat(furniture, garden);   // ce qui bloque toujours (les portes fermées s'ajoutent)
     m.rects.forEach((r, i) => (r.i = i));

@@ -599,6 +599,10 @@ Choix de Scotty : contagion, lumière qui révèle + étourdit, manoir hanté al
   - humains : ils ouvrent les portes quand ils sont coincés et allument un lustre si un fantôme approche ;
   - fantômes : ils ne voient que ce que voit un vrai fantôme, retiennent le dernier endroit où ils ont vu (ou entendu) un humain pendant 6 s, et balaient du regard.
 - **Simulation** : équilibré (selon les manches, le fantôme gagne ou 1 à 3 humains survivent).
+- **Retouches (Scotty)** :
+  - cases ×1,2 (180×156) ;
+  - jardin seulement **devant** (520 px : jardin à la française avec allée, portail, fontaine, parterres, buis, statues, bancs, lanternes, kiosque, haies, arbres) et **sur un côté** tiré au hasard (460 px : cimetière clôturé avec crypte, serre, puits, potager de citrouilles, arbres morts) ; derrière et de l'autre côté, le mur d'enceinte ;
+  - caméra zoomée ×1,3 pour les humains (le fantôme garde ×1).
 
 ## 8. Feuille de route
 

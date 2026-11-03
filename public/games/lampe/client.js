@@ -14,6 +14,7 @@
   const W = 1280, HGT = 800;
   const GHOST_SPEED = 1.1, LIT_SLOW = 0.55, WEB_SLOW = 0.6;   // (les mêmes que games/lampe/server.js)
   const AIM_MAX = 320;
+  const ZOOM_HUMAN = 1.3;   // les humains voient de plus près (le fantôme garde la vue large)
 
   let api = null, root = null;
   let st = null;
@@ -564,24 +565,155 @@
   }
   function gardenThing(c, o, rnd) {
     const { x, y, w, h } = o;
-    if (o.name === "haie") {
-      c.fillStyle = "rgba(0,0,0,0.35)"; c.fillRect(x + 4, y + 6, w, h);
-      c.fillStyle = "#1f4a22"; c.fillRect(x, y, w, h);
-      c.fillStyle = "#2c6030";
-      for (let k = 0; k < (w * h) / 60; k++) circle(c, x + rnd() * w, y + rnd() * h, 4 + rnd() * 4);
-    } else if (o.name === "arbre") {
-      c.fillStyle = "rgba(0,0,0,0.35)"; circle(c, x + w / 2 + 8, y + h / 2 + 10, 34);
-      c.fillStyle = "#3a2a1c"; circle(c, x + w / 2, y + h / 2, 12);
-      c.fillStyle = "rgba(40,60,35,0.9)"; circle(c, x + w / 2, y + h / 2, 32);
-      c.fillStyle = "rgba(60,85,50,0.8)"; circle(c, x + w / 2 - 8, y + h / 2 - 8, 18);
-    } else if (o.name === "tombe") {
-      c.fillStyle = "rgba(0,0,0,0.4)"; c.fillRect(x + 3, y + 5, w, h);
-      c.fillStyle = "#8f8f8a"; c.beginPath(); c.moveTo(x, y + h); c.lineTo(x, y + w / 2); c.arc(x + w / 2, y + w / 2, w / 2, Math.PI, 0); c.lineTo(x + w, y + h); c.closePath(); c.fill();
-      c.fillStyle = "#5c5c58"; c.fillRect(x + w / 2 - 2, y + 8, 4, 14); c.fillRect(x + w / 2 - 6, y + 12, 12, 4);
-    } else if (o.name === "fontaine") {
-      c.fillStyle = "#8a8578"; circle(c, x + w / 2, y + h / 2, w / 2 + 8);
-      c.fillStyle = "#2d5a7a"; circle(c, x + w / 2, y + h / 2, w / 2 - 2);
-      c.fillStyle = "#b9b4a6"; circle(c, x + w / 2, y + h / 2, 12);
+    const shadow = (k = 0.4) => { c.fillStyle = `rgba(0,0,0,${k})`; c.fillRect(x + 4, y + 6, w, h); };
+    switch (o.name) {
+      case "haie":
+        shadow(0.35);
+        c.fillStyle = "#1f4a22"; c.fillRect(x, y, w, h);
+        c.fillStyle = "#2c6030";
+        for (let k = 0; k < (w * h) / 60; k++) circle(c, x + rnd() * w, y + rnd() * h, 4 + rnd() * 4);
+        return;
+      case "arbre":
+        c.fillStyle = "rgba(0,0,0,0.35)"; circle(c, x + w / 2 + 8, y + h / 2 + 10, 34);
+        c.fillStyle = "#3a2a1c"; circle(c, x + w / 2, y + h / 2, 12);
+        c.fillStyle = "rgba(40,60,35,0.9)"; circle(c, x + w / 2, y + h / 2, 32);
+        c.fillStyle = "rgba(60,85,50,0.8)"; circle(c, x + w / 2 - 8, y + h / 2 - 8, 18);
+        return;
+      case "arbre_mort": {
+        // Tronc et branches nues, tordues.
+        const cx = x + w / 2, cy = y + h / 2;
+        c.fillStyle = "rgba(0,0,0,0.35)"; circle(c, cx + 6, cy + 8, 16);
+        c.strokeStyle = "#3b2c22"; c.lineCap = "round";
+        for (let k = 0; k < 6; k++) {
+          const a = k * 1.05 + rnd(), L = 26 + rnd() * 22;
+          c.lineWidth = 5; c.beginPath(); c.moveTo(cx, cy);
+          const mx = cx + Math.cos(a) * L * 0.6, my = cy + Math.sin(a) * L * 0.6;
+          c.quadraticCurveTo(mx + rnd() * 10 - 5, my + rnd() * 10 - 5, cx + Math.cos(a) * L, cy + Math.sin(a) * L); c.stroke();
+          c.lineWidth = 2; c.beginPath(); c.moveTo(mx, my); c.lineTo(mx + Math.cos(a + 0.8) * 14, my + Math.sin(a + 0.8) * 14); c.stroke();
+        }
+        c.lineCap = "butt";
+        c.fillStyle = "#4a382c"; circle(c, cx, cy, 10);
+        return;
+      }
+      case "tombe":
+        shadow();
+        c.fillStyle = "#8f8f8a"; c.beginPath(); c.moveTo(x, y + h); c.lineTo(x, y + w / 2); c.arc(x + w / 2, y + w / 2, w / 2, Math.PI, 0); c.lineTo(x + w, y + h); c.closePath(); c.fill();
+        c.fillStyle = "#5c5c58"; c.fillRect(x + w / 2 - 2, y + 8, 4, 14); c.fillRect(x + w / 2 - 6, y + 12, 12, 4);
+        c.fillStyle = "rgba(60,90,50,0.5)"; c.fillRect(x - 2, y + h - 4, w + 4, 6);
+        return;
+      case "fontaine": {
+        const cx = x + w / 2, cy = y + h / 2;
+        c.fillStyle = "#8a8578"; circle(c, cx, cy, w / 2 + 6);
+        c.fillStyle = "#2d5a7a"; circle(c, cx, cy, w / 2 - 4);
+        c.strokeStyle = "rgba(180,210,240,0.35)"; c.lineWidth = 1.5; for (const r of [16, 26, 34]) { c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.stroke(); }
+        c.fillStyle = "#b9b4a6"; circle(c, cx, cy, 13);
+        c.fillStyle = "#d8d2c4"; circle(c, cx, cy, 6);
+        return;
+      }
+      case "parterre": {
+        // Un parterre de fleurs bordé de buis taillé.
+        shadow(0.3);
+        c.fillStyle = "#1f4a22"; c.fillRect(x, y, w, h);
+        c.fillStyle = "#3a2a1c"; c.fillRect(x + 8, y + 8, w - 16, h - 16);
+        const cols = [["#a8324a", "#e0607a"], ["#5a3a9a", "#9a7ad8"], ["#c8a24a", "#f0d27a"], ["#e8e4dc", "#b8b4ac"]][o.flowers || 0];
+        for (let k = 0; k < (w * h) / 70; k++) { c.fillStyle = cols[k % 2]; circle(c, x + 12 + rnd() * (w - 24), y + 12 + rnd() * (h - 24), 2.5 + rnd() * 2); }
+        c.strokeStyle = "#2c6030"; c.lineWidth = 3; c.strokeRect(x + 4, y + 4, w - 8, h - 8);
+        return;
+      }
+      case "banc":
+        shadow(0.35);
+        c.fillStyle = "#5b3a22"; c.fillRect(x, y, w, h);
+        c.strokeStyle = "#2b1a10"; c.lineWidth = 1.5; for (let k = 1; k < 3; k++) { c.beginPath(); c.moveTo(x, y + (h * k) / 3); c.lineTo(x + w, y + (h * k) / 3); c.stroke(); }
+        c.fillStyle = "#222"; c.fillRect(x + 3, y - 2, 4, h + 4); c.fillRect(x + w - 7, y - 2, 4, h + 4);
+        return;
+      case "statue": {
+        const cx = x + w / 2, cy = y + h / 2;
+        c.fillStyle = "rgba(0,0,0,0.4)"; c.fillRect(x + 4, y + 6, w, h);
+        c.fillStyle = "#6f6c66"; c.fillRect(x, y, w, h);
+        c.fillStyle = "#b4b0a6"; circle(c, cx, cy, 9);
+        c.fillStyle = "#c8c4ba"; c.beginPath(); c.ellipse(cx - 9, cy - 3, 9, 3, -0.5, 0, Math.PI * 2); c.ellipse(cx + 9, cy - 3, 9, 3, 0.5, 0, Math.PI * 2); c.fill();   // un ange (des ailes)
+        return;
+      }
+      case "grille":
+        c.fillStyle = "#1c1c1f"; c.fillRect(x, y, w, h);
+        c.fillStyle = "#4a4a52";
+        if (w > h) for (let k = x; k < x + w; k += 10) c.fillRect(k, y - 3, 3, h + 6); else for (let k = y; k < y + h; k += 10) c.fillRect(x - 3, k, w + 6, 3);
+        return;
+      case "crypte":
+        shadow(0.5);
+        c.fillStyle = "#6a6862"; c.fillRect(x, y, w, h);
+        c.fillStyle = "#57554f"; c.beginPath(); c.moveTo(x - 6, y + h * 0.5); c.lineTo(x + w / 2, y - 8); c.lineTo(x + w + 6, y + h * 0.5); c.closePath(); c.fill();
+        c.fillStyle = "#2a2826"; c.fillRect(x + w / 2 - 14, y + h - 30, 28, 30);
+        c.fillStyle = "#8a8780"; c.fillRect(x + w / 2 - 2, y + 10, 4, 22); c.fillRect(x + w / 2 - 9, y + 16, 18, 4);
+        return;
+      case "serre":
+        shadow(0.3);
+        c.fillStyle = "rgba(160,200,190,0.35)"; c.fillRect(x, y, w, h);
+        c.strokeStyle = "#d8e8e4"; c.lineWidth = 2; c.strokeRect(x + 1, y + 1, w - 2, h - 2);
+        c.lineWidth = 1; for (let k = 20; k < w; k += 20) { c.beginPath(); c.moveTo(x + k, y); c.lineTo(x + k, y + h); c.stroke(); }
+        c.beginPath(); c.moveTo(x, y + h / 2); c.lineTo(x + w, y + h / 2); c.stroke();
+        for (let k = 0; k < 10; k++) { c.fillStyle = "rgba(60,110,50,0.7)"; circle(c, x + 10 + rnd() * (w - 20), y + 10 + rnd() * (h - 20), 5 + rnd() * 5); }
+        return;
+      case "buis": {
+        const cx = x + w / 2, cy = y + h / 2;
+        c.fillStyle = "rgba(0,0,0,0.35)"; circle(c, cx + 5, cy + 7, w / 2);
+        c.fillStyle = "#1f4a22"; circle(c, cx, cy, w / 2);
+        c.fillStyle = "#2f6a32"; circle(c, cx - 4, cy - 4, w / 3);
+        return;
+      }
+      case "kiosque": {
+        // Un kiosque octogonal (toit en ardoise, avec une girouette).
+        const cx = x + w / 2, cy = y + h / 2, R = w / 2;
+        const oct = (r) => { c.beginPath(); for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2 + Math.PI / 8; const px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r; if (k) c.lineTo(px, py); else c.moveTo(px, py); } c.closePath(); };
+        c.fillStyle = "rgba(0,0,0,0.45)"; c.save(); c.translate(8, 10); oct(R); c.fill(); c.restore();
+        c.fillStyle = "#3d4450"; oct(R); c.fill();
+        c.strokeStyle = "#5a6372"; c.lineWidth = 2;
+        for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2 + Math.PI / 8; c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); c.stroke(); }
+        oct(R); c.stroke();
+        c.fillStyle = "#c8a24a"; circle(c, cx, cy, 5);
+        return;
+      }
+      case "puits": {
+        const cx = x + w / 2, cy = y + h / 2;
+        c.fillStyle = "rgba(0,0,0,0.4)"; circle(c, cx + 4, cy + 6, w / 2);
+        c.fillStyle = "#77736a"; circle(c, cx, cy, w / 2);
+        c.fillStyle = "#0b0b0d"; circle(c, cx, cy, w / 2 - 7);
+        c.fillStyle = "#4a3326"; c.fillRect(x - 4, cy - 3, w + 8, 6);
+        return;
+      }
+      default: break;
+    }
+  }
+  // Le décor du jardin (sans collision) : allée, cercle de gravier, portail, lanternes, potager, sol du cimetière.
+  function gardenDeco(c, d, rnd) {
+    if (d.kind === "path") {
+      c.fillStyle = "#77715f"; c.fillRect(d.x, d.y, d.w, d.h);
+      for (let k = 0; k < (d.w * d.h) / 40; k++) { c.fillStyle = k % 2 ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.08)"; c.fillRect(d.x + rnd() * d.w, d.y + rnd() * d.h, 2, 2); }
+      c.fillStyle = "#4a4638"; c.fillRect(d.x - 4, d.y, 4, d.h); c.fillRect(d.x + d.w, d.y, 4, d.h);
+    } else if (d.kind === "ring") {
+      c.fillStyle = "#77715f"; circle(c, d.x, d.y, d.r);
+      c.fillStyle = "#26402a"; circle(c, d.x, d.y, d.r - 36);
+    } else if (d.kind === "portail") {
+      c.fillStyle = "#1c1c1f"; c.fillRect(d.x, d.y, d.w, M.T);
+      c.fillStyle = "#6a6a72"; for (let k = d.x; k < d.x + d.w; k += 8) c.fillRect(k, d.y - 6, 3, M.T + 6);
+      c.fillStyle = "#57554f"; c.fillRect(d.x - 16, d.y - 10, 16, M.T + 10); c.fillRect(d.x + d.w, d.y - 10, 16, M.T + 10);
+    } else if (d.kind === "lanterne") {
+      c.fillStyle = "#1c1c1f"; circle(c, d.x, d.y, 5);
+      c.fillStyle = "#e8b04a"; circle(c, d.x, d.y, 2.5);
+    } else if (d.kind === "potager") {
+      c.fillStyle = "#3a2a1c"; c.fillRect(d.x, d.y, d.w, d.h);
+      c.strokeStyle = "rgba(0,0,0,0.3)"; c.lineWidth = 2;
+      for (let k = 18; k < d.h; k += 22) { c.beginPath(); c.moveTo(d.x + 6, d.y + k); c.lineTo(d.x + d.w - 6, d.y + k); c.stroke(); }
+      for (let k = 0; k < 9; k++) {
+        const px = d.x + 18 + rnd() * (d.w - 36), py = d.y + 16 + rnd() * (d.h - 32);
+        c.fillStyle = "#d8661a"; c.beginPath(); c.ellipse(px, py, 9, 7, 0, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = "#8a3a0a"; c.lineWidth = 1; c.beginPath(); c.moveTo(px, py - 7); c.lineTo(px, py + 7); c.stroke();
+        c.fillStyle = "#3a5a2a"; c.fillRect(px - 1, py - 10, 3, 4);
+      }
+    } else if (d.kind === "cimetiere") {
+      c.fillStyle = "#2a3a28"; c.fillRect(d.x, d.y, d.w, d.h);
+      for (let k = 0; k < (d.w * d.h) / 200; k++) { c.fillStyle = "rgba(0,0,0,0.15)"; c.fillRect(d.x + rnd() * d.w, d.y + rnd() * d.h, 3, 2); }
+      c.fillStyle = "#5a5648"; c.fillRect(d.x + d.w / 2 - 25, d.y + 90, 50, d.h - 90);
     }
   }
 
@@ -594,16 +726,18 @@
     bg.width = manor.w; bg.height = manor.h;
     const c = bg.getContext("2d");
     c.fillStyle = "#020203"; c.fillRect(0, 0, manor.w, manor.h);
-    // Le jardin : herbe, allées de gravier.
-    const G = manor.gardenRect, MR = manor.manorRect;
-    c.fillStyle = "#26402a"; c.fillRect(G.x, G.y, G.w, G.h);
-    for (let k = 0; k < (G.w * G.h) / 300; k++) { c.fillStyle = k % 2 ? "rgba(0,0,0,0.12)" : "rgba(120,160,100,0.08)"; c.fillRect(G.x + rnd() * G.w, G.y + rnd() * G.h, 2, 3); }
-    c.fillStyle = "#6e6a5e";
-    c.fillRect(MR.x - 50, MR.y - 50, MR.w + 100, 34); c.fillRect(MR.x - 50, MR.y + MR.h + 16, MR.w + 100, 34);
-    c.fillRect(MR.x - 50, MR.y - 50, 34, MR.h + 100); c.fillRect(MR.x + MR.w + 16, MR.y - 50, 34, MR.h + 100);
-    for (const d of manor.doors.filter((d) => d.ext)) {
-      if (d.vert) c.fillRect(d.x < MR.x + 5 ? MR.x - 50 : MR.x + MR.w, d.y + 8, 50, d.h - 16); else c.fillRect(d.x + 8, d.y < MR.y + 5 ? MR.y - 50 : MR.y + MR.h, d.w - 16, 50);
+    // Le jardin (devant + un côté) : herbe, un chemin de gravier le long du manoir, puis le décor.
+    const MR = manor.manorRect;
+    for (const G of manor.gardenParts) {
+      c.fillStyle = "#26402a"; c.fillRect(G.x, G.y, G.w, G.h);
+      for (let k = 0; k < (G.w * G.h) / 300; k++) { c.fillStyle = k % 2 ? "rgba(0,0,0,0.12)" : "rgba(120,160,100,0.08)"; c.fillRect(G.x + rnd() * G.w, G.y + rnd() * G.h, 2, 3); }
     }
+    c.fillStyle = "#6e6a5e";
+    const sideG = manor.gardenParts[1];
+    c.fillRect(MR.x, MR.y + MR.h, MR.w, 30);
+    if (sideG.x < MR.x) c.fillRect(MR.x - 30, MR.y, 30, MR.h + 30); else c.fillRect(MR.x + MR.w, MR.y, 30, MR.h + 30);
+    for (const d of manor.doors.filter((d) => d.ext && d.vert)) c.fillRect(d.x < MR.x + 5 ? MR.x - 70 : MR.x + MR.w, d.y + 8, 70, d.h - 16);
+    for (const d of manor.deco) gardenDeco(c, d, rnd);
     // Les pièces (manoir + cave).
     for (const r of manor.rooms) {
       floor(c, r, rnd);
@@ -634,6 +768,7 @@
     }
     for (const f of manor.furniture) furniture(c, f, rnd);
     for (const o of manor.garden) gardenThing(c, o, rnd);
+    for (const d of manor.deco) if (d.kind === "portail") gardenDeco(c, d, rnd);
     // Escaliers (des marches qui descendent / montent) et passages secrets (une bibliothèque contre le mur, avec une fine fissure).
     for (const p of manor.portals) for (const e of [p.a, p.b]) {
       const nx = (e.ex - e.x) / 46, ny = (e.ey - e.y) / 46, ang = Math.atan2(ny, nx);
@@ -651,7 +786,7 @@
     // Les murs : pierre sombre, liseré clair dessus (le vide autour de la cave : noir).
     for (const w of manor.walls) {
       const big = !!w.void;
-      c.fillStyle = big ? "#020203" : "#2b2420"; c.fillRect(w.x, w.y, w.w, w.h);
+      c.fillStyle = big ? "#020203" : w.fence ? "#3a3632" : "#2b2420"; c.fillRect(w.x, w.y, w.w, w.h);
       if (big) continue;
       c.fillStyle = "#4a3d33"; if (w.w > w.h) c.fillRect(w.x, w.y, w.w, 4); else c.fillRect(w.x, w.y, 4, w.h);
     }
@@ -794,8 +929,8 @@
     }
     const mv = views.find((v) => v.id === me());
     const follow = mv || views.find((v) => !v.ghost) || views[0];
-    const camX = Math.max(0, Math.min(manor.w - W, follow.x - W / 2));
-    const camY = manor.h <= HGT ? (manor.h - HGT) / 2 : Math.max(0, Math.min(manor.h - HGT, follow.y - HGT / 2));
+    const Z = zoomNow(iAmGhost);
+    const { camX, camY } = camFor(follow, Z);
     // Un fantôme tout près de moi (humain) : le cœur s'emballe.
     let fear = 0;
     if (mv && !iAmGhost && st.phase === "play") for (const v of views) if (v.ghost && !v.frozen) fear = Math.max(fear, 1 - Math.hypot(v.x - mv.x, v.y - mv.y) / 200);
@@ -805,6 +940,7 @@
     c.save();
     c.fillStyle = "#020203"; c.fillRect(0, 0, W, HGT);
     if (shake > 0.3) { c.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake); shake *= Math.pow(0.85, dt * 60); } else shake = 0;
+    c.scale(Z, Z);
     c.translate(-camX, -camY);
     c.drawImage(bg, 0, 0);
     drawDynamic(c, ts);
@@ -827,10 +963,11 @@
     drawParticles(dt);
     c.restore();
 
-    drawDark(views, camX, camY, iAmGhost, mv, ts, flash);
+    drawDark(views, camX, camY, Z, iAmGhost, mv, ts, flash);
 
     // Par-dessus le noir : ondes des planches, regards des fantômes alliés, noms, passages secrets (pour les fantômes), mon viseur.
     c.save();
+    c.scale(Z, Z);
     c.translate(-camX, -camY);
     c.textAlign = "center"; c.textBaseline = "middle";
     const now = performance.now();
@@ -859,13 +996,13 @@
     }
     for (const p of st.piles || []) { c.fillStyle = `rgba(92,255,157,${0.35 + 0.2 * Math.sin(ts / 200 + p.x)})`; circle(c, p.x, p.y, 4); }
     if (mv && st.phase === "play") {
-      const a = Math.atan2(mouse.oy, mouse.ox), d = Math.hypot(mouse.oy, mouse.ox);
+      const a = Math.atan2(mouse.oy, mouse.ox), d = Math.hypot(mouse.oy, mouse.ox) / Z;
       const tx = mv.x + Math.cos(a) * d, ty = mv.y + Math.sin(a) * d;
       c.strokeStyle = iAmGhost ? "rgba(203,184,255,0.7)" : "rgba(255,240,190,0.7)"; c.lineWidth = 2;
       c.beginPath(); c.arc(tx, ty, 10, 0, Math.PI * 2); c.moveTo(tx - 15, ty); c.lineTo(tx - 5, ty); c.moveTo(tx + 5, ty); c.lineTo(tx + 15, ty); c.moveTo(tx, ty - 15); c.lineTo(tx, ty - 5); c.moveTo(tx, ty + 5); c.lineTo(tx, ty + 15); c.stroke();
     }
     if (mv) window.VehicleArt.markMe(c, mv.x, mv.y, ts, iAmGhost ? "#b48cff" : playerOf(me())?.color || "#fff",
-      ghostFlash > 0 ? 1 : window.VehicleArt.markAlpha(st.phase === "countdown" ? "countdown" : st.phase, playSeenAt), Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)));
+      ghostFlash > 0 ? 1 : window.VehicleArt.markAlpha(st.phase === "countdown" ? "countdown" : st.phase, playSeenAt), Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)) / Z);
     c.restore();
 
     if (fear > 0) {
@@ -895,90 +1032,97 @@
   }
 
   // Le noir : un calque sombre, percé par les lumières (et, pour un fantôme, par son regard).
-  function drawDark(views, camX, camY, iAmGhost, mv, ts, flash) {
+  function drawDark(views, camX, camY, Z, iAmGhost, mv, ts, flash) {
     const d = dctx;
+    d.setTransform(1, 0, 0, 1, 0, 0);
     d.globalCompositeOperation = "source-over";
     d.clearRect(0, 0, W, HGT);
     d.fillStyle = iAmGhost ? "rgba(6,4,18,0.94)" : "rgba(3,3,8,0.95)";
     d.fillRect(0, 0, W, HGT);
     d.globalCompositeOperation = "destination-out";
+    // L'éclair : tout s'illumine (sauf la cave, qui n'a pas de fenêtre).
+    if (flash) { d.fillStyle = "rgba(0,0,0,0.85)"; d.fillRect(0, 0, W, HGT); }
+    // À partir d'ici, on dessine en coordonnées du monde (zoom + caméra).
+    d.setTransform(Z, 0, 0, Z, -camX * Z, -camY * Z);
     const hole = (x, y, r, k = 1) => {
       const gr = d.createRadialGradient(x, y, 0, x, y, r);
       gr.addColorStop(0, `rgba(0,0,0,${k})`); gr.addColorStop(0.6, `rgba(0,0,0,${k * 0.7})`); gr.addColorStop(1, "rgba(0,0,0,0)");
       d.fillStyle = gr; d.beginPath(); d.arc(x, y, r, 0, Math.PI * 2); d.fill();
     };
-    const poly = (pts, x, y, R, k) => {
-      const gr = d.createRadialGradient(x - camX, y - camY, 10, x - camX, y - camY, R);
-      gr.addColorStop(0, `rgba(0,0,0,${k})`); gr.addColorStop(0.7, `rgba(0,0,0,${k * 0.9})`); gr.addColorStop(1, "rgba(0,0,0,0)");
-      d.fillStyle = gr;
-      d.beginPath(); d.moveTo(pts[0].x - camX, pts[0].y - camY);
-      for (const p of pts) d.lineTo(p.x - camX, p.y - camY);
-      d.closePath(); d.fill();
+    const poly = (ctx, pts, x, y, R, stops) => {
+      const gr = ctx.createRadialGradient(x, y, 10, x, y, R);
+      for (const [o, col] of stops) gr.addColorStop(o, col);
+      ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+      for (const p of pts) ctx.lineTo(p.x, p.y);
+      ctx.closePath(); ctx.fill();
     };
-    // L'éclair : tout s'illumine (sauf la cave, qui n'a pas de fenêtre).
-    if (flash) {
-      d.fillStyle = "rgba(0,0,0,0.85)"; d.fillRect(0, 0, W, HGT);
-    }
+    const cut = (k) => [[0, `rgba(0,0,0,${k})`], [0.7, `rgba(0,0,0,${k * 0.9})`], [1, "rgba(0,0,0,0)"]];
     // La lune : le jardin à moitié éclairé, les rayons près des fenêtres.
-    const G = manor.gardenRect, MR = manor.manorRect;
     d.fillStyle = "rgba(0,0,0,0.42)";
-    d.fillRect(G.x - camX, G.y - camY, G.w, MR.y - G.y);
-    d.fillRect(G.x - camX, MR.y + MR.h - camY, G.w, G.y + G.h - MR.y - MR.h);
-    d.fillRect(G.x - camX, MR.y - camY, MR.x - G.x, MR.h);
-    d.fillRect(MR.x + MR.w - camX, MR.y - camY, G.x + G.w - MR.x - MR.w, MR.h);
+    for (const G of manor.gardenParts) d.fillRect(G.x, G.y, G.w, G.h);
     d.fillStyle = "rgba(0,0,0,0.5)";
-    for (const w of manor.windows) d.fillRect(w.patch.x - camX, w.patch.y - camY, w.patch.w, w.patch.h);
+    for (const w of manor.windows) d.fillRect(w.patch.x, w.patch.y, w.patch.w, w.patch.h);
     // Les lustres allumés (ils grésillent avant de s'éteindre).
     const now = performance.now();
     for (const r of manor.rooms) {
       const until = litRooms.get(r.id);
       if (!until || until < now) continue;
       if (until - now < 3000 && Math.random() < 0.3) continue;
-      d.fillStyle = "rgba(0,0,0,0.88)"; d.fillRect(r.x - camX, r.y - camY, r.w, r.h);
+      d.fillStyle = "rgba(0,0,0,0.88)"; d.fillRect(r.x, r.y, r.w, r.h);
     }
     // Mon regard (fantôme) : un grand cône, arrêté par les murs et les portes fermées.
     if (iAmGhost && mv) {
-      poly(M.cone(blockers, mv.x, mv.y, mv.aim, M.SIGHT_RANGE, M.SIGHT_HALF, 40), mv.x, mv.y, M.SIGHT_RANGE, 0.8);
-      hole(mv.x - camX, mv.y - camY, 50, 0.8);
+      poly(d, M.cone(blockers, mv.x, mv.y, mv.aim, M.SIGHT_RANGE, M.SIGHT_HALF, 40), mv.x, mv.y, M.SIGHT_RANGE, cut(0.8));
+      hole(mv.x, mv.y, 50, 0.8);
     }
     for (const v of views) {
       if (v.ghost) continue;
       // L'aura autour des humains (les fantômes ne la voient pas : il faut les voir avec son regard).
-      if (!iAmGhost) hole(v.x - camX, v.y - camY, v.id === me() ? 85 : 55, 0.85);
-      if (v.lamp) poly(M.cone(blockers, v.x, v.y, v.aim ?? v.face, M.LAMP_RANGE, M.LAMP_HALF, 30), v.x, v.y, M.LAMP_RANGE, 1);
+      if (!iAmGhost) hole(v.x, v.y, v.id === me() ? 85 : 55, 0.85);
+      if (v.lamp) poly(d, M.cone(blockers, v.x, v.y, v.aim ?? v.face, M.LAMP_RANGE, M.LAMP_HALF, 30), v.x, v.y, M.LAMP_RANGE, cut(1));
     }
     d.globalCompositeOperation = "source-over";
     // La cave reste dans le noir total pendant un éclair.
-    if (flash) {
-      const C = manor.caveRect;
-      d.fillStyle = "rgba(3,3,8,0.85)"; d.fillRect(C.x - camX, C.y - camY, C.w, C.h);
-    }
+    if (flash) { const C = manor.caveRect; d.fillStyle = "rgba(3,3,8,0.85)"; d.fillRect(C.x, C.y, C.w, C.h); }
+    d.setTransform(1, 0, 0, 1, 0, 0);
     g2d.drawImage(dark, 0, 0);
     // Lueurs : chaude dans les cônes, dorée sous les lustres, bleue sous la lune, blanche pendant l'éclair.
     g2d.save();
     g2d.globalCompositeOperation = "lighter";
+    g2d.setTransform(Z, 0, 0, Z, -camX * Z, -camY * Z);
     for (const v of views) {
       if (v.ghost || !v.lamp) continue;
-      const pts = M.cone(blockers, v.x, v.y, v.aim ?? v.face, M.LAMP_RANGE, M.LAMP_HALF, 30);
-      const x = v.x - camX, y = v.y - camY;
-      const gr = g2d.createRadialGradient(x, y, 10, x, y, M.LAMP_RANGE);
-      gr.addColorStop(0, `rgba(255,220,150,${0.16 + 0.02 * Math.sin(ts / 60)})`); gr.addColorStop(1, "rgba(255,220,150,0)");
-      g2d.fillStyle = gr;
-      g2d.beginPath(); g2d.moveTo(pts[0].x - camX, pts[0].y - camY);
-      for (const p of pts) g2d.lineTo(p.x - camX, p.y - camY);
-      g2d.closePath(); g2d.fill();
+      poly(g2d, M.cone(blockers, v.x, v.y, v.aim ?? v.face, M.LAMP_RANGE, M.LAMP_HALF, 30), v.x, v.y, M.LAMP_RANGE,
+        [[0, `rgba(255,220,150,${0.16 + 0.02 * Math.sin(ts / 60)})`], [1, "rgba(255,220,150,0)"]]);
     }
     for (const r of manor.rooms) {
       const until = litRooms.get(r.id);
       if (!until || until < now) continue;
-      const cx = r.x + r.w / 2 - camX, cy = r.y + r.h / 2 - camY;
+      const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
       const gr = g2d.createRadialGradient(cx, cy, 10, cx, cy, Math.max(r.w, r.h) * 0.7);
       gr.addColorStop(0, "rgba(255,200,110,0.18)"); gr.addColorStop(1, "rgba(255,200,110,0)");
-      g2d.fillStyle = gr; g2d.fillRect(r.x - camX, r.y - camY, r.w, r.h);
+      g2d.fillStyle = gr; g2d.fillRect(r.x, r.y, r.w, r.h);
     }
-    for (const w of manor.windows) { g2d.fillStyle = "rgba(90,120,200,0.07)"; g2d.fillRect(w.patch.x - camX, w.patch.y - camY, w.patch.w, w.patch.h); }
+    for (const w of manor.windows) { g2d.fillStyle = "rgba(90,120,200,0.07)"; g2d.fillRect(w.patch.x, w.patch.y, w.patch.w, w.patch.h); }
+    // Les lanternes du jardin : une petite lueur.
+    for (const dd of manor.deco) if (dd.kind === "lanterne") {
+      const gr = g2d.createRadialGradient(dd.x, dd.y, 2, dd.x, dd.y, 40);
+      gr.addColorStop(0, "rgba(255,190,90,0.25)"); gr.addColorStop(1, "rgba(255,190,90,0)");
+      g2d.fillStyle = gr; g2d.fillRect(dd.x - 40, dd.y - 40, 80, 80);
+    }
+    g2d.setTransform(1, 0, 0, 1, 0, 0);
     if (flash) { g2d.fillStyle = "rgba(200,210,255,0.18)"; g2d.fillRect(0, 0, W, HGT); }
     g2d.restore();
+  }
+
+  // La caméra : centrée sur le joueur suivi, sans sortir de la carte (vue W/Z × HGT/Z).
+  const zoomNow = (ghost) => (ghost || !heroOf(me()) ? 1 : ZOOM_HUMAN);
+  function camFor(v, Z) {
+    const vw = W / Z, vh = HGT / Z;
+    const camX = manor.w <= vw ? (manor.w - vw) / 2 : Math.max(0, Math.min(manor.w - vw, v.x - vw / 2));
+    const camY = manor.h <= vh ? (manor.h - vh) / 2 : Math.max(0, Math.min(manor.h - vh, v.y - vh / 2));
+    return { camX, camY };
   }
 
   function pileArt(c, x, y) {
@@ -1018,8 +1162,8 @@
   function myScreen() {
     const v = pred ? ownView() : heroOf(me());
     if (!v || !manor) return null;
-    const camX = Math.max(0, Math.min(manor.w - W, v.x - W / 2));
-    const camY = manor.h <= HGT ? (manor.h - HGT) / 2 : Math.max(0, Math.min(manor.h - HGT, v.y - HGT / 2));
-    return { x: v.x - camX, y: v.y - camY };
+    const mine = heroOf(me()), Z = zoomNow(!!mine?.ghost);
+    const { camX, camY } = camFor(v, Z);
+    return { x: (v.x - camX) * Z, y: (v.y - camY) * Z };
   }
 })();
