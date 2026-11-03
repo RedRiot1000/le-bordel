@@ -636,6 +636,34 @@ Choix de Scotty : contagion, lumière qui révèle + étourdit, manoir hanté al
   - jardin seulement **devant** (520 px : jardin à la française avec allée, portail, fontaine, parterres, buis, statues, bancs, lanternes, kiosque, haies, arbres) et **sur un côté** tiré au hasard (460 px : cimetière clôturé avec crypte, serre, puits, potager de citrouilles, arbres morts) ; derrière et de l'autre côté, le mur d'enceinte ;
   - caméra zoomée ×1,3 pour les humains (le fantôme garde ×1).
 
+## 7 octodecies. La Nuit du Tueur 🔪 — validé (« Go »)
+
+Idée de Scotty : le manoir de Lampe torche, tout le monde est humain sauf un tueur en série. Il y a autant de manches que de joueurs, et chacun est le tueur une fois.
+Choix : s'échapper par les fusibles, 2 coups pour tuer, cachettes + portes + objets, noir + lampes.
+- **Code partagé** :
+  - le manoir (`public/games/lampe/manor.js`, + `M.hideSpots` : cachettes devant les armoires, lits, buffets, commodes et casiers posés contre un mur) ;
+  - son dessin, sorti de Lampe torche dans `public/games/lampe/manor-art.js` (`ManoirArt.paint` pour le décor fixe, `ManoirArt.dynamic` pour les portes, interrupteurs et toiles).
+- **Manches** : l'ordre des tueurs est tiré au début (`g.order`), avec `rounds` = nombre de joueurs. Si le tueur prévu est parti, on prend le suivant. Réglage : durée 2 / 3 / 4 min (3 par défaut). Playlist : pas d'option.
+- **Objectif** :
+  - 3 fusibles (4 à partir de 5 joueurs) éparpillés, loin du tableau électrique (cave ou pièce du fond). On en porte un à la fois ; un mort lâche le sien.
+  - Tous branchés = alarme, et **le portail du jardin s'ouvre** ; entrer dans la zone devant le portail = échappé.
+  - Fin de manche : plus aucun humain dedans, ou fin du temps (ceux qui restent sont « pris »).
+- **Le tueur** :
+  - il se réveille 4 s après le départ, va aussi vite qu'un humain ;
+  - couteau au clic (44 px devant, ±0,85 rad, recharge 1 s, puis 1,5 s immobile pour essuyer la lame). 1er coup = blessé (adrénaline ×1,35 pendant 2 s, puis ×0,85, traînée de sang que le tueur voit), 2e coup = mort ;
+  - il défonce une porte fermée en 2 s ; Espace devant une cachette = fouiller (1 s) : si quelqu'un est dedans, c'est un coup ;
+  - il voit dans son cône de regard (520 px / 110°, arrêté par les murs et les portes fermées). Les humains « exposés » (lampe, lustre, planche qui craque, éclair) se voient de partout ;
+  - les **bruits** apparaissent pour lui comme des ondes : porte claquée ou défoncée, planche qui craque, piège qui claque, pétard, alarme.
+- **Humains** :
+  - lampe (clic, batterie 25 s, piles) ;
+  - Espace : porte (claquer / rouvrir), cachette (invisible, immobile, lampe éteinte ; Espace pour ressortir), lustre ;
+  - **objets** (un seul, clic droit ou E) : 🪤 piège à loup (le tueur reste coincé 3 s, invisible pour lui), 🧨 pétard (lancé à 230 px, explose 1,2 s après = bruit), 🩹 trousse (soigne). Ils réapparaissent 25 s après avoir été ramassés.
+- **Points** : humain +1 par fusible branché, +4 s'il s'échappe ; tueur +1 par blessure, +1 par victime (les mêmes pour tout le monde, puisque chacun est tueur une fois).
+- **Bots** :
+  - humains : fusibles → tableau → portail ; ils fuient en remontant le champ de distance, se cachent si une cachette est tout près, posent leur piège, lancent leur pétard sur le côté, se soignent, ouvrent les portes ;
+  - tueur : il ne voit que ce que voit un vrai tueur, va voir les bruits, se souvient 7 s du dernier endroit, patrouille autour des fusibles et du tableau, fouille les cachettes qu'il croise.
+- **Simulation** : le tueur bot gagne souvent contre les bots humains (qui fuient mal) ; une partie des humains branche des fusibles et s'échappe de temps en temps.
+
 ## 8. Feuille de route
 
 | Phase | Contenu | Objectif |

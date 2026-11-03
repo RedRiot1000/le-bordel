@@ -414,6 +414,21 @@
     return m;
   };
 
+  // Les cachettes (La Nuit du Tueur) : devant chaque armoire, lit, buffet, commode ou casier posé contre un mur.
+  M.HIDE = ["armoire", "lit", "buffet", "commode", "casier"];
+  M.hideSpots = function (m) {
+    const out = [];
+    for (const f of m.furniture) {
+      if (!M.HIDE.includes(f.name)) continue;
+      const n = [[0, 1], [-1, 0], [0, -1], [1, 0]][f.side];
+      const depth = f.side % 2 === 0 ? f.h : f.w;
+      const x = f.x + f.w / 2 + n[0] * (depth / 2 + 22), y = f.y + f.h / 2 + n[1] * (depth / 2 + 22);
+      if (m.nav && !m.nav.free[M.cellOf(m.nav, x, y)]) continue;
+      out.push({ id: out.length, x, y, f });
+    }
+    return out;
+  };
+
   // Zone d'un point : "cave", "manoir" ou "jardin".
   M.zoneOf = (m, x, y) => (inRect(x, y, m.caveRect) ? "cave" : inRect(x, y, m.manorRect) ? "manoir" : "jardin");
   // Sous la lune ? (jardin, ou rayon de lune d'une fenêtre)

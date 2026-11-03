@@ -276,6 +276,28 @@
       ],
       example: "Tu es chez les 🔴. Tu fonces vers une grosse zone bleue en tirant des jets devant toi, tu ramasses le 🧹 et tu traverses toute l'arène en laissant une bande rouge énorme. À 10 s de la fin, la barre est à 48 % contre 47 %… tu attrapes la 💣 en plein milieu des bleus : victoire !",
     },
+    tueur: {
+      goal: "Humain : rapporter les fusibles au tableau électrique pour ouvrir le portail, puis s'échapper. Tueur : tuer tout le monde avant.",
+      steps: [
+        "Il y a <b>autant de manches que de joueurs</b> : chacun est le <b>tueur</b> 🔪 une fois. Les autres sont des humains avec une lampe torche. Le manoir (celui de Lampe torche) est dans le noir, avec son jardin, sa cave et ses passages secrets.",
+        "Humains : trouvez les <b>fusibles</b> ⚡ (ils brillent un peu dans le noir, 3 ou 4 cachés dans le manoir, le jardin ou la cave) et rapportez-les un par un au <b>tableau électrique</b>. Quand tout est branché, le <b>portail du jardin s'ouvre</b> : passez-le pour vous échapper !",
+        "Le tueur tue en <b>2 coups de couteau</b> (clic). Au 1er, tu es <b>blessé</b> : un coup d'adrénaline (tu cours plus vite 2 s), puis tu ralentis et tu laisses du <b>sang</b> que le tueur voit. Au 2e, tu es mort.",
+        "Le tueur ne voit que dans son <b>cône de regard</b> (pas à travers les murs)… mais il voit les <b>lampes allumées</b> de partout et il <b>entend</b> : porte claquée, planche qui craque, pétard. Éteins ta lampe pour te faufiler !",
+        "<b>Espace</b> : claquer une porte (le tueur met 2 s à la défoncer), te <b>cacher</b> dans une armoire, un lit, un buffet (le tueur peut <b>fouiller</b> : s'il tombe sur toi, c'est un coup), allumer un lustre.",
+        "<b>Objets</b> au sol (un à la fois, clic droit ou <kbd>E</kbd>) : 🪤 piège à loup (le tueur reste coincé 3 s), 🧨 pétard (il explose plus loin et attire le tueur), 🩹 trousse (soigne la blessure).",
+        "La manche s'arrête quand tout le monde est mort ou échappé, ou à la fin du temps (3 min par défaut) : ceux encore dedans sont pris.",
+      ],
+      controls: [
+        "<kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> / flèches : bouger · 🖱️ viser",
+        "<b>Clic</b> : lampe on/off (humain) · coup de couteau (tueur)",
+        "<b>Clic droit</b> ou <kbd>E</kbd> : utiliser son objet · <kbd>Espace</kbd> : porte / cachette / lustre",
+      ],
+      points: [
+        "Humain : <b>+1</b> par fusible que tu branches, <b>+4</b> si tu t'échappes.",
+        "Tueur : <b>+1</b> par blessure, <b>+1</b> par victime.",
+      ],
+      example: "Tu portes le dernier fusible, lampe éteinte. Une planche craque sous tes pieds… le tueur arrive ! Tu claques la porte de la bibliothèque, tu poses ton piège derrière toi. BAM, la porte cède, CLAC, il est coincé. Tu branches le fusible : alarme, le portail s'ouvre, tu traverses le jardin en courant. 1 + 4 = <b>5 points</b>.",
+    },
     lampe: {
       goal: "Humain : survivre dans le manoir hanté jusqu'à la fin du chrono. Fantôme : toucher les humains… qui deviennent fantômes à leur tour !",
       steps: [

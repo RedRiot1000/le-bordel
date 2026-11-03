@@ -21,6 +21,7 @@ import * as sol from "./sol/server.js";
 import * as territoire from "./territoire/server.js";
 import * as neige from "./neige/server.js";
 import * as lampe from "./lampe/server.js";
+import * as tueur from "./tueur/server.js";
 
 // Les jeux jouables.
 export const GAMES = {
@@ -41,6 +42,7 @@ export const GAMES = {
   [territoire.meta.id]: territoire,
   [neige.meta.id]: neige,
   [lampe.meta.id]: lampe,
+  [tueur.meta.id]: tueur,
 };
 
 // Les jeux prévus (affichés grisés "bientôt" dans le menu).
