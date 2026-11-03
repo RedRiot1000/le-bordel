@@ -290,7 +290,7 @@
       <div class="setting-block"><label>Mode</label>${chips("mode", [["aleatoire", "🎲 Aléatoire"], ["equipes", "🔴🔵 Équipes"], ["solo", "👤 Chacun pour soi"]])}</div>
       <div class="setting-block"><label>Manches</label>${chips("rounds", [[3, "3"], [5, "5"], [7, "7"]])}</div>
       <div class="setting-block"><label>Durée d'une manche</label>${chips("duration", [[60, "1 min"], [90, "1 min 30"], [120, "2 min"]])}</div>
-      <p class="settings-note">Aléatoire : chaque manche est tirée au sort entre équipes et chacun pour soi (équipes à partir de 4 joueurs).</p>
+      <p class="settings-note">Aléatoire : chaque manche est tirée au sort entre équipes et chacun pour soi (équipes seulement à 4, 6 ou 8 joueurs, pour qu'elles soient égales).</p>
       ${host ? "" : '<p class="settings-note">Seul l\'hôte peut modifier les réglages.</p>'}`;
     if (host) panel.querySelectorAll("[data-key]").forEach((b) => {
       const v = b.dataset.v;
@@ -334,7 +334,7 @@
     const banner = lr.teamsMode ? (lr.winTeam ? `👑 Les ${st.teams[lr.winTeam].emoji} ${esc(st.teams[lr.winTeam].name)} tiennent la colline ! (${lr.teamHeld[1]} s contre ${lr.teamHeld[2]} s)` : "🤝 Égalité !")
       : lr.winner ? `👑 ${esc(pseudoOf(lr.winner))} est le roi de la colline !` : "👑 Personne n'a tenu la colline !";
     const rows = Object.keys(lr.gains).filter((id) => playerOf(id)).sort((a, b) => lr.gains[b] - lr.gains[a]).map((id) => `<li>${api.avatar(playerOf(id))}<b>${esc(pseudoOf(id))}</b>
-      <span class="muted">${lr.teamsMode ? st.teams[st.teamOf[id]]?.emoji || "" : ""} ${lr.gains[id]} s dans la zone</span><span class="gain">+${lr.gains[id]}</span></li>`).join("");
+      <span class="muted">${lr.teamsMode ? st.teams[st.teamOf[id]]?.emoji || "" : ""} ${lr.secs?.[id] ?? 0} s dans la zone</span><span class="gain">+${lr.gains[id]}</span></li>`).join("");
     const total = st.phase === "over" ? `<h3 class="ch-total">🏆 Classement</h3><ol class="s10-rank">${[...st.players].sort((a, b) => b.score - a.score)
       .map((p, i) => `<li><span class="s10-medal">${["🥇", "🥈", "🥉"][i] || i + 1 + "."}</span>${api.avatar(p)}<b>${esc(p.pseudo)}</b><span class="gain">${p.score} pts</span></li>`).join("")}</ol>` : "";
     let buttons;

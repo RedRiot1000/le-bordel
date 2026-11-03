@@ -290,8 +290,8 @@
         "🖱️ Souris : viser · <b>clic</b> : coup de batte",
       ],
       points: [
-        "<b>+1 par seconde</b> passée dans la zone pendant que ton camp la tient seul.",
-        "Le classement final = le total des secondes sur toutes les manches.",
+        "On compte tes <b>secondes</b> passées dans la zone pendant que ton camp la tient seul.",
+        "À la fin de la manche, elles sont ramenées sur <b>10 points</b> : le meilleur prend 10, les autres en proportion (une manche en équipes vaut autant qu'une manche en chacun pour soi).",
       ],
       example: "La zone va sauter près du pilier : tu cours avant les autres, tu es seul dedans, 1, 2, 3 s… Bob arrive, contesté ! Tu vises et PAF, coup de batte : il glisse hors de la zone. Tu reprends le compte jusqu'au prochain saut.",
     },

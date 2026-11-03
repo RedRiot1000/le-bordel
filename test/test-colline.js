@@ -68,8 +68,9 @@ async function run() {
   const lr = game.lastRound;
   check(game.phase === "roundOver" && lr, "Fin de manche");
   check(sawHit, "Des coups de batte ont touché");
-  const tot = Object.values(lr.gains).reduce((a, b) => a + b, 0);
-  check(tot > 10 && tot <= 61, `Points = secondes dans la zone sans contestation (${tot} s au total, max 60)`);
+  const tot = Object.values(lr.secs).reduce((a, b) => a + b, 0);
+  check(tot > 10 && tot <= 61, `Secondes dans la zone sans contestation (${tot} s au total, max 60)`);
+  check(Math.max(...Object.values(lr.gains)) === 10 && Object.values(lr.gains).every((n) => n >= 0 && n <= 10), "Points ramenés sur 10 (le meilleur de la manche prend 10)");
   await act("next");
   await wait(200);
   check(game.phase === "countdown" && game.round === 2, "Manche 2");

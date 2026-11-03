@@ -29,7 +29,7 @@ export const MOVE_EVERY = 20000;      // elle saute ailleurs toutes les 20 s...
 export const WARN_MS = 3000;          // ... en prévenant 3 s avant
 export const BAT_REACH = 64;          // portée du coup (devant soi)
 export const BAT_ANGLE = 1.05;        // demi-angle du coup (rad)
-export const BAT_CD = 650;            // recharge entre deux coups
+export const BAT_CD = 500;            // recharge entre deux coups (0,5 s)
 export const BAT_FORCE = 640;         // vitesse donnée à celui qu'on frappe
 export const BAT_STUN = 0.45;         // il contrôle mal pendant ce temps
 const COUNTDOWN_MS = 3000;
@@ -156,8 +156,8 @@ export function createGame(ctx) {
     const n = list.length;
     g.round++;
     const m = g.settings.mode;
-    // Équipes : à partir de 3 joueurs. Aléatoire : une chance sur deux, à partir de 4.
-    g.teamsMode = m === "equipes" ? n >= 3 : m === "aleatoire" ? n >= 4 && Math.random() < 0.5 : false;
+    // Équipes : à partir de 3 joueurs. Aléatoire : une chance sur deux, à partir de 4 et seulement si les équipes sont égales (nombre pair).
+    g.teamsMode = m === "equipes" ? n >= 3 : m === "aleatoire" ? n >= 4 && n % 2 === 0 && Math.random() < 0.5 : false;
     g.teamOf = {};
     if (g.teamsMode) list.forEach((p, i) => { g.teamOf[p.id] = (i % 2) + 1; });
     // Les obstacles : piliers et caisses, loin du centre (la 1re zone).
@@ -196,15 +196,18 @@ export function createGame(ctx) {
   function say(text) { g.feed.push({ id: ++g.fxId, text }); if (g.feed.length > 10) g.feed.shift(); }
   function addFx(x, y, kind) { g.fx.push({ id: ++g.fxId, t: now(), x: Math.round(x), y: Math.round(y), kind }); if (g.fx.length > 40) g.fx.shift(); }
 
-  // Fin de manche : chacun gagne les secondes qu'il a passées dans la zone pendant que son camp la tenait seul.
+  // Fin de manche : les secondes passées dans la zone (pendant que son camp la tenait seul) sont ramenées
+  // sur 10 points : le meilleur de la manche prend 10, les autres en proportion. Comme ça, une manche en
+  // équipes (où l'on marque à plusieurs) ne pèse pas plus qu'une manche en chacun pour soi.
   function endRound() {
     stopLoop();
-    const gains = {};
-    for (const [id, s] of Object.entries(g.heroes)) gains[id] = Math.floor(s.held);
+    const gains = {}, secs = {};
+    const best = Math.max(1, ...Object.values(g.heroes).map((s) => s.held));
+    for (const [id, s] of Object.entries(g.heroes)) { secs[id] = Math.floor(s.held); gains[id] = Math.round((10 * s.held) / best); }
     for (const [id, n] of Object.entries(gains)) g.scores[id] = (g.scores[id] || 0) + n;
     const sides = Object.entries(g.held).sort((a, b) => b[1] - a[1]);
     g.lastRound = {
-      gains, teamsMode: g.teamsMode,
+      gains, secs, teamsMode: g.teamsMode,
       winTeam: g.teamsMode && sides.length ? Number(sides[0][0].slice(1)) : null,
       teamHeld: g.teamsMode ? { 1: Math.floor(g.held.t1 || 0), 2: Math.floor(g.held.t2 || 0) } : null,
       winner: !g.teamsMode && sides.length ? sides[0][0] : null,
