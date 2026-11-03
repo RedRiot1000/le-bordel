@@ -507,7 +507,7 @@ Idée de Scotty : tout le monde en **F1**, la police (IA) arrive de plus en plus
 
 ### Ville simple (dernière version, demande de Scotty)
 Problèmes de la version « 3 villes » : on passait à travers certains bâtiments, des rues s'arrêtaient dans le vide. Scotty a demandé une ville simple : 1 seul quartier, pas de rivière, pas de pont, pas de périphérique, mais une ville qu'on ne traverse pas tout droit.
-- **Une seule ville** (centre-ville), entourée de 7 tuiles de campagne. 7×5 pâtés (8×6 à partir de 5 joueurs), de tailles différentes. Rues de 3 tuiles (90 px).
+- **Une seule ville** (centre-ville), entourée de 7 tuiles de campagne. 7×5 pâtés (8×6 à partir de 5 joueurs), de tailles différentes. Rues de 5 tuiles (150 px, demande de Scotty : ×1,5).
 - **Réseau de rues** :
   - on part d'une grille de rues, puis on en retire environ 35 %, et les pâtés de part et d'autre fusionnent ;
   - sur chaque ligne de la grille, au moins un tronçon disparaît, sauf **la grande rue** et **la grande avenue** (tirées au hasard), qui vont tout droit d'un bout à l'autre ;
@@ -517,6 +517,7 @@ Problèmes de la version « 3 villes » : on passait à travers certains bâtime
 - **Bâtiments posés uniquement sur des tuiles qui bloquent** : îlots d'immeubles, tours, ruelles à portiques, places pavées avec fontaine, parcs. Une rue retirée devient un immeuble (façade continue). Le test vérifie sur 60 villes qu'aucun bâtiment n'est posé sur une tuile roulable.
 - **2 sorties** : une route qui quitte la ville à gauche, une à droite (bretelles vers le bord de la carte).
 - **Commissariat** : un pâté entouré de 4 rues, près du centre, garage ouvert sur une rue.
+- **Bug corrigé** : le mélange des rues utilisait `sort(() => rnd() - 0.5)`, dont le résultat change selon le moteur JavaScript. Sur un navigateur autre que Chrome, la ville affichée n'était pas celle du serveur : on passait « à travers » des bâtiments et les flics semblaient sortir d'un immeuble. Remplacé par un mélange rejouable (`shuffle(arr, rnd)`, aussi dans le manoir de Lampe torche). Le test vérifie qu'il n'y a plus de `sort` avec du hasard.
 
 ## 7 duodecies. Pense pareil 🧠 — validé (« Go les deux »)
 

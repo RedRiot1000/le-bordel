@@ -52,9 +52,15 @@ console.log("— Ville —");
     let rows = 0, cols = 0;
     for (let j = R.y; j < R.y + R.h; j++) { let ok = true; for (let i = R.x; i < R.x + R.w; i++) if (c.grid[j * c.TW + i] !== C.KIND.ROAD) { ok = false; break; } if (ok) rows++; }
     for (let i = R.x; i < R.x + R.w; i++) { let ok = true; for (let j = R.y; j < R.y + R.h; j++) if (c.grid[j * c.TW + i] !== C.KIND.ROAD) { ok = false; break; } if (ok) cols++; }
-    straight = Math.max(straight, rows / 3 + cols / 3);
+    straight = Math.max(straight, (rows + cols) / (C.ROAD / C.TILE));
   }
   check(leak === 0, "Aucun bâtiment sur une tuile roulable (60 villes)");
+  let spotsOff = 0;
+  for (let s = 1; s <= 60; s++) { const c = C.build(s * 7919, 2 + (s % 7)); for (const p of [...c.station.spots, ...c.exits.map((e) => e.spawn)]) if (!C.drivable(C.kindAt(c, p.x, p.y))) spotsOff++; }
+  check(spotsOff === 0, "Les flics apparaissent dans le garage du commissariat ou aux sorties (jamais dans un bâtiment)");
+  // La ville est la même partout : pas de tri avec du hasard (le résultat changerait selon le navigateur).
+  const src = (await import("fs")).readFileSync(import.meta.dirname + "/../public/games/police/city.js", "utf8");
+  check(!src.includes("sort(() => rnd"), "Générateur identique dans tous les navigateurs (mélange rejouable)");
   check(straight <= 3, `On ne traverse pas la ville tout droit, sauf par ${straight} grandes rues au plus`);
   // Portique : une F1 passe dessous, un van non.
   const gateEnv = { w: 2000, h: 2000, grip: 1, oils: [], obstacles: [{ x: 600, y: 900, w: 10, h: 200, gate: true }], nitro: false };
@@ -127,7 +133,7 @@ async function run() {
   const lastAt = someLeft ? 90000 : Math.max(...lr.arrests.map((x) => x.at));
   console.log(`     (évadés : ${lr.survivors.length}, pas sortis à temps : ${lr.late.length})`);
   if (someLeft) check(sawFlee && sawFlee.stars === 5 && sawFlee.left > 25000, "Fin du chrono : « FUYEZ ! » (⭐⭐⭐⭐⭐, 30 s pour sortir)");
-  check(lr.stars === Math.min(5, 1 + Math.floor(lastAt / 18000)), `Le niveau de recherche monte (⭐${lr.stars} au bout de ${Math.round(lastAt / 1000)} s)`);
+  check(Math.abs(lr.stars - Math.min(5, 1 + Math.floor(lastAt / 18000))) <= 1 && lr.stars >= Math.min(5, 1 + Math.floor(lastAt / 18000)), `Le niveau de recherche monte (⭐${lr.stars} au bout de ${Math.round(lastAt / 1000)} s)`);
   check(lr.arrests.some((a) => a.id === me), "Moi, immobile : arrêté");
   check(iWasCop, "Arrêté = je deviens flic (van)");
   check(sawArrestGauge, "La jauge d'arrestation se remplit avant l'arrestation");

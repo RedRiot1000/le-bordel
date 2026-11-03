@@ -38,10 +38,12 @@
     return () => { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   }
   C.seeded = seeded;
+  // Mélange « rejouable » (le même partout : sort() avec un hasard ne donne pas le même résultat selon le navigateur).
+  const shuffle = (arr, rnd) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
   C.build = function (seed, nPlayers) {
     const rnd = seeded(seed);
-    const R = 3, M = 7;                                   // largeur d'une rue (tuiles), campagne autour
+    const R = 5, M = 7;                                   // largeur d'une rue (tuiles), campagne autour
     const nc = nPlayers <= 4 ? 7 : 8, nr = nPlayers <= 4 ? 5 : 6;   // pâtés en largeur / hauteur
     // Des pâtés de tailles différentes.
     const xs = [M], ys = [M];
@@ -82,11 +84,11 @@
       return true;
     };
     // D'abord, couper chaque ligne (horizontale et verticale) au moins une fois.
-    for (let j = 0; j <= nr; j++) { if (j === mainRow) continue; const line = edges.filter((e) => !e.vert && e.j === j).sort(() => rnd() - 0.5); for (const e of line) if (tryRemove(e)) break; }
-    for (let i = 0; i <= nc; i++) { if (i === mainCol) continue; const line = edges.filter((e) => e.vert && e.i === i).sort(() => rnd() - 0.5); for (const e of line) if (tryRemove(e)) break; }
+    for (let j = 0; j <= nr; j++) { if (j === mainRow) continue; const line = shuffle(edges.filter((e) => !e.vert && e.j === j), rnd); for (const e of line) if (tryRemove(e)) break; }
+    for (let i = 0; i <= nc; i++) { if (i === mainCol) continue; const line = shuffle(edges.filter((e) => e.vert && e.i === i), rnd); for (const e of line) if (tryRemove(e)) break; }
     // Puis d'autres au hasard (≈ 35 % des rues en moins).
     const target = Math.floor(edges.length * 0.35);
-    for (const e of [...edges].sort(() => rnd() - 0.5)) { if (edges.filter((x) => !x.on).length >= target) break; tryRemove(e); }
+    for (const e of shuffle(edges, rnd)) { if (edges.filter((x) => !x.on).length >= target) break; tryRemove(e); }
     // On creuse les rues.
     const roads = [];
     for (const e of edges) {

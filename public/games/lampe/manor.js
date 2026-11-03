@@ -29,6 +29,8 @@
     return () => { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   }
   M.seeded = seeded;
+  // Mélange « rejouable » (le même partout : sort() avec un hasard ne donne pas le même résultat selon le navigateur).
+  const shuffle = (arr, rnd) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const overlap = (a, b, gap = 0) => a.x < b.x + b.w + gap && b.x < a.x + a.w + gap && a.y < b.y + b.h + gap && b.y < a.y + a.h + gap;
   const inRect = (x, y, r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
   M.inRect = inRect;
@@ -102,7 +104,7 @@
     // Arbre couvrant (tout est relié) + des portes en plus (beaucoup autour des couloirs).
     const parent = rooms.map((r) => r.id);
     const find = (x) => (parent[x] === x ? x : (parent[x] = find(parent[x])));
-    const keys = [...edges.keys()].sort(() => rnd() - 0.5);
+    const keys = shuffle([...edges.keys()], rnd);
     const doorEdges = new Set();
     for (const k of keys) {
       const [a, b] = k.split("-").map(Number);
