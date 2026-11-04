@@ -67,6 +67,21 @@
       c.beginPath(); c.moveTo(-hl + 9, -hw + 4); c.lineTo(hl - 15, -hw + 4); c.moveTo(-hl + 9, hw - 4); c.lineTo(hl - 15, hw - 4); c.stroke();
       c.fillStyle = glass; rr(c, hl - 14, -hw + 4, 9, W - 8, 2); c.fill(); rr(c, -hl + 3, -hw + 5, 4, W - 10, 2); c.fill();
       c.fillStyle = light; c.fillRect(hl - 3, -hw + 3, 3, 5); c.fillRect(hl - 3, hw - 8, 3, 5);
+    } else if (type === "lambo") {
+      // Lamborghini : en coin très pointu, à facettes, deux bandes blanches, gros aileron.
+      for (const s of [-1, 1]) { wheel(-hl + 11, s * hw, 13, 7); wheel(hl - 12, s * hw, 11, 6, steer); }
+      c.fillStyle = color;
+      c.beginPath(); c.moveTo(hl, -3); c.lineTo(hl - 6, -hw + 2); c.lineTo(hl - 18, -hw); c.lineTo(-hl + 6, -hw); c.lineTo(-hl, -hw + 5);
+      c.lineTo(-hl, hw - 5); c.lineTo(-hl + 6, hw); c.lineTo(hl - 18, hw); c.lineTo(hl - 6, hw - 2); c.lineTo(hl, 3); c.closePath(); c.fill();
+      c.lineWidth = 2; c.strokeStyle = "rgba(0,0,0,0.55)"; c.stroke();
+      c.fillStyle = "#f2f2f2"; c.fillRect(-hl + 4, -hw + 2, L - 14, 3); c.fillRect(-hl + 4, hw - 5, L - 14, 3);   // bandes « police »
+      c.strokeStyle = "rgba(255,255,255,0.18)"; c.lineWidth = 1; c.beginPath(); c.moveTo(hl - 4, 0); c.lineTo(-hl + 6, 0); c.stroke();   // arête du capot
+      c.fillStyle = glass; c.beginPath(); c.moveTo(hl - 14, -hw + 6); c.lineTo(hl - 22, 0); c.lineTo(hl - 14, hw - 6); c.lineTo(-6, hw - 6); c.lineTo(-10, 0); c.lineTo(-6, -hw + 6); c.closePath(); c.fill();
+      c.fillStyle = roof || "rgba(255,255,255,0.2)"; c.fillRect(-16, -hw + 7, 8, W - 14);
+      c.fillStyle = "rgba(0,0,0,0.6)"; c.fillRect(-4, -hw, 10, 3); c.fillRect(-4, hw - 3, 10, 3);          // entrées d'air
+      c.fillStyle = "#101010"; c.fillRect(-hl - 2, -hw - 2, 6, W + 4);                                      // aileron
+      c.fillStyle = light; c.beginPath(); c.moveTo(hl - 2, -6); c.lineTo(hl - 8, -hw + 3); c.lineTo(hl - 5, -hw + 3); c.closePath(); c.fill();
+      c.beginPath(); c.moveTo(hl - 2, 6); c.lineTo(hl - 8, hw - 3); c.lineTo(hl - 5, hw - 3); c.closePath(); c.fill();
     } else if (type === "supercar") {
       // Basse et pointue, grosses entrées d'air, aileron arrière.
       for (const s of [-1, 1]) { wheel(-hl + 11, s * hw, 12, 7); wheel(hl - 11, s * hw, 11, 6, steer); }

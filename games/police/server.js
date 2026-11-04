@@ -57,6 +57,11 @@ export const SAFE_SPAWN = 400;         // ... sauf si un fugitif est à moins de
 const EXIT_GUARD = 3;                  // pendant « FUYEZ ! », 1 flic sur 3 va garder une sortie
 
 const COP_COLOR = "#16213e";
+// Le taser des joueurs devenus flics : un projectile électrique qui coupe le moteur de la voiture touchée.
+export const TASER = 64;               // touche (clic / E)
+export const TASER_CD = 2500;          // recharge
+export const TASER_SPEED = 950, TASER_RANGE = 650;
+export const EMP_MS = 2000;            // moteur coupé 2 s
 
 function defaultSettings() {
   return { rounds: 3, duration: 120, flee: 30 };
@@ -117,6 +122,9 @@ export function createGame(ctx) {
     phaseEnd: 0,
     lastRound: null,
     loop: null,
+    zaps: [],             // voitures touchées (pour les éclairs à l'écran)
+    shots: [],            // projectiles du taser { id, by, x, y, vx, vy, left }
+    shotId: 0,
     fx: [],
     fxId: 0,
     final: false,
@@ -149,7 +157,12 @@ export function createGame(ctx) {
       round: g.round,
       players: players().map((p) => ({ ...p, score: g.scores[p.id] || 0 })),
       city: g.city && { seed: g.city.seed, n: g.city.nPlayers },
-      cars: Object.entries(g.cars).filter(([, s]) => s.role !== "out").map(([id, s]) => ({ id, role: s.role, seq: s.seq, arrest: Math.min(1, s.arrest / ARREST_MS), ...carOut(s.car) })),
+      cars: Object.entries(g.cars).filter(([, s]) => s.role !== "out").map(([id, s]) => ({
+        id, role: s.role, seq: s.seq, arrest: Math.min(1, s.arrest / ARREST_MS), ...carOut(s.car),
+        emp: (s.car.empUntil || 0) > t, taser: s.role === "cop" ? Math.max(0, TASER_CD - (t - (s.taserAt || 0))) : 0,
+      })),
+      zaps: g.zaps.map(({ id, x, y, target }) => ({ id, x, y, target })),
+      shots: g.shots.map((b) => ({ id: b.id, x: Math.round(b.x), y: Math.round(b.y), vx: Math.round(b.vx), vy: Math.round(b.vy) })),
       // Flics IA : arrondis (ils peuvent être 32 : on allège ce qu'on envoie 30 fois par seconde).
       cops: g.cops.map(({ id, car: c }) => ({
         id, type: c.type, st: c.st, boost: c.boost,
@@ -231,6 +244,8 @@ export function createGame(ctx) {
     g.fieldsAt = 0;
     g.endAt = 0;
     g.fx = [];
+    g.shots = [];
+    g.zaps = [];
     g.lastRound = null;
     g.phase = "countdown";
     g.phaseEnd = now() + COUNTDOWN_MS;
@@ -260,9 +275,10 @@ export function createGame(ctx) {
     g.arrests.push({ id, at, by });
     g.gains[id] = (g.gains[id] || 0) + Math.floor(Math.min(at, durationMs()) / 20000) * PER_20S;
     for (const cid of by) g.gains[cid] = (g.gains[cid] || 0) + COP_ARREST;
-    // Il devient flic : un van de police, au même endroit.
+    // Il devient flic : une Lamborghini de police (puissante, elle pousse fort, passe dans les ruelles), au même endroit.
     const c = s.car;
-    s.car = { ...P.newCar(c.x, c.y, c.a, "minivan"), vx: c.vx * 0.3, vy: c.vy * 0.3 };
+    s.car = { ...P.newCar(c.x, c.y, c.a, "lambo"), vx: c.vx * 0.3, vy: c.vy * 0.3 };
+    s.taserAt = 0;
     s.role = "cop";
     s.arrest = 0;
     s.ai = {};
@@ -458,7 +474,7 @@ export function createGame(ctx) {
     return steerTo(c, ai, target, { corner: CORNER[c.type] || 210, nitro: c.type !== "truck" && d > 260 });
   }
   // Vitesse max dans un virage serré, selon le véhicule.
-  const CORNER = { moto: 270, supercar: 240, sport: 210, minivan: 190, truck: 160 };
+  const CORNER = { moto: 270, supercar: 240, lambo: 245, sport: 210, minivan: 190, truck: 160 };
 
   // Un bot fugitif : il choisit un point loin des flics et y va par les rues.
   function fleeKeys(id, s) {
@@ -506,6 +522,7 @@ export function createGame(ctx) {
   function advanceCar(car, k, isCop, selfId) {
     const dt = P.TICK / P.SUB;
     const env = { ...g.env, obstacles: C.near(g.city, car.x, car.y, g.open) };
+    if ((car.empUntil || 0) > now()) k &= ~(K.UP | K.NITRO);
     const others = allCars().filter((o) => o.id !== selfId && Math.abs(o.car.x - car.x) < 140 && Math.abs(o.car.y - car.y) < 140);
     for (let sub = 0; sub < P.SUB; sub++) {
       P.drive(car, k, dt, env, bonusOf(car, isCop));
@@ -546,6 +563,48 @@ export function createGame(ctx) {
     if (freeIds().length === 0) g.endAt = t + END_DELAY;
   }
 
+  // Un tir de taser, droit devant la voiture.
+  function fireTaser(id, s) {
+    const t = now();
+    if (s.role !== "cop" || t - (s.taserAt || 0) < TASER_CD) return;
+    s.taserAt = t;
+    const c = s.car, fx = Math.cos(c.a), fy = Math.sin(c.a);
+    g.shots.push({ id: ++g.shotId, by: id, x: c.x + fx * 30, y: c.y + fy * 30, vx: fx * TASER_SPEED + c.vx * 0.5, vy: fy * TASER_SPEED + c.vy * 0.5, left: TASER_RANGE });
+  }
+  // Les éclairs avancent : un mur les arrête, une voiture de fugitif touchée a le moteur coupé 2 s.
+  function stepShots(dt) {
+    const t = now();
+    for (const b of [...g.shots]) {
+      let gone = false;
+      const steps = 4, d = dt / steps;
+      for (let i = 0; i < steps && !gone; i++) {
+        b.x += b.vx * d; b.y += b.vy * d;
+        b.left -= Math.hypot(b.vx, b.vy) * d;
+        if (b.left <= 0 || b.x < 0 || b.y < 0 || b.x > g.city.w || b.y > g.city.h) { gone = true; break; }
+        if (C.near(g.city, b.x, b.y, g.open).some((o) => !o.gate && b.x > o.x && b.x < o.x + o.w && b.y > o.y && b.y < o.y + o.h)) { addFx(b.x, b.y, 0, false); gone = true; break; }
+        for (const id of freeIds()) {
+          const c = g.cars[id].car;
+          if (Math.hypot(c.x - b.x, c.y - b.y) > 26) continue;
+          c.empUntil = t + EMP_MS;
+          g.zaps.push({ id: ++g.fxId, t, x: Math.round(c.x), y: Math.round(c.y), target: id });
+          gone = true;
+          break;
+        }
+      }
+      if (gone) g.shots = g.shots.filter((x) => x !== b);
+    }
+    g.zaps = g.zaps.filter((z) => t - z.t < 800);
+  }
+  // Un bot devenu flic tire quand un fugitif est juste devant lui.
+  function botTaser(id, s) {
+    const c = s.car;
+    for (const fid of freeIds()) {
+      const o = g.cars[fid].car, d = dist(o, c);
+      if (d > TASER_RANGE * 0.8 || d < 40) continue;
+      if (Math.abs(angDiff(Math.atan2(o.y - c.y, o.x - c.x), c.a)) < 0.12) { fireTaser(id, s); return; }
+    }
+  }
+
   function addFx(x, y, s, big = false) {
     const t = now();
     if (!big && g.fx.some((f) => t - f.t < 150 && Math.hypot(f.x - x, f.y - y) < 40)) return;
@@ -574,6 +633,8 @@ export function createGame(ctx) {
         if (s.bot) advanceCar(s.car, s.role === "cop" ? copKeys(s, 0) : fleeKeys(id, s), s.role === "cop", id);
         else if (t - s.lastInputAt > 200) advanceCar(s.car, 0, s.role === "cop", id);   // onglet en pause
       }
+      for (const [id, s] of Object.entries(g.cars)) if (s.bot && s.role === "cop") botTaser(id, s);
+      stepShots(TICK_MS / 1000);
       if (!g.endAt) checkArrests();
       if (!g.endAt && g.flee) checkEscapes(t);
       // Fin du chrono : « FUYEZ ! » (s'il reste des fugitifs), puis fin de la manche.
@@ -636,6 +697,7 @@ export function createGame(ctx) {
       st.budgetAt = t;
       if (st.budget < 1) return;
       st.budget -= 1;
+      if (k & TASER) fireTaser(pid, st);
       advanceCar(st.car, k & 63, st.role === "cop", pid);
     },
     setup(pid) {

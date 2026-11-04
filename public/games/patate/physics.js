@@ -69,6 +69,14 @@
       stars: { speed: 5, accel: 5, weight: 3, handling: 4, push: 3 },
     },
   };
+  // Réservée aux joueurs devenus flics dans Avis de recherche : rapide, et lourde comme un van (elle pousse fort).
+  // Largeur 24 : elle passe sous les portiques des ruelles (pas les vans ni les camions).
+  P.VEHICLES.lambo = {
+    name: "Lamborghini de police", emoji: "🚓", desc: "Puissante, lourde, elle pousse fort.", special: true,
+    L: 50, W: 24, mass: 1.75, engine: 640, drag: 1.32, brake: 1150, reverse: 300,
+    steer: 3.15, steerLoss: 0.2, grip: 13.5, slideIn: 145,
+    stars: { speed: 5, accel: 5, weight: 4, handling: 4, push: 4 },
+  };
   P.TYPES = Object.keys(P.VEHICLES).filter((t) => !P.VEHICLES[t].special);
   for (const v of Object.values(P.VEHICLES)) {
     // Résistance à la rotation (volontairement faible : les chocs font bien tourner).

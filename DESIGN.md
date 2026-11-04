@@ -505,6 +505,10 @@ Idée de Scotty : tout le monde en **F1**, la police (IA) arrive de plus en plus
   - banlieue : maisons sur les 4 côtés face à la rue (jardins, piscines, haies), impasse avec rond de retournement, parc, terrain de foot, allée à portiques.
 - **Commissariat** : le grand pâté du centre-ville le plus central, garage ouvert sur l'avenue.
 
+### Flics joueurs : Lamborghini + taser (demande de Scotty)
+- Un joueur arrêté devient flic en **Lamborghini de police** (`lambo` dans physics.js, réservée) : masse 1,75 (pousse comme un van), moteur 640, largeur 24 (passe sous les portiques des ruelles, contrairement aux vans).
+- **Taser** (bit 64 : clic ou E) : un éclair droit devant (950 px/s, portée 650, recharge 2,5 s), arrêté par les murs. Une voiture de fugitif touchée a le **moteur coupé 2 s** (`car.empUntil` : plus d'accélération ni de nitro, on peut encore tourner et freiner ; la prédiction du navigateur fait pareil). Les bots devenus flics tirent quand un fugitif est droit devant.
+
 ### Ville simple (dernière version, demande de Scotty)
 Problèmes de la version « 3 villes » : on passait à travers certains bâtiments, des rues s'arrêtaient dans le vide. Scotty a demandé une ville simple : 1 seul quartier, pas de rivière, pas de pont, pas de périphérique, mais une ville qu'on ne traverse pas tout droit.
 - **Une seule ville** (centre-ville), entourée de 7 tuiles de campagne. 7×5 pâtés (8×6 à partir de 5 joueurs), de tailles différentes. Rues de 5 tuiles (150 px, demande de Scotty : ×1,5).

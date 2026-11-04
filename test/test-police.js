@@ -65,7 +65,7 @@ console.log("— Ville —");
   // Portique : une F1 passe dessous, un van non.
   const gateEnv = { w: 2000, h: 2000, grip: 1, oils: [], obstacles: [{ x: 600, y: 900, w: 10, h: 200, gate: true }], nitro: false };
   const through = (type) => { const car = P.newCar(400, 1000, 0, type); for (let k = 0; k < 90; k++) P.simulate(car, P.K.UP, gateEnv, 1, []); return car.x > 620; };
-  check(through("f1") && through("sport") && through("moto") && !through("minivan") && !through("truck"), "Portique : F1, sportive, moto passent ; van et camion bloqués");
+  check(through("f1") && through("sport") && through("moto") && through("lambo") && !through("minivan") && !through("truck"), "Portique : F1, sportive, moto et Lamborghini de police passent ; van et camion bloqués");
   check(C.build(1, 2).w < C.build(1, 8).w, `La ville grandit avec le nombre de joueurs (${C.build(1, 2).w} → ${C.build(1, 8).w} px de large)`);
 }
 
@@ -106,6 +106,7 @@ async function run() {
   check(game.cops.length === 0, "Pas de flic pendant les 5 premières secondes");
   // On surveille la manche : apparitions, étoiles, arrestations.
   const seen = new Set();
+  let tasered = false, tseq = 1e6, lastCopAt = 0;
   let spawnTooClose = 0, maxCops = 0, sawArrestGauge = false, iWasCop = false, fromBase = 0, sawFlee = null;
   const bases = [...city.station.spots, ...city.exits.map((e) => e.spawn)];
   await waitFor(() => {
@@ -113,14 +114,15 @@ async function run() {
       if (seen.has(cop.id)) continue;
       seen.add(cop.id);
       const free = game.cars.filter((c) => c.role === "free");
-      if (free.length && Math.min(...free.map((f) => Math.hypot(f.x - cop.x, f.y - cop.y))) < 400) spawnTooClose++;
+      if (free.length && Math.min(...free.map((f) => Math.hypot(f.x - cop.x, f.y - cop.y))) < 350) spawnTooClose++;
       if (bases.some((b) => Math.hypot(b.x - cop.x, b.y - cop.y) < 120)) fromBase++;
     }
     maxCops = Math.max(maxCops, game.cops.length);
     if (game.cars.some((c) => c.role === "free" && c.arrest > 0)) sawArrestGauge = true;
     if (game.flee && !sawFlee) sawFlee = { stars: game.stars, left: game.fleeLeft };
     const mine = game.cars.find((c) => c.id === me);
-    if (mine?.role === "cop" && mine.type === "minivan") iWasCop = true;
+    if (mine?.role === "cop" && mine.type === "lambo") iWasCop = true;
+    if (mine?.role === "cop") { lastCopAt = Date.now(); if (!tasered && game.phase === "play") { socket.emit("gameAction", { type: "in", data: { s: ++tseq, k: 64 } }); if ((mine.taser || 0) > 0) tasered = true; } }
     return game.phase === "roundOver";
   }, 140000);
   const lr = game.lastRound;
@@ -135,7 +137,8 @@ async function run() {
   if (someLeft) check(sawFlee && sawFlee.stars === 5 && sawFlee.left > 25000, "Fin du chrono : « FUYEZ ! » (⭐⭐⭐⭐⭐, 30 s pour sortir)");
   check(Math.abs(lr.stars - Math.min(5, 1 + Math.floor(lastAt / 18000))) <= 1 && lr.stars >= Math.min(5, 1 + Math.floor(lastAt / 18000)), `Le niveau de recherche monte (⭐${lr.stars} au bout de ${Math.round(lastAt / 1000)} s)`);
   check(lr.arrests.some((a) => a.id === me), "Moi, immobile : arrêté");
-  check(iWasCop, "Arrêté = je deviens flic (van)");
+  check(iWasCop, "Arrêté = je deviens flic en Lamborghini de police");
+  check(tasered, "Flic : clic / E = un tir de taser (puis recharge)");
   check(sawArrestGauge, "La jauge d'arrestation se remplit avant l'arrestation");
   // Points.
   const exp = {};

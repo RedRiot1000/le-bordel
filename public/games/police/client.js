@@ -12,6 +12,7 @@
   const K = P.K;
   const COP_POWER = (stars) => 0.95 + 0.06 * stars;   // (le même que games/police/server.js)
   const COP_COLOR = "#16213e";
+  const TASER = 64, TASER_CD = 2500;   // (les mêmes que games/police/server.js)
 
   let api = null, root = null;
   let st = null;
@@ -56,7 +57,8 @@
           <h2>🎮 Règles & commandes</h2>
           <ul class="pt-help">
             <li>🏎️ Vous êtes en <b>F1</b> dans une ville. La police arrive après 5 s, de plus en plus nombreuse (⭐ → ⭐⭐⭐⭐⭐) : sportives, motos, vans, puis supercars et camions.</li>
-            <li>🚔 Presque à l'arrêt pendant <b>1 s</b> avec <b>2 véhicules de police</b> autour = <b>ARRÊTÉ</b>. Tu deviens flic (un van) et tu aides à coincer les autres !</li>
+            <li>🚔 Presque à l'arrêt pendant <b>1 s</b> avec <b>2 véhicules de police</b> autour = <b>ARRÊTÉ</b>. Tu deviens flic en <b>Lamborghini de police</b> (elle pousse fort et passe dans les ruelles) et tu aides à coincer les autres !</li>
+            <li>⚡ Flic : <b>clic</b> ou <kbd>E</kbd> = <b>taser</b> droit devant. Une voiture touchée a le <b>moteur coupé 2 s</b>.</li>
             <li>🚁 À ⭐⭐⭐⭐, l'hélico suit un fugitif : la moitié des flics fonce sur lui.</li>
             <li><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> / flèches · <kbd>Espace</kbd> frein à main · <kbd>Shift</kbd> nitro</li>
             <li>🚓 Les flics partent du <b>commissariat</b> (et un peu des sorties). Les <b>portiques jaunes</b> sont des raccourcis : les vans et camions ne passent pas dessous !</li>
@@ -83,12 +85,13 @@
       <div class="ch-sub">
         <div id="po-free" class="ch-mice"></div>
         <div id="po-nitro" class="pt-nitro" title="Nitro (Shift)"><span>NITRO</span><div class="bar"><i></i></div></div>
+        <span id="po-taser" class="po-taser hidden"></span>
       </div>
       <div class="pt-arena-wrap">
         <canvas id="po-canvas" width="${P.W}" height="${P.H}"></canvas>
         <div id="po-overlay" class="pt-overlay hidden"></div>
       </div>
-      <p class="muted pt-keys">ZQSD / flèches · Espace = frein à main · Shift = nitro · M = carte</p>
+      <p class="muted pt-keys">ZQSD / flèches · Espace = frein à main · Shift = nitro · M = carte · flic : clic / E = taser</p>
     </div>`;
 
   // ===================================================================
@@ -103,6 +106,8 @@
       api.setTheme("theme-ocean");
       document.querySelector(".app").classList.add("pt-wide");
       canvas = $("po-canvas");
+      canvas.addEventListener("mousedown", (e) => { if (e.button === 0) mouseDown = true; });
+      window.addEventListener("mouseup", () => { mouseDown = false; });
       g2d = canvas.getContext("2d");
       $("po-start").onclick = () => {
         $("po-error").textContent = "";
@@ -163,8 +168,9 @@
   const KEYMAP = {
     KeyW: K.UP, ArrowUp: K.UP, KeyS: K.DOWN, ArrowDown: K.DOWN,
     KeyA: K.LEFT, ArrowLeft: K.LEFT, KeyD: K.RIGHT, ArrowRight: K.RIGHT,
-    Space: K.HB, ShiftLeft: K.NITRO, ShiftRight: K.NITRO,
+    Space: K.HB, ShiftLeft: K.NITRO, ShiftRight: K.NITRO, KeyE: TASER,
   };
+  let mouseDown = false;
   function onKey(e) {
     if (e.code === "KeyM" && st && st.phase !== "setup" && e.target.tagName !== "INPUT") {
       e.preventDefault();
@@ -178,8 +184,11 @@
   function keyMask() {
     let k = 0;
     for (const code of pressed) k |= KEYMAP[code];
+    if (mouseDown) k |= TASER;
     return k;
   }
+  // Moteur coupé (taser) : on ne peut plus accélérer, comme sur le serveur.
+  const engineMask = (k) => (carOf(me())?.emp ? k & ~(K.UP | K.NITRO) : k);
 
   // ===================================================================
   //  PRÉDICTION DE MA VOITURE (même principe que la Patate)
@@ -205,7 +214,7 @@
     const before = pred && ownView();
     const oldPred = pred;
     pred = P.copyCar(sc);
-    pending.forEach((p, i) => { P.simulate(pred, p.k, envAt(pred), myBonus(), othersAt((i + 1) * P.TICK)); history.set(p.s, P.copyCar(pred)); });
+    pending.forEach((p, i) => { P.simulate(pred, engineMask(p.k), envAt(pred), myBonus(), othersAt((i + 1) * P.TICK)); history.set(p.s, P.copyCar(pred)); });
     if (prevPred && oldPred) { prevPred.x += pred.x - oldPred.x; prevPred.y += pred.y - oldPred.y; prevPred.a += angDiff(pred.a, oldPred.a); }
     if (before) {
       const after = ownView();
@@ -223,7 +232,7 @@
       pending.push({ s: seq, k });
       if (pending.length > 90) pending.shift();
       prevPred = P.copyCar(pred);
-      P.simulate(pred, k, envAt(pred), myBonus(), othersAt(pending.length * P.TICK));
+      P.simulate(pred, engineMask(k), envAt(pred), myBonus(), othersAt(pending.length * P.TICK));
       history.set(seq, P.copyCar(pred));
       acc -= P.TICK;
     }
@@ -318,6 +327,11 @@
       <span class="muted po-copcount">🚓 ${st.cops.length + st.cars.length - free.length}</span>`;
     if ($("po-free").innerHTML !== html) $("po-free").innerHTML = html;
     $("po-nitro").classList.toggle("hidden", !myRole || st.phase !== "play");
+    // Le taser (flics) : prêt, ou le temps qu'il reste avant de pouvoir retirer.
+    const mc = carOf(me());
+    const tz = $("po-taser");
+    tz.classList.toggle("hidden", !mc || mc.role !== "cop" || st.phase !== "play");
+    if (mc && mc.role === "cop") { const t = mc.taser > 0 ? `⚡ Taser : ${(mc.taser / 1000).toFixed(1)} s` : "⚡ Taser prêt (clic / E)"; if (tz.textContent !== t) { tz.textContent = t; tz.classList.toggle("ready", mc.taser <= 0); } }
   }
 
   function renderOver() {
@@ -836,9 +850,9 @@
     const view = st.cars.map((car) => {
       if (car.id === me() && pred) {
         const o = ownView();
-        return { ...o, id: car.id, role: car.role, arrest: car.arrest, x: o.x + off.x, y: o.y + off.y, a: o.a + off.a };
+        return { ...o, id: car.id, role: car.role, arrest: car.arrest, emp: car.emp, x: o.x + off.x, y: o.y + off.y, a: o.a + off.a };
       }
-      return { ...shownCar(car), role: car.role, arrest: car.arrest };
+      return { ...shownCar(car), role: car.role, arrest: car.arrest, emp: car.emp };
     });
     const copsView = st.cops.map((cop) => shownCar(cop));
     const mv = view.find((v) => v.id === me());
@@ -877,6 +891,7 @@
       window.VehicleArt.paint(c, v.type, v.role === "cop" ? COP_COLOR : pc, v.role === "cop" ? pc : null, v.st || 0, v.id === me(), v.boost);
       c.restore();
       if (v.role === "cop") lightBar(c, v, ts, 0.5);
+      if (v.emp) zapArcs(c, v.x, v.y, ts, 30);
       // Jauge d'arrestation : un cercle rouge qui se remplit.
       if (v.role === "free" && v.arrest > 0) {
         c.lineWidth = 6; c.strokeStyle = "rgba(0,0,0,0.5)";
@@ -891,6 +906,24 @@
       c.fillStyle = v.role === "cop" ? "#9fc0ff" : "#fff"; c.fillText(label, v.x, v.y - 32);
     }
     drawParticles(dt);
+    // Les éclairs du taser en vol.
+    for (const b of st.shots || []) {
+      const a = Math.atan2(b.vy, b.vx), ahead = Math.min(0.1, (performance.now() - lastSnapRecv) / 1000);
+      const x = b.x + b.vx * ahead, y = b.y + b.vy * ahead;
+      c.save(); c.translate(x, y); c.rotate(a);
+      const gr = c.createRadialGradient(0, 0, 2, 0, 0, 22);
+      gr.addColorStop(0, "rgba(160,220,255,0.9)"); gr.addColorStop(1, "rgba(80,160,255,0)");
+      c.fillStyle = gr; c.beginPath(); c.arc(0, 0, 22, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = "#e8f6ff"; c.lineWidth = 3; c.beginPath(); c.moveTo(-34, 0);
+      for (let k = 1; k <= 6; k++) c.lineTo(-34 + k * 7, (Math.random() - 0.5) * 10);
+      c.stroke();
+      c.restore();
+    }
+    // Les voitures qui viennent d'être touchées : un gros éclair.
+    for (const z of st.zaps || []) {
+      const car = st.cars.find((x) => x.id === z.target);
+      if (car) zapArcs(c, car.x, car.y, ts, 50);
+    }
 
     // L'hélico : il tourne autour de sa cible. Projecteur allumé seulement quand il est assez près.
     if (st.heli) {
@@ -947,6 +980,8 @@
     } else if (roleFlash > 0) {
       roleFlash -= dt;
       band("🚔 ARRÊTÉ !", "Tu es flic maintenant : coince les autres !", "#ff4d4d");
+    } else if (mv && mv.role === "free" && carOf(me())?.emp) {
+      band("⚡ MOTEUR COUPÉ !", "Un flic t'a tasé : tu ne peux plus accélérer pendant 2 s…", "#7cc8ff", true);
     } else if (mv && mv.role === "free" && mv.arrest > 0.15) {
       band("⚠️ BOUGE !", "La police t'encercle !", "#ff4d4d", true);
     }
@@ -1000,6 +1035,20 @@
     const tip = bigMap ? "🗺️ Carte de la ville · M pour fermer" : "M = carte";
     const tx = bigMap ? canvas.width / 2 : x0 + (W * f) / 2, ty = bigMap ? y0 - 16 : y0 + H * f + 14;
     c.strokeText(tip, tx, ty); c.fillText(tip, tx, ty);
+    c.restore();
+  }
+
+  // Des arcs électriques autour d'une voiture.
+  function zapArcs(c, x, y, ts, r) {
+    c.save();
+    c.strokeStyle = "rgba(170,225,255,0.9)"; c.lineWidth = 2;
+    c.shadowColor = "#5ab4ff"; c.shadowBlur = 10;
+    for (let k = 0; k < 4; k++) {
+      const a0 = Math.random() * Math.PI * 2;
+      c.beginPath(); c.moveTo(x + Math.cos(a0) * 8, y + Math.sin(a0) * 8);
+      for (let s = 1; s <= 4; s++) { const a = a0 + (Math.random() - 0.5) * 0.9; c.lineTo(x + Math.cos(a) * (8 + (r * s) / 4), y + Math.sin(a) * (8 + (r * s) / 4)); }
+      c.stroke();
+    }
     c.restore();
   }
 
