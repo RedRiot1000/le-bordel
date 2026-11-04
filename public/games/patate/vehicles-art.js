@@ -82,6 +82,46 @@
       c.fillStyle = "#101010"; c.fillRect(-hl - 2, -hw - 2, 6, W + 4);                                      // aileron
       c.fillStyle = light; c.beginPath(); c.moveTo(hl - 2, -6); c.lineTo(hl - 8, -hw + 3); c.lineTo(hl - 5, -hw + 3); c.closePath(); c.fill();
       c.beginPath(); c.moveTo(hl - 2, 6); c.lineTo(hl - 8, hw - 3); c.lineTo(hl - 5, hw - 3); c.closePath(); c.fill();
+    } else if (type === "eclair") {
+      // ÉCLAIR : très longue et basse, nez en flèche, éclair jaune sur le capot, long aileron.
+      for (const s of [-1, 1]) { wheel(-hl + 12, s * hw, 14, 7); wheel(hl - 14, s * hw, 11, 6, steer); }
+      c.fillStyle = color;
+      c.beginPath(); c.moveTo(hl + 2, 0); c.lineTo(hl - 10, -hw + 3); c.lineTo(hl - 22, -hw); c.lineTo(-hl + 4, -hw + 1); c.lineTo(-hl, -hw + 5);
+      c.lineTo(-hl, hw - 5); c.lineTo(-hl + 4, hw - 1); c.lineTo(hl - 22, hw); c.lineTo(hl - 10, hw - 3); c.closePath(); c.fill();
+      c.lineWidth = 2; c.strokeStyle = "rgba(0,0,0,0.55)"; c.stroke();
+      // L'éclair jaune.
+      c.fillStyle = "#ffe14d"; c.strokeStyle = "rgba(0,0,0,0.6)"; c.lineWidth = 1;
+      c.beginPath(); c.moveTo(hl - 4, -1); c.lineTo(hl - 14, -5); c.lineTo(hl - 13, -1); c.lineTo(hl - 24, -4); c.lineTo(hl - 15, 2); c.lineTo(hl - 16, -1); c.closePath(); c.fill(); c.stroke();
+      c.fillStyle = glass; c.beginPath(); c.moveTo(hl - 24, -hw + 5); c.lineTo(hl - 30, 0); c.lineTo(hl - 24, hw - 5); c.lineTo(-8, hw - 5); c.lineTo(-12, 0); c.lineTo(-8, -hw + 5); c.closePath(); c.fill();
+      c.fillStyle = roof || "rgba(255,255,255,0.2)"; c.fillRect(-18, -hw + 6, 8, W - 12);
+      c.fillStyle = "#0d0d0d"; c.fillRect(-hl - 3, -hw - 3, 6, W + 6);                       // grand aileron
+      c.fillStyle = "#ff3b3b"; c.fillRect(-hl, -hw + 2, 2, 5); c.fillRect(-hl, hw - 7, 2, 5);   // feux arrière
+      c.fillStyle = light; c.fillRect(hl - 9, -hw + 4, 4, 3); c.fillRect(hl - 9, hw - 7, 4, 3);
+    } else if (type === "vipere") {
+      // VIPÈRE : petite et ronde, deux bandes de course, gros pots d'échappement, écailles sur le toit.
+      for (const s of [-1, 1]) { wheel(-hl + 10, s * hw, 12, 6); wheel(hl - 10, s * hw, 10, 6, steer); }
+      c.fillStyle = color; rr(c, -hl, -hw, L, W, 9); c.fill();
+      c.lineWidth = 2; c.strokeStyle = "rgba(0,0,0,0.55)"; c.stroke();
+      c.fillStyle = "rgba(20,20,20,0.75)"; c.fillRect(-hl + 2, -3.5, L - 4, 2.5); c.fillRect(-hl + 2, 1, L - 4, 2.5);   // bandes
+      c.fillStyle = glass; rr(c, hl - 19, -hw + 4, 9, W - 8, 3); c.fill();
+      c.fillStyle = roof || "rgba(255,255,255,0.22)"; rr(c, -9, -hw + 4, 12, W - 8, 3); c.fill();
+      c.fillStyle = "rgba(0,0,0,0.25)"; for (let k = 0; k < 3; k++) { c.beginPath(); c.arc(-6 + k * 4, -2 + (k % 2) * 4, 2, 0, Math.PI * 2); c.fill(); }   // écailles
+      c.fillStyle = "#9aa0a8"; c.beginPath(); c.arc(-hl - 1, -4, 2.5, 0, Math.PI * 2); c.arc(-hl - 1, 4, 2.5, 0, Math.PI * 2); c.fill();   // pots
+      c.fillStyle = "#3dff7a"; c.beginPath(); c.moveTo(hl - 1, -hw + 4); c.lineTo(hl - 6, -hw + 3); c.lineTo(hl - 3, -hw + 7); c.fill();   // phares « yeux de serpent »
+      c.beginPath(); c.moveTo(hl - 1, hw - 4); c.lineTo(hl - 6, hw - 3); c.lineTo(hl - 3, hw - 7); c.fill();
+    } else if (type === "titan") {
+      // TITAN : large et carrée, pare-buffle à l'avant, gros pneus, capot nervuré.
+      for (const s of [-1, 1]) { wheel(-hl + 12, s * (hw + 1), 15, 8); wheel(hl - 13, s * (hw + 1), 14, 8, steer); }
+      c.fillStyle = color; rr(c, -hl, -hw, L, W, 5); c.fill();
+      c.lineWidth = 2.5; c.strokeStyle = "rgba(0,0,0,0.6)"; c.stroke();
+      c.strokeStyle = "rgba(0,0,0,0.35)"; c.lineWidth = 1.5;
+      for (const y of [-6, 0, 6]) { c.beginPath(); c.moveTo(hl - 4, y); c.lineTo(hl - 16, y); c.stroke(); }   // nervures du capot
+      c.fillStyle = glass; rr(c, hl - 25, -hw + 5, 8, W - 10, 2); c.fill();
+      c.fillStyle = roof || "rgba(255,255,255,0.18)"; rr(c, -16, -hw + 5, 18, W - 10, 3); c.fill();
+      c.fillStyle = "#2a2a2a"; c.fillRect(hl - 1, -hw + 1, 5, W - 2);                     // pare-buffle
+      c.fillStyle = "#777"; for (let k = -hw + 4; k < hw - 3; k += 5) c.fillRect(hl, k, 4, 2);
+      c.fillStyle = "#111"; c.fillRect(-hl - 2, -hw + 3, 4, W - 6);                        // pare-chocs arrière
+      c.fillStyle = light; c.fillRect(hl - 4, -hw + 2, 3, 6); c.fillRect(hl - 4, hw - 8, 3, 6);
     } else if (type === "supercar") {
       // Basse et pointue, grosses entrées d'air, aileron arrière.
       for (const s of [-1, 1]) { wheel(-hl + 11, s * hw, 12, 7); wheel(hl - 11, s * hw, 11, 6, steer); }

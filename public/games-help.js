@@ -296,6 +296,27 @@
       ],
       example: "Une haie : saut. Une barre juste derrière : tu retombes vite avec ↓ et tu glisses dessous. Un grand trou : tu sautes en gardant appuyé… Bob tombe à 840 m, toi tu tiens jusqu'à 1 020 m : 1re place, <b>10 points</b>.",
     },
+    course: {
+      goal: "Gagner la course (mode Course) ou être le dernier survivant (mode Élimination) au volant de ta supersportive.",
+      steps: [
+        "À chaque manche, un <b>nouveau circuit</b> est tiré au hasard. L'hôte choisit le mode : <b>Course</b>, <b>Élimination</b> ou <b>Aléatoire</b> (tiré à chaque manche).",
+        "Avant le départ, <b>10 s pour choisir ta voiture</b> : <b>⚡ ÉCLAIR</b> (la plus rapide en ligne droite, mais elle glisse), <b>🐍 VIPÈRE</b> (accélère et tourne le mieux, mais légère) ou <b>🦏 TITAN</b> (lourde, pousse très fort, moins rapide).",
+        "🏁 <b>Course</b> : 2, 3 ou 5 tours. Dès que le premier passe la ligne, les autres ont <b>20 s</b> pour finir.",
+        "💥 <b>Élimination</b> : pas de tours. <b>Toutes les 30 s, la voiture en dernière place explose !</b> Le dernier, marqué d'une 💣, doit vite remonter.",
+        "🔥 La <b>nitro</b> se recharge surtout en <b>dérapant</b> (frein à main dans les virages). Plus tu es loin derrière, plus elle remonte vite (jusqu'à ×2 pour le dernier).",
+        "L'herbe ralentit. Tu peux <b>pousser</b> les autres dehors. Coincé ou perdu ? <kbd>R</kbd> te remet sur la piste (tout seul après 3 s).",
+      ],
+      controls: [
+        "<kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> ou <kbd>ZQSD</kbd> : conduire",
+        "<kbd>Espace</kbd> : frein à main (dérapage) · <kbd>Maj</kbd> : nitro · <kbd>R</kbd> : revenir sur la piste",
+      ],
+      points: [
+        "Course : l'ordre d'arrivée (ceux qui n'ont pas fini sont classés selon leur avancée).",
+        "Élimination : le survivant est 1er, puis dans l'ordre inverse des explosions.",
+        "<b>10, 7, 5, 3, 2, 1</b> points selon ta place.",
+      ],
+      example: "Tu prends la VIPÈRE. Dans l'épingle, tu dérapes au frein à main : ta nitro se remplit. En ligne droite, Bob en TITAN te tasse dans l'herbe… mais tu es 4e, ta nitro remonte ×1,6 : tu la vides et tu le dépasses avant la ligne. 2e : <b>7 points</b>.",
+    },
     colline: {
       goal: "Rester dans la zone dorée le plus longtemps possible, seul (ou seule ton équipe), en virant les autres à coups de batte.",
       steps: [

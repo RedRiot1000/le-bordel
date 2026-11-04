@@ -61,6 +61,7 @@ const GAMES = {
   lampe: () => game.heroes?.length === 8 && game.heroes.filter((h) => h.ghost).length === 1,
   colline: () => game.heroes?.length === 8,
   parkour: () => game.runners?.length === 8 && game.lanes?.length === 8,
+  course: () => game.cars?.length === 8 && game.phase === "pick",
   tueur: () => game.heroes?.length === 8 && game.heroes.filter((h) => h.killer).length === 1 && game.rounds === 8,
 };
 

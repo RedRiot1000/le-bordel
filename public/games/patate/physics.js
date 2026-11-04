@@ -77,6 +77,26 @@
     steer: 3.15, steerLoss: 0.2, grip: 13.5, slideIn: 145,
     stars: { speed: 5, accel: 5, weight: 4, handling: 4, push: 4 },
   };
+  // Les 3 supersportives du Grand Prix (réservées à la course).
+  P.VEHICLES.eclair = {
+    name: "ÉCLAIR", emoji: "⚡", desc: "La plus rapide en ligne droite… mais elle glisse en virage.", special: true,
+    L: 54, W: 24, mass: 1.1, engine: 780, drag: 1.0, brake: 1100, reverse: 300,
+    steer: 2.9, steerLoss: 0.28, grip: 11, slideIn: 130,
+    stars: { speed: 5, accel: 3, weight: 3, handling: 2, push: 3 },
+  };
+  P.VEHICLES.vipere = {
+    name: "VIPÈRE", emoji: "🐍", desc: "Accélère et tourne le mieux… mais légère, elle se fait pousser.", special: true,
+    L: 44, W: 22, mass: 0.8, engine: 760, drag: 1.55, brake: 1250, reverse: 300,
+    steer: 3.7, steerLoss: 0.15, grip: 15, slideIn: 165,
+    stars: { speed: 3, accel: 5, weight: 1, handling: 5, push: 1 },
+  };
+  P.VEHICLES.titan = {
+    name: "TITAN", emoji: "🦏", desc: "Lourde, pousse très fort et colle à la route… mais moins rapide.", special: true,
+    L: 54, W: 30, mass: 2.1, engine: 600, drag: 1.32, brake: 1000, reverse: 280,
+    steer: 2.9, steerLoss: 0.2, grip: 14, slideIn: 160,
+    stars: { speed: 3, accel: 3, weight: 5, handling: 4, push: 5 },
+  };
+  P.RACE_TYPES = ["eclair", "vipere", "titan"];
   P.TYPES = Object.keys(P.VEHICLES).filter((t) => !P.VEHICLES[t].special);
   for (const v of Object.values(P.VEHICLES)) {
     // Résistance à la rotation (volontairement faible : les chocs font bien tourner).
@@ -106,8 +126,8 @@
   // Touches (combinées en un seul nombre).
   P.K = { UP: 1, DOWN: 2, LEFT: 4, RIGHT: 8, HB: 16, NITRO: 32 };
 
-  P.newCar = (x, y, a, type = "sport") => ({ x, y, a, vx: 0, vy: 0, w: 0, nitro: 1, slide: false, st: 0, boost: false, type });
-  P.copyCar = (c) => ({ x: c.x, y: c.y, a: c.a, vx: c.vx, vy: c.vy, w: c.w, nitro: c.nitro, slide: c.slide, st: c.st, boost: c.boost, type: c.type });
+  P.newCar = (x, y, a, type = "sport") => ({ x, y, a, vx: 0, vy: 0, w: 0, nitro: 1, slide: false, st: 0, boost: false, type, regen: 1 });
+  P.copyCar = (c) => ({ x: c.x, y: c.y, a: c.a, vx: c.vx, vy: c.vy, w: c.w, nitro: c.nitro, slide: c.slide, st: c.st, boost: c.boost, type: c.type, regen: c.regen ?? 1 });
 
   // Adhérence du sol à un endroit (les flaques d'huile la divisent).
   function gripAt(env, x, y) {
@@ -128,7 +148,9 @@
     const rx = -fy, ry = fx;                          // direction droite
     let vF = c.vx * fx + c.vy * fy;                   // vitesse avant
     let vR = c.vx * rx + c.vy * ry;                   // vitesse de côté (glisse)
-    const surf = gripAt(env, c.x, c.y);
+    // Hors piste (Grand Prix) : l'herbe colle moins et freine.
+    const off = env.offAt ? env.offAt(c.x, c.y) : 0;
+    const surf = gripAt(env, c.x, c.y) * (1 - 0.4 * off);
     const up = k & P.K.UP, down = k & P.K.DOWN, hb = k & P.K.HB;
     const steer = (k & P.K.RIGHT ? 1 : 0) - (k & P.K.LEFT ? 1 : 0);
     c.st = steer;
@@ -137,8 +159,11 @@
     // (bonus > 1 = c'est le porteur de la bombe : avec env.holderNitro, son nitro est boosté)
     const hn = env.holderNitro && bonus > 1;
     c.boost = !!(env.nitro && (k & P.K.NITRO) && up && c.nitro > 0.02);
+    // Recharge : normale, ou (Grand Prix) un peu avec le temps + beaucoup en dérapant, × c.regen (rattrapage des derniers).
+    let regen = NITRO_REGEN * (hn ? HOLDER_NITRO_REGEN : 1);
+    if (env.nitroRegen !== undefined) regen = (env.nitroRegen + (c.slide && Math.abs(vF) > 150 ? env.driftRegen : 0)) * (c.regen ?? 1);
     c.nitro = c.boost ? Math.max(0, c.nitro - NITRO_USE * (hn ? HOLDER_NITRO_USE : 1) * dt)
-                      : Math.min(1, c.nitro + NITRO_REGEN * (hn ? HOLDER_NITRO_REGEN : 1) * dt);
+                      : Math.min(1, c.nitro + regen * dt);
 
     // Moteur / freins (moins de motricité sur sol glissant).
     const tract = 0.55 + 0.45 * Math.min(1, surf);
@@ -148,7 +173,7 @@
     if (!up && !down) acc -= Math.sign(vF) * Math.min(Math.abs(vF) / dt, ROLL);
     if (hb) acc -= Math.sign(vF) * Math.min(Math.abs(vF) / dt, HANDBRAKE);
     vF += acc * dt;
-    vF -= vF * V.drag * dt;
+    vF -= vF * (V.drag + 2.2 * off) * dt;
 
     // Adhérence latérale : c'est ici que naît le dérapage.
     const absR = Math.abs(vR);
@@ -209,6 +234,17 @@
     let impact = 0;
     for (const s of P.circles(c)) {
       const R = s.r;
+      // Barrières en segments (Grand Prix) : on reste du côté où on est.
+      if (env.rails) {
+        for (const g of env.rails(s.x, s.y)) {
+          const dx = g[2] - g[0], dy = g[3] - g[1], L2 = dx * dx + dy * dy || 1;
+          const f = Math.max(0, Math.min(1, ((s.x - g[0]) * dx + (s.y - g[1]) * dy) / L2));
+          const qx = g[0] + dx * f, qy = g[1] + dy * f;
+          const ex = s.x - qx, ey = s.y - qy, d = Math.hypot(ex, ey);
+          if (d >= R || d === 0) continue;
+          impact = Math.max(impact, hitStatic(c, qx, qy, ex / d, ey / d, R - d));
+        }
+      }
       // Murs de l'arène (pas de murs au Sumo : autour, c'est le vide !).
       if (env.walls !== false) {
         if (s.x < R) impact = Math.max(impact, hitStatic(c, s.x - R, s.y, 1, 0, R - s.x));

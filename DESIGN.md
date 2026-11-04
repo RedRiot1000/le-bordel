@@ -702,6 +702,30 @@ Choix : éliminé au 1er choc, le même parcours pour tout le monde, sauter + s'
 - **Bots** : temps de réaction de 0,16 à 0,28 s, une petite erreur de timing qui grandit avec la vitesse, et un raté de temps en temps.
 - **Simulation** : manches de 25 à 45 s entre bots, avec des écarts nets.
 
+## 7 unvicies. Grand Prix 🏁 — validé (« Go »)
+
+Idée de Scotty : une course sur un circuit généré au hasard, chacun choisit sa supersportive (3 voitures uniques).
+Choix : vue de dessus, course en X tours, nitro + poussettes, virages variés + obstacles. Ajouts : nitro de rattrapage, 2 modes (course / élimination / aléatoire par défaut), barrières tout autour.
+- **Circuit** (`public/games/course/track.js`, globalThis.CourseTrack, partagé serveur + navigateur) :
+  - 12 à 17 points de contrôle autour d'un centre (certains rentrés = épingles/chicanes, d'autres sortis = grandes courbes), courbe lisse fermée, ~1050 m le tour, piste de 170 px ;
+  - refusé et refait (seed + 7919) si un virage est trop serré (rayon < 125 px) ou si la piste se touche elle-même ;
+  - départ au milieu de la plus longue ligne droite, grille en 2 colonnes ;
+  - barrières de sécurité des 2 côtés (segments, physique « murs en segments ») : on ne peut pas sortir ; l'herbe entre le vibreur et la barrière ralentit un peu ;
+  - pneus derrière la barrière dans les virages serrés, bottes de paille sur les longues lignes droites (à éviter), plots à la corde (on les renverse, pur décor).
+- **Voitures** (dans `physics.js`, réservées à la course) :
+  - ⚡ ÉCLAIR : la plus rapide en ligne droite, glisse plus ;
+  - 🐍 VIPÈRE : accélère et tourne le mieux, légère (se fait pousser) ;
+  - 🦏 TITAN : lourde (×2,1), pousse très fort, colle à la route, moins rapide.
+  - Simulation entre bots : places moyennes équilibrées (≈ 3,4 à 3,6 sur 6).
+- **Nitro** : un peu avec le temps (0,05/s) + beaucoup en dérapant (+0,22/s), × rattrapage : 1 pour le 1er → 2 pour le dernier.
+- **Déroulé** : 10 s pour choisir sa voiture (le mode de la manche est annoncé), grille (le leader au classement part derrière), feux, GO.
+  - 🏁 Course : 2/3/5 tours ; après l'arrivée du 1er, 20 s pour finir ; classement arrivée puis avancée.
+  - 💥 Élimination : toutes les 30 s, le dernier (marqué 💣, nom en rouge) explose (souffle autour) ; le survivant est 1er.
+  - Coincé 3 s (bots 2 s) ou touche R : retour sur la piste au dernier endroit sûr.
+  - Points 10, 7, 5, 3, 2, 1. Au plus 6 min par manche.
+- **Écran** : caméra qui suit (dézoome un peu avec la vitesse), position + tour, classement en direct, km/h + jauge de nitro (avec le ×rattrapage), mini-carte, compte à rebours d'explosion, cartes de choix de voiture avec aperçu et étoiles.
+- **Bots** : suivent le milieu (un peu décalés), freinent selon le virage qui arrive, évitent la paille, nitro en ligne droite.
+
 ## 8. Feuille de route
 
 | Phase | Contenu | Objectif |
