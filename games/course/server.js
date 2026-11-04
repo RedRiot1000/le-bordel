@@ -3,7 +3,7 @@
 //  Course de supersportives vue de dessus sur un circuit généré au hasard.
 //  Avant chaque course : on choisit sa voiture (ÉCLAIR, VIPÈRE, TITAN).
 //  2 modes : COURSE (X tours, ordre d'arrivée) ou ÉLIMINATION (toutes les
-//  30 s, le dernier explose). Nitro qui se recharge en dérapant, plus vite
+//  20 s, le dernier explose). Nitro qui se recharge en dérapant, plus vite
 //  quand on est loin derrière. On peut pousser les autres hors de la piste.
 //  Le SERVEUR fait foi : même physique que le navigateur (physics.js).
 // ===================================================================
@@ -30,7 +30,7 @@ const TICK_MS = 1000 / 30;
 const PICK_MS = 10000;          // choix de la voiture
 const COUNTDOWN_MS = 3500;
 const FINISH_AFTER_FIRST = 20000;   // après l'arrivée du 1er, 20 s pour finir
-const ELIM_EVERY = 30000;       // élimination : toutes les 30 s, le dernier explose
+const ELIM_EVERY = 20000;       // élimination : toutes les 20 s, le dernier explose
 const MAX_MS = 6 * 60000;
 const ROUND_OVER_MS = 8000;
 const FINISH_DELAY = 15000;
@@ -50,7 +50,7 @@ export const playlist = {
       choices: [
         { v: "aleatoire", label: "🎲 Aléatoire", hint: "Course ou élimination, tiré à chaque manche" },
         { v: "course", label: "🏁 Course", hint: "X tours, l'ordre d'arrivée compte" },
-        { v: "elimination", label: "💥 Élimination", hint: "Toutes les 30 s, le dernier explose" },
+        { v: "elimination", label: "💥 Élimination", hint: "Toutes les 20 s, le dernier explose" },
       ],
     },
     { key: "laps", label: "Tours", default: "3", choices: [{ v: "2", label: "2" }, { v: "3", label: "3" }, { v: "5", label: "5" }] },
@@ -352,7 +352,7 @@ export function createGame(ctx) {
     const i0 = Math.floor((((s.prog % L) + L) % L) / T.STEP);
     let kmax = 0;
     for (let j = 0; j < span / T.STEP; j += 2) kmax = Math.max(kmax, Math.abs(tr.curv[(i0 + j) % tr.N]));
-    const gripF = Math.min(1.15, V.grip / 12);
+    const gripF = Math.max(0.95, Math.min(1.15, V.grip / 12));
     const vT = Math.sqrt((620 * ai.skill * gripF * ai.care) / Math.max(kmax, 1e-4));
     let k = 0;
     if (diff > 0.08) k |= K.RIGHT; else if (diff < -0.08) k |= K.LEFT;

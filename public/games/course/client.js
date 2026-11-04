@@ -12,7 +12,7 @@
   const K = P.K;
   const RESET = 128;
   const W = 1280, HGT = 800;
-  const ELIM_EVERY = 30000;   // (le même que games/course/server.js)
+  const ELIM_EVERY = 20000;   // (le même que games/course/server.js)
 
   let api = null, root = null;
   let st = null;
@@ -62,7 +62,7 @@
           <ul class="pt-help">
             <li>🏎️ Avant chaque course, choisis ta voiture : <b>⚡ ÉCLAIR</b> (vitesse), <b>🐍 VIPÈRE</b> (agile), <b>🦏 TITAN</b> (lourde).</li>
             <li>🏁 <b>Course</b> : X tours, l'ordre d'arrivée donne les points. Après le 1er, il reste 20 s pour finir.</li>
-            <li>💥 <b>Élimination</b> : toutes les <b>30 s</b>, la voiture en <b>dernière place explose</b> ! Le dernier survivant gagne.</li>
+            <li>💥 <b>Élimination</b> : toutes les <b>20 s</b>, la voiture en <b>dernière place explose</b> ! Le dernier survivant gagne.</li>
             <li>🔥 <b>Nitro</b> : se recharge en <b>dérapant</b> (et un peu tout seul). Plus tu es derrière, plus elle remonte vite.</li>
             <li>⌨️ <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> ou <kbd>ZQSD</kbd> · <kbd>Espace</kbd> frein à main (dérapage) · <kbd>Maj</kbd> nitro · <kbd>R</kbd> revenir sur la piste.</li>
             <li>🚧 Herbe = ça ralentit. On peut <b>pousser</b> les autres dehors (TITAN pousse fort, VIPÈRE s'envole).</li>
@@ -373,7 +373,7 @@
       const who = (t) => Object.entries(st.picks).filter(([, v]) => v === t).map(([id]) => api.avatar(playerOf(id))).join("");
       box.innerHTML = `
         <div class="gp-pick-in card">
-          <h2>${st.mode === "elimination" ? "💥 ÉLIMINATION : toutes les 30 s, le dernier explose !" : `🏁 COURSE : ${st.laps} tours`}</h2>
+          <h2>${st.mode === "elimination" ? "💥 ÉLIMINATION : toutes les 20 s, le dernier explose !" : `🏁 COURSE : ${st.laps} tours`}</h2>
           <p class="muted">Choisis ta voiture — départ dans <b id="gp-pick-sec"></b> s</p>
           <div class="gp-cars">
             ${P.RACE_TYPES.map((t) => {

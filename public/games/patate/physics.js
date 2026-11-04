@@ -80,19 +80,19 @@
   // Les 3 supersportives du Grand Prix (réservées à la course).
   P.VEHICLES.eclair = {
     name: "ÉCLAIR", emoji: "⚡", desc: "La plus rapide en ligne droite… mais elle glisse en virage.", special: true,
-    L: 54, W: 24, mass: 1.1, engine: 770, drag: 1.08, brake: 1100, reverse: 300,
+    L: 54, W: 24, mass: 1.1, engine: 735, drag: 1.14, brake: 1100, reverse: 300,
     steer: 2.9, steerLoss: 0.28, grip: 11, slideIn: 130,
     stars: { speed: 5, accel: 3, weight: 3, handling: 2, push: 3 },
   };
   P.VEHICLES.vipere = {
     name: "VIPÈRE", emoji: "🐍", desc: "Accélère et tourne le mieux… mais légère, elle se fait pousser.", special: true,
-    L: 44, W: 22, mass: 0.8, engine: 820, drag: 1.38, brake: 1250, reverse: 300,
+    L: 44, W: 22, mass: 0.8, engine: 840, drag: 1.38, brake: 1250, reverse: 300,
     steer: 3.7, steerLoss: 0.15, grip: 15, slideIn: 165,
     stars: { speed: 4, accel: 5, weight: 1, handling: 5, push: 1 },
   };
   P.VEHICLES.titan = {
     name: "TITAN", emoji: "🦏", desc: "Lourde, pousse très fort et colle à la route… mais moins rapide.", special: true,
-    L: 54, W: 30, mass: 2.1, engine: 760, drag: 1.36, brake: 1000, reverse: 280,
+    L: 54, W: 30, mass: 2.1, engine: 790, drag: 1.35, brake: 1000, reverse: 280,
     steer: 2.9, steerLoss: 0.2, grip: 14, slideIn: 160,
     stars: { speed: 3, accel: 4, weight: 5, handling: 4, push: 5 },
   };

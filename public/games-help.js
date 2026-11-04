@@ -302,7 +302,7 @@
         "À chaque manche, un <b>nouveau circuit</b> est tiré au hasard. L'hôte choisit le mode : <b>Course</b>, <b>Élimination</b> ou <b>Aléatoire</b> (tiré à chaque manche).",
         "Avant le départ, <b>10 s pour choisir ta voiture</b> : <b>⚡ ÉCLAIR</b> (la plus rapide en ligne droite, mais elle glisse), <b>🐍 VIPÈRE</b> (accélère et tourne le mieux, mais légère) ou <b>🦏 TITAN</b> (lourde, pousse très fort, moins rapide).",
         "🏁 <b>Course</b> : 2, 3 ou 5 tours. Dès que le premier passe la ligne, les autres ont <b>20 s</b> pour finir.",
-        "💥 <b>Élimination</b> : pas de tours. <b>Toutes les 30 s, la voiture en dernière place explose !</b> Le dernier, marqué d'une 💣, doit vite remonter.",
+        "💥 <b>Élimination</b> : pas de tours. <b>Toutes les 20 s, la voiture en dernière place explose !</b> Le dernier, marqué d'une 💣, doit vite remonter.",
         "🔥 La <b>nitro</b> se recharge surtout en <b>dérapant</b> (frein à main dans les virages). Plus tu es loin derrière, plus elle remonte vite (jusqu'à ×2 pour le dernier).",
         "L'herbe ralentit. Tu peux <b>pousser</b> les autres dehors. Coincé ou perdu ? <kbd>R</kbd> te remet sur la piste (tout seul après 3 s).",
       ],

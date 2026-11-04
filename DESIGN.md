@@ -717,12 +717,12 @@ Choix : vue de dessus, course en X tours, nitro + poussettes, virages variés + 
   - ⚡ ÉCLAIR : la plus rapide en ligne droite, glisse plus ;
   - 🐍 VIPÈRE : accélère et tourne le mieux, légère (se fait pousser) ;
   - 🦏 TITAN : lourde (×2,1), pousse très fort, colle à la route, moins rapide.
-  - Vitesse max : ÉCLAIR ≈ 713, VIPÈRE ≈ 594, TITAN ≈ 559 px/s (TITAN et VIPÈRE remontés à la demande de Scotty, ils paraissaient trop lents).
+  - Vitesse max : ÉCLAIR ≈ 645, VIPÈRE ≈ 609, TITAN ≈ 585 px/s (ÉCLAIR freinée et les 2 autres remontées à la demande de Scotty : l'écart est passé de 28 % à 10 %).
   - Simulation entre bots : places moyennes ≈ 2,7 à 4,3 sur 6 selon les circuits.
 - **Nitro** : un peu avec le temps (0,05/s) + beaucoup en dérapant (+0,22/s), × rattrapage : 1 pour le 1er → 2 pour le dernier.
 - **Déroulé** : 10 s pour choisir sa voiture (le mode de la manche est annoncé), grille (le leader au classement part derrière), feux, GO.
   - 🏁 Course : 2/3/5 tours ; après l'arrivée du 1er, 20 s pour finir ; classement arrivée puis avancée.
-  - 💥 Élimination : toutes les 30 s, le dernier (marqué 💣, nom en rouge) explose (souffle autour) ; le survivant est 1er.
+  - 💥 Élimination : toutes les 20 s, le dernier (marqué 💣, nom en rouge) explose (souffle autour) ; le survivant est 1er.
   - Coincé 3 s (bots 2 s) ou touche R : retour sur la piste au dernier endroit sûr.
   - Points 10, 7, 5, 3, 2, 1. Au plus 6 min par manche.
 - **Écran** : caméra qui suit (dézoome un peu avec la vitesse), position + tour, classement en direct, km/h + jauge de nitro (avec le ×rattrapage), mini-carte, compte à rebours d'explosion, cartes de choix de voiture avec aperçu et étoiles.
