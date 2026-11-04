@@ -21,8 +21,10 @@
   P.START = 900;            // départ : les premiers mètres sont libres
 
   // Vitesse (px/s) selon le temps de course, et selon la distance (pour placer les obstacles).
-  P.speedAt = (t) => Math.min(1060, 420 + 16 * t);
-  P.speedAtDist = (d) => Math.min(1060, Math.sqrt(420 * 420 + 32 * d));
+  // 1) 0 → 40 s : de 420 à 1060 ; 2) ensuite ça continue de monter (+14 px/s chaque seconde) jusqu'à 1700.
+  P.speedAt = (t) => (t < 40 ? 420 + 16 * t : Math.min(1700, 1060 + 14 * (t - 40)));
+  const D40 = 420 * 40 + 8 * 40 * 40;   // distance parcourue à 40 s
+  P.speedAtDist = (d) => (d < D40 ? Math.sqrt(420 * 420 + 32 * d) : Math.min(1700, Math.sqrt(1060 * 1060 + 28 * (d - D40))));
 
   function seeded(seed) {
     let s = seed >>> 0;
@@ -48,25 +50,47 @@
     c.ensure = (d) => {
       while (c.lastX < d + 4000) {
         const x = c.lastX, v = P.speedAtDist(x);
-        const lvl = Math.min(1, x / 30000);           // 0 au début → 1 vers 300 m
+        const lvl = Math.min(1, x / 30000);           // 0 au début → 1 vers 3000 m (10 px = 1 m)
+        const lvl2 = Math.min(1, Math.max(0, (x - 30000) / 50000));    // 3000 m → 8000 m : ça devient vraiment dur
         const r = rnd();
         // Ce qu'on pose (de plus en plus varié et serré).
         let span = 0;
-        if (r < 0.24) c.obs.push({ x, kind: "haie" });
-        else if (r < 0.42) c.obs.push({ x, kind: "barre" });
-        else if (r < 0.58) { const w = Math.round(90 + rnd() * (60 + 90 * lvl)); c.gaps.push({ x, w }); span = w; }
-        else if (r < 0.7) c.obs.push({ x, kind: "caisse" });
+        const combo = lvl > 0.15 && r >= 0.82 - 0.3 * lvl2;   // les enchaînements deviennent fréquents
+        if (combo) {
+          const v2 = v, close = (k) => Math.round(v2 * (0.36 - 0.06 * lvl - 0.04 * lvl2) + 40 + k);
+          const pick = rnd();
+          if (lvl2 > 0.2 && pick < 0.3) {
+            // Triple : haie → barre → haie.
+            const d1 = close(0), d2 = d1 + close(0) + KINDS.barre.w;
+            c.obs.push({ x, kind: "haie" }, { x: x + d1, kind: "barre" }, { x: x + d2, kind: "haie" });
+            span = d2 + KINDS.haie.w;
+          } else if (lvl2 > 0.1 && pick < 0.55) {
+            // Un trou puis un oiseau bas juste après l'atterrissage (sauter puis resauter).
+            const w = Math.round(100 + rnd() * 60);
+            c.gaps.push({ x, w });
+            const dx = w + Math.round(v2 * 0.42) + 40;
+            c.obs.push({ x: x + dx, kind: "oiseau_bas" });
+            span = dx + KINDS.oiseau_bas.w;
+          } else if (lvl2 > 0.1 && pick < 0.75) {
+            // Deux caisses (double saut).
+            const dx = Math.round(v2 * 0.48) + 60;
+            c.obs.push({ x, kind: "caisse" }, { x: x + dx, kind: "caisse" });
+            span = dx + KINDS.caisse.w;
+          } else {
+            const a = rnd() < 0.5 ? "haie" : "barre", b2 = a === "haie" ? "barre" : "haie";
+            const dx = close(0);
+            c.obs.push({ x, kind: a }, { x: x + dx, kind: b2 });
+            span = dx + KINDS[b2].w;
+          }
+        }
+        else if (r < 0.22) c.obs.push({ x, kind: "haie" });
+        else if (r < 0.38) c.obs.push({ x, kind: "barre" });
+        else if (r < 0.54) { const w = Math.round(90 + rnd() * (60 + 90 * lvl + 40 * lvl2)); c.gaps.push({ x, w }); span = w; }
+        else if (r < 0.66) c.obs.push({ x, kind: "caisse" });
         else if (r < 0.82) c.obs.push({ x, kind: rnd() < 0.5 ? "oiseau_haut" : "oiseau_bas" });
-        else if (lvl > 0.15) {
-          // Un enchaînement : deux obstacles rapprochés (il faut enchaîner les gestes).
-          const a = rnd() < 0.5 ? "haie" : "barre", b = a === "haie" ? "barre" : "haie";
-          c.obs.push({ x, kind: a });
-          const dx = Math.round(v * (0.36 - 0.06 * lvl) + 40);
-          c.obs.push({ x: x + dx, kind: b });
-          span = dx + KINDS[b].w;
-        } else c.obs.push({ x, kind: "haie" });
-        // L'espace avant le suivant : du temps de réaction (de moins en moins).
-        const gapT = 1.1 - 0.55 * lvl + rnd() * (0.5 - 0.25 * lvl);
+        else c.obs.push({ x, kind: "haie" });
+        // L'espace avant le suivant : du temps de réaction (de moins en moins, jusqu'à ~0,4 s).
+        const gapT = 1.1 - 0.55 * lvl - 0.2 * lvl2 + rnd() * (0.5 - 0.25 * lvl - 0.12 * lvl2);
         c.lastX = x + span + Math.round(v * gapT) + 60;
       }
     };

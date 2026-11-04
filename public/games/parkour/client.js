@@ -232,10 +232,10 @@
   function renderHud() {
     $("pk-round").textContent = `Manche ${st.round}/${st.settings.rounds}`;
     const mine = runnerOf(me());
-    const txt = !mine ? "👀 Tu regardes" : mine.alive ? "🏃 Cours !" : `💥 Éliminé à ${meters(mine.d)} m`;
+    const txt = !mine ? "👀 Tu regardes" : st.lastStand === me() ? "🏆 Dernier en course : tu gagnes la manche !" : mine.alive ? "🏃 Cours !" : `💥 Éliminé à ${meters(mine.d)} m`;
     if ($("pk-me").textContent !== txt) $("pk-me").textContent = txt;
     const n = st.runners.filter((r) => r.alive).length;
-    $("pk-alive").textContent = `🏃 ${n} encore en course`;
+    $("pk-alive").textContent = st.lastStand ? `🏆 ${pseudoOf(st.lastStand)} est le dernier en course !` : `🏃 ${n} encore en course`;
   }
 
   function renderOver() {

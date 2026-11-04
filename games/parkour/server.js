@@ -25,9 +25,10 @@ export const meta = {
 const TICK_MS = 1000 / 30;
 const COUNTDOWN_MS = 3000;
 const END_DELAY = 1500;
+const LAST_DELAY = 3000;               // quand il ne reste qu'un coureur : il a gagné, la manche finit 3 s après
 const ROUND_OVER_MS = 6000;
 const FINISH_DELAY = 15000;
-const MAX_MS = 240000;                 // une manche dure au plus 4 min
+const MAX_MS = 180000;                 // une manche dure au plus 3 min
 export const POINTS = [10, 7, 5, 3, 2, 1];
 
 function defaultSettings() {
@@ -89,6 +90,7 @@ export function createGame(ctx) {
       lanes: g.lanes,
       runners: Object.entries(g.runners).map(([id, s]) => ({ id, seq: s.seq, cause: s.cause, ...P.copy(s.r) })),
       phaseLeft: Math.max(0, g.phaseEnd - t),
+      lastStand: g.phase === "play" ? g.lastStand || null : null,
       lastRound: g.lastRound,
       fx: g.fx.filter((f) => t - f.t < 600).map(({ id, lane, kind }) => ({ id, lane, kind })),
       playlist: ctx.playlist && { final: g.final },
@@ -120,7 +122,7 @@ export function createGame(ctx) {
       g.scores[p.id] = g.scores[p.id] || 0;
     }
     g.fx = [];
-    g.endAt = 0;
+    g.endAt = 0; g.lastStand = null;
     g.lastRound = null;
     g.phase = "countdown";
     g.phaseEnd = now() + COUNTDOWN_MS;
@@ -139,8 +141,15 @@ export function createGame(ctx) {
       s.cause = res;
       s.deadAt = now();
       addFx(id, res);
-      if (alive().length === 0 && !g.endAt) g.endAt = now() + END_DELAY;
+      checkEnd();
     }
+  }
+
+  // Fin de manche : plus personne en course, ou un seul (le dernier debout a gagné).
+  function checkEnd() {
+    const n = alive().length, total = Object.keys(g.runners).length;
+    if (n === 0) { const t = now() + END_DELAY; if (!g.endAt || g.endAt > t) g.endAt = t; }
+    else if (n === 1 && total > 1 && !g.endAt) { g.endAt = now() + LAST_DELAY; g.lastStand = alive()[0]; }
   }
 
   // Classement de la manche : à la distance.
@@ -231,7 +240,7 @@ export function createGame(ctx) {
     const s = g.runners[id];
     if (!s || !["countdown", "play"].includes(g.phase)) return;
     if (s.r.alive) { s.r.alive = false; s.cause = "parti"; }
-    if (alive().length === 0 && !g.endAt) g.endAt = now() + END_DELAY;
+    checkEnd();
   }
 
   // =================================================================
