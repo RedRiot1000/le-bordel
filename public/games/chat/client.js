@@ -300,7 +300,7 @@
     const mice = st.cars.filter((c) => c.role === "mouse");
     const html = `<span class="muted">🐭 Souris libres :</span> ${mice.map((c) => `<span class="ch-tag ${c.id === me() ? "me" : ""}">${esc(pseudoOf(c.id))}</span>`).join("") || "<b>aucune</b>"}`;
     if ($("ch-mice").innerHTML !== html) $("ch-mice").innerHTML = html;
-    $("ch-nitro").classList.toggle("hidden", !myRole || st.phase !== "play");
+    $("ch-nitro").classList.add("hidden");   // (la nitro est sous la mini-carte)
   }
 
   function renderOver() {
@@ -489,7 +489,6 @@
     if (mv) window.VehicleArt.markMe(c, mv.x, mv.y, ts, mv.role === "cat" ? CAT_COL : MOUSE_COL,
       roleFlash > 0 ? 1 : window.VehicleArt.markAlpha(st.phase === "countdown" ? "countdown" : st.phase, playSeenAt),
       Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)));
-    if (mv && st.phase === "play") window.VehicleArt.gauge(c, mv.x, mv.y, Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)), (pred || mv).nitro, (pred || mv).boost);
     c.restore();
 
     drawMini(view, cam);
@@ -520,7 +519,7 @@
     const mv = view.find((v) => v.id === me());
     const sx = mv && cam ? mv.x - cam.x : -1, sy = mv && cam ? mv.y - cam.y : -1;
     c.save();
-    if (sx > x0 - 40 && sy < y0 + mini.height + 40) c.globalAlpha = 0.25;
+    if (sx > x0 - 40 && sy < y0 + mini.height + 80) c.globalAlpha = 0.25;
     c.drawImage(mini, x0, y0);
     for (const v of view) {
       c.fillStyle = v.role === "cat" ? CAT_COL : MOUSE_COL;
@@ -529,6 +528,12 @@
     }
     if (cam) { c.strokeStyle = "rgba(255,255,255,0.6)"; c.lineWidth = 1; c.strokeRect(x0 + cam.x * MINI, y0 + cam.y * MINI, canvas.width * MINI, canvas.height * MINI); }
     c.restore();
+    // Sous la mini-carte : la nitro.
+    const mc = st.cars.find((x) => x.id === me());
+    if (mc && myRole && st.phase === "play") {
+      const src = pred || mc;
+      window.VehicleArt.bar(c, x0, y0 + mini.height + 8, mini.width, 28, src.nitro, "🔥 NITRO", "nitro", !!src.boost, src.boost ? "Shift ▶" : "");
+    }
   }
 
   function band(big, small, color) {

@@ -745,10 +745,7 @@
     }
     // Repère « TOI » par-dessus tout (compte à rebours + début de manche).
     const mv = view.find((v) => v.id === me() && v.alive);
-    if (mv) window.VehicleArt.markMe(g2d, mv.x, mv.y, ts, playerOf(me())?.color || "#fff", window.VehicleArt.markAlpha(st.phase, playSeenAt), Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)));
-    // Jauge de nitro collée à ma voiture.
-    if (mv && st.settings.nitro && ["countdown", "play", "boom"].includes(st.phase)) window.VehicleArt.gauge(g2d, mv.x, mv.y, Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)), (pred || mv).nitro, (pred || mv).boost);
-    g2d.restore();
+    if (mv) window.VehicleArt.markMe(g2d, mv.x, mv.y, ts, playerOf(me())?.color || "#fff", window.VehicleArt.markAlpha(st.phase, playSeenAt), Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)));    g2d.restore();
 
     // Jauge de nitro.
     if (pred) {

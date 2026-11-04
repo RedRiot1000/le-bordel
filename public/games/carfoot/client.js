@@ -480,7 +480,6 @@
     const mv = view.find((v) => v.id === me());
     if (mv) window.VehicleArt.markMe(c, mv.x, mv.y, ts, teamColor(mv.team), window.VehicleArt.markAlpha(st.phase === "kickoff" ? "countdown" : st.phase, playSeenAt),
       Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)));
-    if (mv && st.phase !== "over") window.VehicleArt.gauge(c, mv.x, mv.y, Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)), (pred || mv).nitro, (pred || mv).boost);
     c.restore();
 
     // Jauge de nitro.

@@ -200,50 +200,26 @@
   }
 
   // ===================================================================
-  //  JAUGES COLLÉES À MA VOITURE (on les voit sans quitter la route des yeux)
-  //  - nitro : un grand arc autour de la voiture (ouvert en haut, là où il y a le pseudo),
-  //    bleu → orange quand ça pousse, rouge quand il n'en reste presque plus ;
-  //  - opts.cd : un rechargement (0 → 1, 1 = prêt) en pastille à côté (ex. le taser),
-  //    opts.cdLabel : son symbole, opts.cdLeft : secondes restantes à écrire dedans.
+  //  BARRE DE RECHARGE (nitro, taser…) — dessinée à l'écran, sous une mini-carte.
+  //  v : 0 → 1. kind : "nitro" (bleu, orange quand ça pousse, rouge si presque vide)
+  //  ou "cd" (jaune qui se remplit, « PRÊT » qui clignote quand c'est plein).
   // ===================================================================
-  function gauge(c, x, y, size, nitro, boost, opts = {}) {
-    if (nitro == null && opts.cd == null) return;
-    c.save();
-    c.translate(x, y); c.scale(size, size);
+  function bar(c, x, y, w, h, v, label, kind = "nitro", on = false, right = "") {
     const t = performance.now() / 1000;
-    if (nitro != null) {
-      const r = 50, a0 = Math.PI * 0.72, span = Math.PI * 1.56;     // arc de 280° (trou en haut)
-      c.lineCap = "round";
-      c.lineWidth = 15; c.strokeStyle = "rgba(0,0,0,0.6)";
-      c.beginPath(); c.arc(0, 0, r, a0, a0 + span); c.stroke();
-      const v = Math.max(0, Math.min(1, nitro));
-      if (v > 0.01) {
-        const low = v < 0.25 && !boost;
-        c.lineWidth = 10;
-        c.strokeStyle = boost ? (Math.floor(t * 12) % 2 ? "#ffb020" : "#ff6a00") : low ? (Math.floor(t * 4) % 2 ? "#ff4d4d" : "#a01818") : v >= 0.999 ? "#5ff2ff" : "#3bb8ff";
-        c.beginPath(); c.arc(0, 0, r, a0, a0 + span * v); c.stroke();
-        if (v >= 0.999 && !boost) { c.globalAlpha = 0.35 + 0.25 * Math.sin(t * 5); c.lineWidth = 19; c.stroke(); c.globalAlpha = 1; }
-      }
-      // Le mot « NITRO » en bas de l'arc.
-      c.font = "900 13px Segoe UI, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
-      c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,0.75)"; c.strokeText("NITRO", 0, r + 17);
-      c.fillStyle = boost ? "#ffb020" : "#bfefff"; c.fillText("NITRO", 0, r + 17);
-    }
-    if (opts.cd != null) {
-      // Pastille du rechargement, en haut à droite de la voiture.
-      const px = 54, py = -48, pr = 20, ready = opts.cd >= 1;
-      c.fillStyle = "rgba(0,0,0,0.7)"; c.beginPath(); c.arc(px, py, pr + 3, 0, Math.PI * 2); c.fill();
-      c.fillStyle = ready ? "#ffe14d" : "rgba(255,225,77,0.85)";
-      c.beginPath(); c.moveTo(px, py); c.arc(px, py, pr, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, Math.min(1, opts.cd))); c.closePath(); c.fill();
-      if (ready) { c.globalAlpha = 0.4 + 0.3 * Math.sin(t * 6); c.strokeStyle = "#ffe14d"; c.lineWidth = 4; c.beginPath(); c.arc(px, py, pr + 7, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1; }
-      c.textAlign = "center"; c.textBaseline = "middle";
-      c.font = `900 ${ready ? 18 : 14}px Segoe UI, sans-serif`;
-      c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,0.8)";
-      const txt = ready ? opts.cdLabel || "⚡" : String(Math.ceil(opts.cdLeft || 0));
-      c.strokeText(txt, px, py + 1); c.fillStyle = "#fff"; c.fillText(txt, px, py + 1);
-    }
+    v = Math.max(0, Math.min(1, v));
+    c.save();
+    c.fillStyle = "rgba(0,0,0,0.65)"; rr(c, x, y, w, h, h / 2); c.fill();
+    let col;
+    if (kind === "nitro") col = on ? (Math.floor(t * 12) % 2 ? "#ffb020" : "#ff6a00") : v < 0.25 ? (Math.floor(t * 4) % 2 ? "#ff4d4d" : "#b01e1e") : "#3bb8ff";
+    else col = v >= 1 ? (Math.floor(t * 3) % 2 ? "#ffe14d" : "#ffc400") : "rgba(255,225,77,0.75)";
+    if (v > 0.01) { c.fillStyle = col; rr(c, x + 3, y + 3, Math.max(h - 6, (w - 6) * v), h - 6, (h - 6) / 2); c.fill(); }
+    c.strokeStyle = "rgba(255,255,255,0.7)"; c.lineWidth = 2; rr(c, x, y, w, h, h / 2); c.stroke();
+    c.font = `900 ${Math.round(h * 0.6)}px Segoe UI, sans-serif`; c.textBaseline = "middle";
+    c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,0.85)"; c.fillStyle = "#fff";
+    c.textAlign = "left"; c.strokeText(label, x + 12, y + h / 2 + 1); c.fillText(label, x + 12, y + h / 2 + 1);
+    if (right) { c.textAlign = "right"; c.strokeText(right, x + w - 12, y + h / 2 + 1); c.fillText(right, x + w - 12, y + h / 2 + 1); }
     c.restore();
   }
 
-  window.VehicleArt = { paint: paintVehicle, markMe, markAlpha, gauge };
+  window.VehicleArt = { paint: paintVehicle, markMe, markAlpha, bar };
 })();

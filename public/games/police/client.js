@@ -91,7 +91,7 @@
         <canvas id="po-canvas" width="${P.W}" height="${P.H}"></canvas>
         <div id="po-overlay" class="pt-overlay hidden"></div>
       </div>
-      <p class="muted pt-keys">ZQSD / flèches · Espace = frein à main · Shift = nitro · M = carte · flic : clic / E = taser</p>
+      <p class="muted pt-keys">ZQSD / flèches · Espace = frein à main · Shift = nitro · flic : clic / E = taser</p>
     </div>`;
 
   // ===================================================================
@@ -172,11 +172,6 @@
   };
   let mouseDown = false;
   function onKey(e) {
-    if (e.code === "KeyM" && st && st.phase !== "setup" && e.target.tagName !== "INPUT") {
-      e.preventDefault();
-      if (e.type === "keydown" && !e.repeat) bigMap = !bigMap;
-      return;
-    }
     if (e.target.tagName === "INPUT" || !st || st.phase === "setup" || !(e.code in KEYMAP)) return;
     e.preventDefault();
     if (e.type === "keydown") pressed.add(e.code); else pressed.delete(e.code);
@@ -326,11 +321,11 @@
     const html = `<span class="muted">🏎️ En fuite :</span> ${free.map((c) => `<span class="ch-tag ${c.id === me() ? "me" : ""}" style="border-color:${playerOf(c.id)?.color}">${esc(pseudoOf(c.id))}</span>`).join("") || "<b>personne</b>"}
       <span class="muted po-copcount">🚓 ${st.cops.length + st.cars.length - free.length}</span>`;
     if ($("po-free").innerHTML !== html) $("po-free").innerHTML = html;
-    $("po-nitro").classList.toggle("hidden", !myRole || st.phase !== "play");
+    $("po-nitro").classList.add("hidden");   // (la nitro est sous la mini-carte)
     // Le taser (flics) : prêt, ou le temps qu'il reste avant de pouvoir retirer.
     const mc = carOf(me());
     const tz = $("po-taser");
-    tz.classList.toggle("hidden", !mc || mc.role !== "cop" || st.phase !== "play");
+    tz.classList.add("hidden");               // (le taser est sous la mini-carte)
     if (mc && mc.role === "cop") { const t = mc.taser > 0 ? `⚡ Taser : ${(mc.taser / 1000).toFixed(1)} s` : "⚡ Taser prêt (clic / E)"; if (tz.textContent !== t) { tz.textContent = t; tz.classList.toggle("ready", mc.taser <= 0); } }
   }
 
@@ -987,15 +982,7 @@
     }
     if (mv) window.VehicleArt.markMe(c, mv.x, mv.y, ts, mv.role === "cop" ? "#5a8dff" : playerOf(me())?.color || "#fff",
       roleFlash > 0 ? 1 : window.VehicleArt.markAlpha(st.phase === "countdown" ? "countdown" : st.phase, playSeenAt),
-      Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)));
-    // Jauges collées à ma voiture : nitro (arc) + taser des flics (pastille qui se remplit).
-    if (mv && st.phase === "play") {
-      const mc = carOf(me());
-      const cop = mc && mc.role === "cop";
-      window.VehicleArt.gauge(c, mv.x, mv.y, Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)), (pred || mv).nitro, (pred || mv).boost,
-        cop ? { cd: 1 - (mc.taser || 0) / TASER_CD, cdLeft: (mc.taser || 0) / 1000, cdLabel: "⚡" } : {});
-    }
-    c.restore();
+      Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)));    c.restore();
 
     drawMini(view, copsView, cam);
 
@@ -1040,7 +1027,7 @@
     const sx = mv && cam ? mv.x - cam.x : -1, sy = mv && cam ? mv.y - cam.y : -1;
     c.save();
     if (bigMap) { c.fillStyle = "rgba(0,0,0,0.6)"; c.fillRect(0, 0, canvas.width, canvas.height); }
-    else if (sx > x0 - 40 && sy < y0 + H * f + 40) c.globalAlpha = 0.25;
+    else if (sx > x0 - 40 && sy < y0 + H * f + 110) c.globalAlpha = 0.25;
     c.drawImage(mini, x0, y0, W * f, H * f);
     c.strokeStyle = "rgba(255,255,255,0.6)"; c.lineWidth = 2; c.strokeRect(x0, y0, W * f, H * f);
     // Les sorties (elles clignotent pendant « FUYEZ ! »).
@@ -1063,11 +1050,17 @@
     if (st.heli) { c.font = `${Math.round(14 * k)}px sans-serif`; c.fillText("🚁", x0 + st.heli.x * f, y0 + st.heli.y * f); }
     if (cam) { c.strokeStyle = "rgba(255,255,255,0.6)"; c.lineWidth = 1; c.strokeRect(x0 + cam.x * f, y0 + cam.y * f, canvas.width * f, canvas.height * f); }
     c.globalAlpha = 1;
-    c.font = "bold 15px Segoe UI, sans-serif"; c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,0.8)"; c.fillStyle = "#fff";
-    const tip = bigMap ? "🗺️ Carte de la ville · M pour fermer" : "M = carte";
-    const tx = bigMap ? canvas.width / 2 : x0 + (W * f) / 2, ty = bigMap ? y0 - 16 : y0 + H * f + 14;
-    c.strokeText(tip, tx, ty); c.fillText(tip, tx, ty);
     c.restore();
+    // Sous la mini-carte : la nitro, et le taser pour les flics.
+    const mc = carOf(me());
+    if (mc && myRole && st.phase === "play") {
+      const src = pred || mc, bw = W * f, by = y0 + H * f + 8;
+      window.VehicleArt.bar(c, x0, by, bw, 28, src.nitro, "🔥 NITRO", "nitro", !!src.boost, src.boost ? "Shift ▶" : "");
+      if (mc.role === "cop") {
+        const left = mc.taser || 0;
+        window.VehicleArt.bar(c, x0, by + 34, bw, 28, 1 - left / TASER_CD, "⚡ TASER", "cd", false, left > 0 ? (left / 1000).toFixed(1) + " s" : "PRÊT !");
+      }
+    }
   }
 
   // Des arcs électriques autour d'une voiture.

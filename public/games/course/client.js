@@ -618,7 +618,6 @@
       // Repère « c'est toi » au départ.
       const mv = views.find(([car]) => car.id === me());
       if (mv) window.VehicleArt.markMe(c, mv[1].x, mv[1].y, ts, colorOf(me()), window.VehicleArt.markAlpha(st.phase, playSeenAt), 1 / cam.z);
-      if (mv && !mv[0].finished) window.VehicleArt.gauge(c, mv[1].x, mv[1].y, 1 / cam.z, mv[1].nitro, mv[1].boost);
     }
 
     // Étincelles, fumée, explosions.
