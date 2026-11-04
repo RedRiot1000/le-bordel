@@ -111,7 +111,8 @@ async function run() {
   const lr = game.lastRound;
   check(game.phase === "roundOver" && lr && lr.order.length === 4, "Fin de manche");
   const standing = Object.values(lr.cause).filter((c) => !c).length;
-  check(standing <= 1, `La manche s'arrête dès qu'il ne reste qu'un coureur (${standing} encore debout à la fin)`);
+  check(standing <= 1, `Fin de manche avec au plus 1 coureur debout (${standing})`);
+  if (standing === 1) check(lr.dist[lr.order[0]] >= lr.dist[lr.order[1]] + 1000, `Le dernier en course a fait 1000 m de plus (${lr.dist[lr.order[0]]} vs ${lr.dist[lr.order[1]]})`);
   check(!lr.cause[lr.order[0]] || standing === 0, "Le dernier debout est 1er");
   const dists = lr.order.map((id) => lr.dist[id]);
   check(dists.every((d, i) => i === 0 || d <= dists[i - 1]), `Classement à la distance (${dists.join(" ≥ ")} m)`);

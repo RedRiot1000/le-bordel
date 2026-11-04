@@ -460,31 +460,48 @@
       if (d0 < P.START) { c.fillStyle = "rgba(255,255,255,0.6)"; const sx = toX(0); for (let k = 0; k < 6; k++) c.fillRect(sx + (k % 2) * 6, L.ground - (k + 1) * 8 * L.s, 6, 8 * L.s); }
       const col = playerOf(id)?.color || "#fff";
       drawRunner(c, L, r, col, ts, r.alive ? 1 : 0.5);
-      // Nom + distance.
-      c.textBaseline = "middle"; c.textAlign = "left";
-      c.font = `bold ${Math.round(Math.max(12, 18 * L.s))}px Segoe UI, sans-serif`;
-      c.fillStyle = isMe ? "#fff" : "rgba(255,255,255,0.8)";
-      c.fillText(`${isMe ? "⭐ " : ""}${pseudoOf(id)}`, 12, L.y + 16 * Math.max(0.8, L.s));
-      c.textAlign = "right"; c.fillStyle = "#ffd23f";
-      c.fillText(`${meters(r.d)} m`, W - 12, L.y + 16 * Math.max(0.8, L.s));
+      // Voiles : les autres lignes un peu assombries, les coureurs tombés encore plus.
       if (!r.alive) {
         c.fillStyle = "rgba(10,8,20,0.55)"; c.fillRect(0, L.y, W, L.h);
-        c.textAlign = "center"; c.fillStyle = "#ff7b7b"; c.font = `bold ${Math.round(Math.max(14, 26 * L.s))}px Segoe UI, sans-serif`;
-        c.fillText(`💥 ${meters(r.d)} m`, W / 2, L.y + L.h / 2);
-      }
-      if (!isMe && r.alive) { c.fillStyle = "rgba(15,12,30,0.38)"; c.fillRect(0, L.y, W, L.h); }
+        c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#ff7b7b"; c.font = `bold ${Math.round(Math.max(14, 26 * L.s))}px Segoe UI, sans-serif`;
+        c.fillText("💥 Tombé", W / 2, L.y + L.h / 2);
+      } else if (!isMe) { c.fillStyle = "rgba(15,12,30,0.38)"; c.fillRect(0, L.y, W, L.h); }
       if (isMe) {
         c.strokeStyle = "#ffd23f"; c.lineWidth = 8; c.strokeRect(4, L.y + 4, W - 8, L.h - 8);
-        // Étiquette « TOI » à gauche.
-        const tw = 70, th = Math.max(22, 30 * L.s);
-        c.fillStyle = "#ffd23f"; c.fillRect(8, L.y + L.h / 2 - th / 2, tw, th);
-        c.fillStyle = "#1b1830"; c.textAlign = "center"; c.font = `900 ${Math.round(th * 0.62)}px Segoe UI, sans-serif`;
-        c.fillText("TOI", 8 + tw / 2, L.y + L.h / 2);
         // Flèche dorée au-dessus de mon bonhomme.
         if (r.alive) {
           const hy = L.ground - (r.y + P.height(r)) * L.s - 10 * L.s, bob = Math.sin(ts / 160) * 3;
           c.fillStyle = "#ffd23f"; c.beginPath(); c.moveTo(RUN_X - 9 * L.s, hy - 14 * L.s + bob); c.lineTo(RUN_X + 9 * L.s, hy - 14 * L.s + bob); c.lineTo(RUN_X, hy + bob); c.closePath(); c.fill();
         }
+      }
+      // Panneau à GAUCHE : (TOI) + pseudo, et la distance en très gros.
+      {
+        const px = isMe ? 14 : 10, py = L.y + (isMe ? 12 : 8);
+        const fn = Math.round(Math.max(12, 16 * L.s)), fd = Math.round(Math.max(22, (isMe ? 46 : 38) * L.s));
+        const dTxt = `${meters(r.d)} m`;
+        const stand = st.lastStand === id && r.alive && st.lastTarget;
+        const extra = stand ? `🏆 encore ${Math.max(0, Math.ceil((st.lastTarget - r.d) / 10))} m` : "";
+        c.font = `900 ${fd}px Segoe UI, sans-serif`;
+        const wD = c.measureText(dTxt).width;
+        c.font = `bold ${fn}px Segoe UI, sans-serif`;
+        const name = pseudoOf(id), badge = isMe ? "TOI" : "";
+        const wB = badge ? c.measureText(badge).width + 12 : 0;
+        const wN = c.measureText(name).width + wB + (badge ? 6 : 0);
+        const wE = extra ? c.measureText(extra).width : 0;
+        const pw = Math.min(RUN_X - 30, Math.max(wD, wN, wE) + 20), ph = fn + fd + 18 + (extra ? fn + 6 : 0);
+        c.fillStyle = "rgba(12,10,24,0.72)";
+        c.beginPath(); c.roundRect ? c.roundRect(px, py, pw, ph, 10) : c.rect(px, py, pw, ph); c.fill();
+        c.textBaseline = "top"; c.textAlign = "left";
+        let x = px + 10;
+        if (badge) {
+          c.fillStyle = "#ffd23f"; c.fillRect(x, py + 6, wB, fn + 4);
+          c.fillStyle = "#1b1830"; c.font = `900 ${fn}px Segoe UI, sans-serif`; c.fillText(badge, x + 6, py + 8);
+          x += wB + 6;
+        }
+        c.font = `bold ${fn}px Segoe UI, sans-serif`; c.fillStyle = "#fff"; c.fillText(name, x, py + 8);
+        c.font = `900 ${fd}px Segoe UI, sans-serif`; c.fillStyle = r.alive ? "#ffd23f" : "#ff9a9a";
+        c.fillText(dTxt, px + 10, py + fn + 14);
+        if (extra) { c.font = `bold ${fn}px Segoe UI, sans-serif`; c.fillStyle = "#7dffb0"; c.fillText(extra, px + 10, py + fn + fd + 16); }
       }
       c.restore();
       c.fillStyle = "#0e0c1a"; c.fillRect(0, L.y + L.h - 2, W, 2);

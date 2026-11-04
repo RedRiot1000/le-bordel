@@ -25,7 +25,7 @@ export const meta = {
 const TICK_MS = 1000 / 30;
 const COUNTDOWN_MS = 3000;
 const END_DELAY = 1500;
-const LAST_DELAY = 3000;               // quand il ne reste qu'un coureur : il a gagné, la manche finit 3 s après
+const LAST_EXTRA = 10000;              // le dernier en course doit encore faire 1000 m (10 px = 1 m) de plus que l'avant-dernier
 const ROUND_OVER_MS = 6000;
 const FINISH_DELAY = 15000;
 const MAX_MS = 180000;                 // une manche dure au plus 3 min
@@ -91,6 +91,7 @@ export function createGame(ctx) {
       runners: Object.entries(g.runners).map(([id, s]) => ({ id, seq: s.seq, cause: s.cause, ...P.copy(s.r) })),
       phaseLeft: Math.max(0, g.phaseEnd - t),
       lastStand: g.phase === "play" ? g.lastStand || null : null,
+      lastTarget: g.lastTarget || 0,
       lastRound: g.lastRound,
       fx: g.fx.filter((f) => t - f.t < 600).map(({ id, lane, kind }) => ({ id, lane, kind })),
       playlist: ctx.playlist && { final: g.final },
@@ -122,7 +123,7 @@ export function createGame(ctx) {
       g.scores[p.id] = g.scores[p.id] || 0;
     }
     g.fx = [];
-    g.endAt = 0; g.lastStand = null;
+    g.endAt = 0; g.lastStand = null; g.lastTarget = 0;
     g.lastRound = null;
     g.phase = "countdown";
     g.phaseEnd = now() + COUNTDOWN_MS;
@@ -149,7 +150,11 @@ export function createGame(ctx) {
   function checkEnd() {
     const n = alive().length, total = Object.keys(g.runners).length;
     if (n === 0) { const t = now() + END_DELAY; if (!g.endAt || g.endAt > t) g.endAt = t; }
-    else if (n === 1 && total > 1 && !g.endAt) { g.endAt = now() + LAST_DELAY; g.lastStand = alive()[0]; }
+    else if (n === 1 && total > 1 && !g.lastStand) {
+      // Le dernier en course : il continue jusqu'à 1000 m de plus que le meilleur des autres.
+      g.lastStand = alive()[0];
+      g.lastTarget = Math.max(...Object.entries(g.runners).filter(([id]) => id !== g.lastStand).map(([, x]) => x.r.d)) + LAST_EXTRA;
+    }
   }
 
   // Classement de la manche : à la distance.
@@ -227,6 +232,8 @@ export function createGame(ctx) {
         // (on attend 1 s de silence : un petit trou de réseau ne doit jamais faire « rater » un saut)
         else while (s.ticks < allowed - 30 && t - s.lastInputAt > 1000) advance(id, 0);
       }
+      // Le dernier en course a fait ses 1000 m de plus : on arrête.
+      if (g.lastStand && !g.endAt && g.runners[g.lastStand]?.r.alive && g.runners[g.lastStand].r.d >= g.lastTarget) g.endAt = t + 300;
       if (!g.endAt && t - g.playAt > MAX_MS) g.endAt = t;
       if (g.endAt && t >= g.endAt) return endRound();
     }
