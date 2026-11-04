@@ -40,12 +40,24 @@ console.log("— Ville —");
   for (let i = 0; i < c8.grid.length; i++) if (c8.grid[i] === C.KIND.SIDEWALK) { sw++; const x = (i % c8.TW) * C.TILE + 15, y = Math.floor(i / c8.TW) * C.TILE + 15; if (!c8.obstacles.some((o) => x > o.x && x < o.x + o.w && y > o.y && y < o.y + o.h)) swOk++; }
   check(sw > 100 && swOk === sw, `Tous les trottoirs sont montables (${sw} tuiles)`);
   // On ne passe pas à travers les bâtiments : tout ce qui est dessiné (pâtés) est sur des tuiles qui bloquent.
-  let leak = 0, straight = 0;
+  let leak = 0, straight = 0, bends = 0, splitNets = 0;
   for (let s = 1; s <= 60; s++) {
     const c = C.build(s * 104729, 2 + (s % 7));
     for (const l of c.lots) {
-      if (["plaza", "station"].includes(l.type)) continue;
+      if (["plaza", "station", "bend"].includes(l.type)) continue;   // (bend = verdure dessinée seulement sur le terrain)
       for (let j = l.y; j < l.y + l.h; j++) for (let i = l.x; i < l.x + l.w; i++) if (c.grid[j * c.TW + i] !== C.KIND.GROUND) leak++;
+    }
+    bends += c.bends.length;
+    // Toutes les tuiles roulables de la ville forment un seul réseau (aucune route coupée par un virage).
+    {
+      const seen = new Uint8Array(c.TW * c.TH); let comps = 0;
+      for (let k = 0; k < c.TW * c.TH; k++) {
+        if (seen[k] || !C.drivable(c.grid[k])) continue;
+        comps++; const q = [k]; seen[k] = 1;
+        while (q.length) { const v = q.pop(), x = v % c.TW, y = (v - x) / c.TW;
+          for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= c.TW || ny >= c.TH) continue; const n = ny * c.TW + nx; if (!seen[n] && C.drivable(c.grid[n])) { seen[n] = 1; q.push(n); } } }
+      }
+      if (comps > 1) splitNets++;
     }
     // Rues qui traversent toute la ville tout droit (lignes de tuiles de route d'un bord à l'autre).
     const R = { x: c.cityRect.x / C.TILE, y: c.cityRect.y / C.TILE, w: c.cityRect.w / C.TILE, h: c.cityRect.h / C.TILE };
@@ -55,6 +67,8 @@ console.log("— Ville —");
     straight = Math.max(straight, (rows + cols) / (C.ROAD / C.TILE));
   }
   check(leak === 0, "Aucun bâtiment sur une tuile roulable (60 villes)");
+  check(bends / 60 >= 5, `Des rues qui tournent en courbe (${(bends / 60).toFixed(1)} virages par ville)`);
+  check(splitNets === 0, "Toutes les routes restent reliées (virages compris)");
   let spotsOff = 0;
   for (let s = 1; s <= 60; s++) { const c = C.build(s * 7919, 2 + (s % 7)); for (const p of [...c.station.spots, ...c.exits.map((e) => e.spawn)]) if (!C.drivable(C.kindAt(c, p.x, p.y))) spotsOff++; }
   check(spotsOff === 0, "Les flics apparaissent dans le garage du commissariat ou aux sorties (jamais dans un bâtiment)");

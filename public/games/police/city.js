@@ -106,6 +106,50 @@
       cells.push({ i, j, x: xs[i] + R, y: ys[j] + R, w: xs[i + 1] - xs[i] - R, h: ys[j + 1] - ys[j] - R,
         left: edgeOn(true, i, j), right: edgeOn(true, i + 1, j), top: edgeOn(false, i, j), bottom: edgeOn(false, i, j + 1) });
     }
+    const cx0 = (nc - 1) / 2, cy0 = (nr - 1) / 2;
+    const stCell = cells.filter((c) => c.left && c.right && c.top && c.bottom).sort((a, b) => Math.hypot(a.i - cx0, a.j - cy0) - Math.hypot(b.i - cx0, b.j - cy0))[0]
+      || cells.filter((c) => c.left || c.right).sort((a, b) => Math.hypot(a.i - cx0, a.j - cy0) - Math.hypot(b.i - cx0, b.j - cy0))[0];
+
+    // ---------------- Les virages : là où une rue tourne (carrefour à 2 rues en L), on arrondit ----------------
+    // La route suit un quart de cercle ; dedans et dehors, un coin de verdure.
+    const bends = [];
+    const cellAt = (i, j) => cells.find((c) => c.i === i && c.j === j);
+    for (let j = 0; j <= nr; j++) for (let i = 1; i < nc; i++) {          // (jamais sur les bords gauche/droite : les sorties y arrivent)
+      if (deg[nid(i, j)] !== 2) continue;
+      const L = edgeOn(false, i - 1, j), Rr = edgeOn(false, i, j), U = edgeOn(true, i, j - 1), D = edgeOn(true, i, j);
+      if (!((L || Rr) && (U || D))) continue;                            // une rue droite, pas un virage
+      const sx = Rr ? 1 : -1, sy = D ? 1 : -1;
+      const ci = sx > 0 ? i : i - 1, cj = sy > 0 ? j : j - 1;
+      const cell = cellAt(ci, cj);
+      if (!cell || cell === stCell || rnd() < 0.35) continue;
+      const inX = cell.w, inY = cell.h;                                  // place disponible dans le pâté
+      const rin = Math.min(5, Math.floor((Math.min(inX, inY) - 2) / 2));
+      if (rin < 3) continue;
+      const cxT = sx > 0 ? xs[i] + R + rin : xs[i] - rin, cyT = sy > 0 ? ys[j] + R + rin : ys[j] - rin;
+      // La boîte du virage (le carrefour + les bouts de rue jusqu'au début de la courbe).
+      const bx0 = Math.min(xs[i], cxT), bx1 = Math.max(xs[i] + R, cxT), by0 = Math.min(ys[j], cyT), by1 = Math.max(ys[j] + R, cyT);
+      for (let y = by0; y < by1; y++) for (let x = bx0; x < bx1; x++) {
+        const dx = x + 0.5 - cxT, dy = y + 0.5 - cyT, d = Math.hypot(dx, dy);
+        const inRoadBand = (y >= ys[j] && y < ys[j] + R) || (x >= xs[i] && x < xs[i] + R);
+        if (d >= rin && d <= rin + R) grid[y * TW + x] = K.ROAD;
+        else if (inRoadBand) grid[y * TW + x] = K.GROUND;
+      }
+      // Les rues raccourcies (pour les marquages au sol).
+      for (const rd of roads) {
+        if (rd.horiz && rd.y === ys[j]) {
+          if (sx > 0 && rd.x === xs[i]) { rd.w -= cxT - rd.x; rd.x = cxT; }
+          if (sx < 0 && rd.x + rd.w === xs[i] + R) rd.w = cxT - rd.x;
+        }
+        if (!rd.horiz && rd.x === xs[i]) {
+          if (sy > 0 && rd.y === ys[j]) { rd.h -= cyT - rd.y; rd.y = cyT; }
+          if (sy < 0 && rd.y + rd.h === ys[j] + R) rd.h = cyT - rd.y;
+        }
+      }
+      const sq = { x: sx > 0 ? xs[i] + R : xs[i] - rin, y: sy > 0 ? ys[j] + R : ys[j] - rin, w: rin, h: rin };   // le coin du pâté mangé par la courbe
+      (cell.bends ||= []).push(sq);
+      bends.push({ cx: cxT * T, cy: cyT * T, rin: rin * T, rout: (rin + R) * T, sx, sy, box: { x: bx0, y: by0, w: bx1 - bx0, h: by1 - by0 }, sq });
+    }
+
     // Trottoirs : toutes les tuiles de terrain qui touchent une rue (diagonales comprises).
     const isRoad = (k) => k === K.ROAD;
     const walk = [];
@@ -124,15 +168,37 @@
     // Le terrain d'une case : la case moins son trottoir (seulement là où il y a une rue).
     const inner = (c) => ({ x: c.x + (c.left ? 1 : 0), y: c.y + (c.top ? 1 : 0), w: c.w - (c.left ? 1 : 0) - (c.right ? 1 : 0), h: c.h - (c.top ? 1 : 0) - (c.bottom ? 1 : 0) });
     // (un coin de trottoir qui déborde en diagonale dans un pâté redevient du terrain : le pâté reste un rectangle)
-    for (const c of cells) { const I = inner(c); for (let j = I.y; j < I.y + I.h; j++) for (let i = I.x; i < I.x + I.w; i++) if (grid[j * TW + i] === K.SIDEWALK) grid[j * TW + i] = K.GROUND; }
-    // Le commissariat : une case entière (4 rues autour), près du centre.
-    const cx0 = (nc - 1) / 2, cy0 = (nr - 1) / 2;
-    const stCell = cells.filter((c) => c.left && c.right && c.top && c.bottom).sort((a, b) => Math.hypot(a.i - cx0, a.j - cy0) - Math.hypot(b.i - cx0, b.j - cy0))[0]
-      || cells.filter((c) => c.left || c.right).sort((a, b) => Math.hypot(a.i - cx0, a.j - cy0) - Math.hypot(b.i - cx0, b.j - cy0))[0];
+    const inSq = (c, i, j) => (c.bends || []).some((q) => i >= q.x && i < q.x + q.w && j >= q.y && j < q.y + q.h);
+    for (const c of cells) { const I = inner(c); for (let j = I.y; j < I.y + I.h; j++) for (let i = I.x; i < I.x + I.w; i++) if (grid[j * TW + i] === K.SIDEWALK && !inSq(c, i, j)) grid[j * TW + i] = K.GROUND; }
+    // Un rectangle moins des carrés (les coins mangés par les virages) = quelques rectangles.
+    const minus = (rects, q) => {
+      const out = [];
+      for (const r of rects) {
+        const ix0 = Math.max(r.x, q.x), ix1 = Math.min(r.x + r.w, q.x + q.w), iy0 = Math.max(r.y, q.y), iy1 = Math.min(r.y + r.h, q.y + q.h);
+        if (ix0 >= ix1 || iy0 >= iy1) { out.push(r); continue; }
+        if (iy0 > r.y) out.push({ x: r.x, y: r.y, w: r.w, h: iy0 - r.y });
+        if (iy1 < r.y + r.h) out.push({ x: r.x, y: iy1, w: r.w, h: r.y + r.h - iy1 });
+        if (ix0 > r.x) out.push({ x: r.x, y: iy0, w: ix0 - r.x, h: iy1 - iy0 });
+        if (ix1 < r.x + r.w) out.push({ x: ix1, y: iy0, w: r.x + r.w - ix1, h: iy1 - iy0 });
+      }
+      return out.filter((r) => r.w > 0 && r.h > 0);
+    };
     let station = null;
+    for (const b of bends) lots.push({ ...b.box, type: "bend" }, { ...b.sq, type: "bend" });
     for (const c of cells) {
       const I = inner(c);
       const r = rnd();
+      if (c.bends && c !== stCell) {
+        let parts = [I];
+        for (const q of c.bends) parts = minus(parts, q);
+        for (const p of parts) {
+          // (que les morceaux tout en terrain)
+          let ok = p.w >= 2 && p.h >= 2;
+          for (let j = p.y; j < p.y + p.h && ok; j++) for (let i = p.x; i < p.x + p.w; i++) if (grid[j * TW + i] !== K.GROUND) { ok = false; break; }
+          lots.push({ ...p, type: ok ? (r < 0.75 ? "block" : "towers") : "bend" });
+        }
+        continue;
+      }
       if (c === stCell) {
         const side = c.right ? 1 : 3;
         const BW = 4, BD = 6;
@@ -225,7 +291,7 @@
 
     const city = {
       seed, w: TW * T, h: TH * T, TW, TH, grid, roads, lots, cityRect: { x: cityRect.x * T, y: cityRect.y * T, w: cityRect.w * T, h: cityRect.h * T },
-      rounds: [], gates, exits, station,
+      rounds: [], gates, exits, station, bends,
     };
     city.obstaclesOpen = solid.concat(gates);
     city.obstacles = city.obstaclesOpen.concat(exits.map((e) => e.gate));

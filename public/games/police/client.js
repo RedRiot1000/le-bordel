@@ -680,6 +680,23 @@
         prev = it;
       }
     }
+    // Virages : on redessine la courbe bien lisse (trottoir, bordures, bitume), puis la ligne du milieu.
+    for (const b of city.bends || []) {
+      const hA = b.sx > 0 ? Math.PI : 0, vA = b.sy > 0 ? -Math.PI / 2 : Math.PI / 2;
+      const d = Math.atan2(Math.sin(vA - hA), Math.cos(vA - hA));
+      const ring = (r0, r1, col) => { c.fillStyle = col; c.beginPath(); c.arc(b.cx, b.cy, r1, hA, hA + d, d < 0); c.arc(b.cx, b.cy, Math.max(0, r0), hA + d, hA, d > 0); c.closePath(); c.fill(); };
+      ring(b.rin - T, b.rout + T, TILE_COL[KD.SIDEWALK]);
+      ring(b.rin - 3, b.rout + 3, CURB);
+      ring(b.rin, b.rout, TILE_COL[KD.ROAD]);
+    }
+    for (const b of city.bends || []) {
+      // Le quart de cercle tourné vers l'ancien carrefour.
+      const hA = b.sx > 0 ? Math.PI : 0, vA = b.sy > 0 ? -Math.PI / 2 : Math.PI / 2;
+      const d = Math.atan2(Math.sin(vA - hA), Math.cos(vA - hA));
+      const r = (b.rin + b.rout) / 2;
+      c.save(); c.setLineDash([T - 8, T + 8]); c.strokeStyle = "rgba(255,255,255,0.4)"; c.lineWidth = 4;
+      c.beginPath(); c.arc(b.cx, b.cy, r, hA, hA + d, d < 0); c.stroke(); c.restore();
+    }
     // 5) Les pâtés : jardins, cours, puis ombres et toits.
     const parts = [];
     let stationDrawn = false;
@@ -743,6 +760,14 @@
           break;
         }
         case "station": stationDrawn = true; break;
+        case "bend": {
+          // Coin de verdure autour d'un virage (seulement les tuiles de terrain).
+          for (let j = lot.y; j < lot.y + lot.h; j++) for (let i = lot.x; i < lot.x + lot.w; i++) {
+            if (kAt(i, j) !== KD.GROUND) continue;
+            c.fillStyle = (i + j) % 2 ? "#5c9446" : "#58903f"; c.fillRect(i * T, j * T, T, T);
+          }
+          break;
+        }
         default: break;
       }
     }

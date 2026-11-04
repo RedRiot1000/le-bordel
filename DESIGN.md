@@ -517,6 +517,7 @@ Problèmes de la version « 3 villes » : on passait à travers certains bâtime
   - sur chaque ligne de la grille, au moins un tronçon disparaît, sauf **la grande rue** et **la grande avenue** (tirées au hasard), qui vont tout droit d'un bout à l'autre ;
   - jamais de cul-de-sac : un carrefour garde 0 ou au moins 2 rues ;
   - tout reste relié (vérifié à chaque tronçon retiré).
+  - **virages** (demande de Scotty) : là où une rue tourne (carrefour en L à 2 rues, pas sur les bords gauche/droite des sorties, jamais autour du commissariat), 65 % des coins sont arrondis en quart de cercle (rayon intérieur 3 à 5 tuiles). La courbe est redessinée bien lisse, le trottoir la suit, de la verdure dedans et dehors. ~11 virages par ville, le test vérifie que tout reste relié.
 - **Trottoirs** : toutes les tuiles de terrain qui touchent une rue (diagonales comprises). Ils se roulent.
 - **Bâtiments posés uniquement sur des tuiles qui bloquent** : îlots d'immeubles, tours, ruelles à portiques, places pavées avec fontaine, parcs. Une rue retirée devient un immeuble (façade continue). Le test vérifie sur 60 villes qu'aucun bâtiment n'est posé sur une tuile roulable.
 - **2 sorties** : une route qui quitte la ville à gauche, une à droite (bretelles vers le bord de la carte).
