@@ -732,6 +732,24 @@ Choix : vue de dessus, course en X tours, nitro + poussettes, virages variés + 
 
 Demande de Scotty : la barre en haut était trop loin des yeux pendant une poursuite ; l'arc autour de la voiture gênait la vue. Dans Avis de recherche et Chat et souris, une grosse barre 🔥 NITRO est dessinée juste SOUS la mini-carte (bleu, orange qui clignote pendant la nitro, rouge sous 25 %), et pour les flics une barre ⚡ TASER (jaune qui se remplit, secondes restantes, « PRÊT ! » qui clignote). Partagé : VehicleArt.bar (vehicles-art.js). La touche M (grande carte) et le texte « M = carte » ont été retirés.
 
+## 7 duovicies. La Tour 🌋 — validé (« Go »)
+
+Idée de Scotty : un parkour vertical, on court, on saute, on s'accroupit, on saute sur les murs, piques rares, le dernier en vie gagne.
+Choix : lave qui monte, même tour pour tous, aucun contact entre joueurs, plateformes variées + piques + raccourcis.
+- **Moteur partagé** (`public/games/tour/tower.js`, globalThis.Tower) : la tour (seed, générée au fur et à mesure) et le pas du perso (1/30 s), identiques sur le serveur et le navigateur.
+- **Perso** : course 340 px/s, accroupi 190 ; saut 760 px/s (129 px, 170 px en maintenant) ; ↓ en l'air = chute rapide ; petit temps de grâce au bord (0,08 s) et saut mémorisé (0,1 s).
+- **Saut mural** : contre un mur on glisse, sauter rebondit de l'autre côté ; pas deux fois de suite le même côté (sinon on monterait un mur seul).
+- **Tour** :
+  - chemin principal de plateformes (marches de 105 à 147 px, de plus en plus étroites) ; vérifié par calcul : chaque saut du chemin est faisable ;
+  - vertes fixes, orange qui s'effritent (0,6 s après le passage, reviennent 1,5 s plus tard pour ne pas bloquer ceux qui suivent), bleues qui bougent ;
+  - piques rares, à l'autre bout de la plateforme par rapport à l'arrivée, la suite part du côté sûr ;
+  - cheminées (raccourci) : un mur à côté du mur de la tour, on y monte ~290 px/s (les marches ~240), quelques piques sur les murs ;
+  - tunnels : plafond bas hérissé de piques, à passer accroupi.
+- **Lave** : hauteur = -420 + 34 t + 2 t² (identique partout, calculée à partir du temps du perso). L'écran rougit sous 34 m.
+- **Fin** : 2,5 s après qu'il ne reste qu'un joueur ; points 10, 7, 5, 3, 2, 1 (survivant, puis ordre inverse des éliminations). Au plus 4 min.
+- **Écran** : caméra qui suit (spectateur : le plus haut en vie), hauteur en gros à gauche, distance à la lave, barre de position de tout le monde à droite. Décor clair, persos avec halo + contour.
+- **Bots** : suivent le chemin principal, cible fixe pendant un saut, traversent les tunnels accroupis, ratés de temps en temps.
+
 ## 8. Feuille de route
 
 | Phase | Contenu | Objectif |

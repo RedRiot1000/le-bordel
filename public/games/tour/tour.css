@@ -1,0 +1,6 @@
+/* LA TOUR — styles (le reste vient de patate.css et chat.css : .pt-*, .ch-*) */
+#to-canvas {
+  display: block; width: 100%; height: auto; max-height: 76vh; object-fit: contain;
+  border-radius: var(--radius); border: 3px solid rgba(255, 140, 60, 0.45); box-shadow: var(--shadow);
+}
+.pt-arena-wrap.over #to-canvas { display: none; }

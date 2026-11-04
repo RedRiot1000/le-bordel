@@ -317,6 +317,25 @@
       ],
       example: "Tu prends la VIPÈRE. Dans l'épingle, tu dérapes au frein à main : ta nitro se remplit. En ligne droite, Bob en TITAN te tasse dans l'herbe… mais tu es 4e, ta nitro remonte ×1,6 : tu la vides et tu le dépasses avant la ligne. 2e : <b>7 points</b>.",
     },
+    tour: {
+      goal: "Être le dernier en vie : grimpe la tour plus vite que la lave.",
+      steps: [
+        "Tout le monde grimpe <b>la même tour</b> en même temps (on se traverse, aucun contact). Une nouvelle tour à chaque manche.",
+        "La <b>lave</b> monte du bas, de plus en plus vite. Si elle te touche, tu es éliminé. L'écran rougit quand elle approche.",
+        "<b>Cours</b> et <b>saute</b> de plateforme en plateforme : les vertes sont fixes, les <b>orange s'effritent</b> juste après ton passage, les <b>bleues bougent</b>.",
+        "<b>Saut mural</b> : contre un mur, saute pour rebondir de l'autre côté. Dans les <b>cheminées</b> (deux murs serrés), ça fait monter très vite… mais attention aux piques.",
+        "<b>Accroupis-toi</b> pour passer sous les plafonds bas. Les <b>piques</b> rouges (rares) t'éliminent.",
+      ],
+      controls: [
+        "<kbd>←</kbd><kbd>→</kbd> / <kbd>Q</kbd><kbd>D</kbd> : courir",
+        "<kbd>Espace</kbd> / <kbd>↑</kbd> / <kbd>Z</kbd> : sauter (maintenir = plus haut), aussi contre les murs",
+        "<kbd>↓</kbd> / <kbd>S</kbd> : s'accroupir · en l'air : retomber plus vite",
+      ],
+      points: [
+        "Classement à l'ordre d'élimination : <b>10, 7, 5, 3, 2, 1</b> points. Le dernier en vie prend 10 points.",
+      ],
+      example: "Tu vois une cheminée : tu rebondis de mur en mur et tu gagnes 60 m d'un coup. Bob reste sur les plateformes, une orange s'effrite sous ses pieds, la lave le rattrape. Tu es le dernier en vie : <b>10 points</b>.",
+    },
     colline: {
       goal: "Rester dans la zone dorée le plus longtemps possible, seul (ou seule ton équipe), en virant les autres à coups de batte.",
       steps: [
