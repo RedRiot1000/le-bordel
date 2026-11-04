@@ -7,9 +7,10 @@
 
 (function (root) {
   const T = {};
-  T.WIDTH = 170;          // largeur de la piste
+  T.WIDTH = 240;          // largeur de la piste (3 voies de 80 px)
+  T.LANES = 3;
   T.STEP = 24;            // distance entre deux points de la ligne du milieu
-  T.LEN = 10500;          // longueur visée d'un tour (px)
+  T.LEN = 13000;          // longueur visée d'un tour (px)
   T.MARGIN = 700;         // herbe autour du circuit jusqu'aux bords du monde
   T.CELL = 200;           // taille des cases de la grille de recherche
   T.RAIL = 14;            // les barrières sont à WIDTH/2 + RAIL du milieu
@@ -74,13 +75,13 @@
       const a0 = ang[(i - 2 + N) % N], a1 = ang[(i + 2) % N];
       return Math.atan2(Math.sin(a1 - a0), Math.cos(a1 - a0)) / (4 * T.STEP);
     });
-    if (curv.some((c) => Math.abs(c) > 1 / 125)) return null;         // virage impossible à prendre
+    if (curv.some((c) => Math.abs(c) > 1 / 150)) return null;         // virage impossible à prendre
     // La piste ne doit jamais toucher une autre partie d'elle-même.
     const W = T.WIDTH;
     for (let i = 0; i < N; i += 2) for (let j = i + 2; j < N; j += 2) {
       const along = Math.min(j - i, N - (j - i)) * T.STEP;
       if (along < W * 2.6) continue;
-      if (Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y) < W * 1.75) return null;
+      if (Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y) < W * 1.6) return null;
     }
     return { pts, ang, curv };
   }
@@ -248,8 +249,10 @@
   T.startGrid = function (t, n) {
     const out = [];
     for (let k = 0; k < n; k++) {
-      const p = T.at(t, -60 - k * 46), nn = normal(t, p.i), side = k % 2 ? 1 : -1;
-      out.push({ x: p.x + nn.x * side * 38, y: p.y + nn.y * side * 38, a: p.a, s: -60 - k * 46 });
+      // 3 colonnes (une par voie), un peu décalées.
+      const col = k % 3, row = Math.floor(k / 3), s = -60 - row * 64 - col * 14, lat = (col - 1) * (T.WIDTH / 3);
+      const p = T.at(t, s), nn = normal(t, p.i);
+      out.push({ x: p.x + nn.x * lat, y: p.y + nn.y * lat, a: p.a, s });
     }
     return out;
   };

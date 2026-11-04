@@ -41,7 +41,9 @@ console.log("— Circuit —");
     if (Math.abs(t.len - T.LEN) > 200) { okAll = false; bad = "longueur"; }
   }
   check(okAll, `40 circuits : grille sur la piste, pneus dehors, paille sur la piste, ~${T.LEN / 10} m le tour ${bad}`);
-  check(minTurn >= 120, `Aucun virage impossible (rayon mini ${Math.round(minTurn)} px)`);
+  { let fails = 0; for (let k = 0; k < 300; k++) { try { T.build((k * 2654435761) >>> 0); } catch { fails++; } } check(fails === 0, `300 circuits générés sans échec (${fails})`); }
+  check(T.LANES === 3 && T.WIDTH >= 220, `Piste à 3 voies (${T.WIDTH} px)`);
+  check(minTurn >= 140, `Aucun virage impossible (rayon mini ${Math.round(minTurn)} px)`);
   check(sep >= T.WIDTH * 1.6, `La piste ne se touche jamais (écart mini ${Math.round(sep)} px)`);
   const t = T.build(5);
   check(T.offAt(t, t.pts[30].x, t.pts[30].y) === 0 && T.offAt(t, t.pts[30].x + T.normal(t, 30).x * 200, t.pts[30].y + T.normal(t, 30).y * 200) > 0.9, "Sur la piste / dans l'herbe");

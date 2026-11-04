@@ -19,7 +19,7 @@
   let phaseEndLocal = 0, finishEndLocal = 0, elimEndLocal = 0, endEndLocal = 0;
   let rafId = null, lastTs = 0;
   let canvas = null, g2d = null;
-  let track = null, trackSeed = null, ENV = null, path = null, mini = null, rails = [];
+  let track = null, trackSeed = null, ENV = null, path = null, mini = null, rails = [], lanes = [];
 
   let pred = null, prevPred = null;
   let pending = [];
@@ -160,6 +160,8 @@
     track.pts.forEach((p, i) => (i ? path.lineTo(p.x, p.y) : path.moveTo(p.x, p.y)));
     path.closePath();
     for (const k in coneSeen) delete coneSeen[k];
+    // Les 2 lignes qui séparent les 3 voies.
+    lanes = [-1, 1].map((side) => { const p = new Path2D(); track.pts.forEach((q, i) => { const n = T.normal(track, i), d = side * T.WIDTH / 6; i ? p.lineTo(q.x + n.x * d, q.y + n.y * d) : p.moveTo(q.x + n.x * d, q.y + n.y * d); }); p.closePath(); return p; });
     rails = track.rails.map((line) => { const p = new Path2D(); line.forEach((q, i) => (i ? p.lineTo(q.x, q.y) : p.moveTo(q.x, q.y))); p.closePath(); return p; });
     // Mini-carte (dessinée une fois).
     mini = document.createElement("canvas");
@@ -514,7 +516,7 @@
     c.setLineDash([28, 28]); c.strokeStyle = "#f4f4f4"; c.stroke(path); c.setLineDash([]);
     c.strokeStyle = "#f2f2f2"; c.lineWidth = T.WIDTH; c.stroke(path);
     c.strokeStyle = "#4a4b55"; c.lineWidth = T.WIDTH - 10; c.stroke(path);
-    c.setLineDash([34, 46]); c.strokeStyle = "rgba(255,255,255,0.35)"; c.lineWidth = 4; c.stroke(path); c.setLineDash([]);
+    c.setLineDash([34, 46]); c.strokeStyle = "rgba(255,255,255,0.42)"; c.lineWidth = 4; for (const l of lanes) c.stroke(l); c.setLineDash([]);
 
     // Barrières de sécurité (rail métallique sur poteaux, des 2 côtés).
     for (const r of rails) {
