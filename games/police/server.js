@@ -29,7 +29,7 @@ const COUNTDOWN_MS = 3000;
 export const COPS_DELAY = 5000;    // les flics arrivent 5 s après le départ
 export const ARREST_MS = 1000;     // presque à l'arrêt pendant 1 s...
 export const ARREST_SPEED = 65;    // ... en dessous de cette vitesse (px/s)...
-export const ARREST_DIST = 110;    // ... avec au moins 2 véhicules de police à moins de 110 px
+export const ARREST_DIST = 110;    // ... avec au moins 2 véhicules de police à moins de 110 px (ou 1 joueur-flic)
 const END_DELAY = 1500;            // on voit la dernière arrestation avant les scores
 const ROUND_OVER_MS = 7000;        // playlist : manche suivante toute seule
 const FINISH_DELAY = 15000;
@@ -535,7 +535,8 @@ export function createGame(ctx) {
     }
   }
 
-  // Les arrestations : presque à l'arrêt + au moins 2 véhicules de police autour, pendant 1 s.
+  // Les arrestations : presque à l'arrêt pendant 1 s avec au moins 2 véhicules de police autour…
+  // … ou UN SEUL s'il est conduit par un joueur (la Lamborghini des joueurs-flics suffit).
   function checkArrests() {
     const police = [];
     for (const c of g.cops) police.push({ id: null, car: c.car });
@@ -544,7 +545,7 @@ export function createGame(ctx) {
       const s = g.cars[id], c = s.car;
       const around = police.filter((p) => dist(p.car, c) < ARREST_DIST);
       const slow = Math.hypot(c.vx, c.vy) < ARREST_SPEED;
-      if (slow && around.length >= 2) {
+      if (slow && (around.length >= 2 || around.some((p) => p.id))) {
         s.arrest += TICK_MS;
         if (s.arrest >= ARREST_MS) arrest(id, around.map((p) => p.id).filter(Boolean));
       } else s.arrest = Math.max(0, s.arrest - TICK_MS * 2);
@@ -729,5 +730,6 @@ export function createGame(ctx) {
       ctx.update();
     },
     destroy() { stopLoop(); clearTimeout(g.finishTimer); },
+    _g: g,   // (pour les tests / simulations)
   };
 }

@@ -57,7 +57,7 @@
           <h2>🎮 Règles & commandes</h2>
           <ul class="pt-help">
             <li>🏎️ Vous êtes en <b>F1</b> dans une ville. La police arrive après 5 s, de plus en plus nombreuse (⭐ → ⭐⭐⭐⭐⭐) : sportives, motos, vans, puis supercars et camions.</li>
-            <li>🚔 Presque à l'arrêt pendant <b>1 s</b> avec <b>2 véhicules de police</b> autour = <b>ARRÊTÉ</b>. Tu deviens flic en <b>Lamborghini de police</b> (elle pousse fort et passe dans les ruelles) et tu aides à coincer les autres !</li>
+            <li>🚔 Presque à l'arrêt pendant <b>1 s</b> avec <b>2 véhicules de police</b> autour (ou <b>1 seul joueur-flic</b>) = <b>ARRÊTÉ</b>. Tu deviens flic en <b>Lamborghini de police</b> (elle pousse fort et passe dans les ruelles) et tu aides à coincer les autres !</li>
             <li>⚡ Flic : <b>clic</b> ou <kbd>E</kbd> = <b>taser</b> droit devant. Le 1er véhicule touché (même un flic !) a le <b>moteur coupé 2 s</b>. Recharge : 15 s.</li>
             <li>🚁 À ⭐⭐⭐⭐, l'hélico suit un fugitif : la moitié des flics fonce sur lui.</li>
             <li><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> / flèches · <kbd>Espace</kbd> frein à main · <kbd>Shift</kbd> nitro</li>
