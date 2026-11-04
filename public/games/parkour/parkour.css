@@ -1,0 +1,6 @@
+/* PARKOUR — styles (le reste vient de patate.css et chat.css : .pt-*, .ch-*) */
+#pk-canvas {
+  display: block; width: 100%; height: auto; max-height: 74vh; object-fit: contain;
+  border-radius: var(--radius); border: 3px solid rgba(180, 140, 255, 0.4); box-shadow: var(--shadow);
+}
+.pt-arena-wrap.over #pk-canvas { display: none; }

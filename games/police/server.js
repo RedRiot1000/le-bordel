@@ -59,7 +59,7 @@ const EXIT_GUARD = 3;                  // pendant « FUYEZ ! », 1 flic sur 3 va
 const COP_COLOR = "#16213e";
 // Le taser des joueurs devenus flics : un projectile électrique qui coupe le moteur de la voiture touchée.
 export const TASER = 64;               // touche (clic / E)
-export const TASER_CD = 2500;          // recharge
+export const TASER_CD = 15000;         // recharge (15 s)
 export const TASER_SPEED = 950, TASER_RANGE = 650;
 export const EMP_MS = 2000;            // moteur coupé 2 s
 
@@ -571,7 +571,8 @@ export function createGame(ctx) {
     const c = s.car, fx = Math.cos(c.a), fy = Math.sin(c.a);
     g.shots.push({ id: ++g.shotId, by: id, x: c.x + fx * 30, y: c.y + fy * 30, vx: fx * TASER_SPEED + c.vx * 0.5, vy: fy * TASER_SPEED + c.vy * 0.5, left: TASER_RANGE });
   }
-  // Les éclairs avancent : un mur les arrête, une voiture de fugitif touchée a le moteur coupé 2 s.
+  // Les éclairs avancent : un mur les arrête ; le 1er véhicule touché (n'importe lequel : fugitif, flic IA,
+  // autre joueur… sauf le tireur) a le moteur coupé 2 s. Mal visé = tant pis pour le collègue !
   function stepShots(dt) {
     const t = now();
     for (const b of [...g.shots]) {
@@ -582,9 +583,8 @@ export function createGame(ctx) {
         b.left -= Math.hypot(b.vx, b.vy) * d;
         if (b.left <= 0 || b.x < 0 || b.y < 0 || b.x > g.city.w || b.y > g.city.h) { gone = true; break; }
         if (C.near(g.city, b.x, b.y, g.open).some((o) => !o.gate && b.x > o.x && b.x < o.x + o.w && b.y > o.y && b.y < o.y + o.h)) { addFx(b.x, b.y, 0, false); gone = true; break; }
-        for (const id of freeIds()) {
-          const c = g.cars[id].car;
-          if (Math.hypot(c.x - b.x, c.y - b.y) > 26) continue;
+        for (const { id, car: c } of allCars()) {
+          if (id === b.by || Math.hypot(c.x - b.x, c.y - b.y) > 26) continue;
           c.empUntil = t + EMP_MS;
           g.zaps.push({ id: ++g.fxId, t, x: Math.round(c.x), y: Math.round(c.y), target: id });
           gone = true;

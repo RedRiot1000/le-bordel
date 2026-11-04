@@ -23,6 +23,7 @@ import * as neige from "./neige/server.js";
 import * as lampe from "./lampe/server.js";
 import * as tueur from "./tueur/server.js";
 import * as colline from "./colline/server.js";
+import * as parkour from "./parkour/server.js";
 
 // Les jeux jouables.
 export const GAMES = {
@@ -45,6 +46,7 @@ export const GAMES = {
   [lampe.meta.id]: lampe,
   [tueur.meta.id]: tueur,
   [colline.meta.id]: colline,
+  [parkour.meta.id]: parkour,
 };
 
 // Les jeux prévus (affichés grisés "bientôt" dans le menu).

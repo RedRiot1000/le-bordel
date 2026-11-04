@@ -196,7 +196,7 @@
         "À ⭐⭐⭐⭐, l'<b>hélico</b> 🚁 arrive : il suit un fugitif avec son projecteur, et la moitié des flics fonce sur lui.",
         "<b>Arrestation</b> : si tu es presque à l'arrêt pendant <b>1 seconde</b> avec <b>au moins 2 véhicules de police</b> collés à toi, tu es arrêté. Un cercle rouge se remplit autour de toi : <b>bouge</b> avant qu'il soit plein !",
         "Arrêté ? Tu deviens <b>flic</b> en <b>Lamborghini de police</b> : puissante, lourde (elle pousse fort) et assez fine pour passer sous les portiques des ruelles. Tu aides à coincer les autres (tu comptes comme un véhicule de police).",
-        "Flic : <b>clic</b> ou <kbd>E</kbd> = <b>taser</b>, un éclair tiré droit devant (recharge 2,5 s). Une voiture touchée a le <b>moteur coupé 2 s</b> : elle ne peut plus accélérer.",
+        "Flic : <b>clic</b> ou <kbd>E</kbd> = <b>taser</b>, un éclair tiré droit devant (recharge <b>15 s</b>). Le <b>1er véhicule touché</b> a le <b>moteur coupé 2 s</b> : il ne peut plus accélérer. Attention : ça marche aussi sur les autres flics si tu vises mal !",
         "À la fin du chrono (2 min par défaut) : <b>FUYEZ !</b> Les barrières des <b>2 sorties</b> s'ouvrent. Tu as <b>30 s</b> (réglable) pour quitter la ville : suis la flèche verte ! Attention, des flics vont se poster devant les sorties.",
         "La manche s'arrête quand tout le monde est sorti ou arrêté, ou à la fin du temps pour sortir (ceux encore en ville sont arrêtés).",
       ],
@@ -276,6 +276,25 @@
         "Classement à la surface peinte (en équipes : toute l'équipe gagnante prend la 1re place).",
       ],
       example: "Tu es chez les 🔴. Tu fonces vers une grosse zone bleue en tirant des jets devant toi, tu ramasses le 🧹 et tu traverses toute l'arène en laissant une bande rouge énorme. À 10 s de la fin, la barre est à 48 % contre 47 %… tu attrapes la 💣 en plein milieu des bleus : victoire !",
+    },
+    parkour: {
+      goal: "Aller le plus loin possible sans toucher d'obstacle : sauter, s'accroupir, glisser au bon moment.",
+      steps: [
+        "Chaque joueur a <b>sa propre ligne</b> (empilées à l'écran, la tienne est encadrée en jaune). Tout le monde a <b>exactement le même parcours</b> : c'est le réflexe qui fait la différence.",
+        "Ton coureur avance <b>tout seul</b>, de plus en plus vite.",
+        "<b>Sauter</b> (<kbd>Espace</kbd>, <kbd>↑</kbd> ou <kbd>Z</kbd>) par-dessus les <b>haies</b>, les <b>caisses</b> (garde appuyé pour sauter plus haut), les <b>oiseaux bas</b> et les <b>trous</b>.",
+        "<b>Glisser</b> (<kbd>↓</kbd> ou <kbd>S</kbd>) sous les <b>barres</b> et les <b>oiseaux hauts</b> (garde appuyé pour rester accroupi). En l'air, ↓ te fait retomber plus vite.",
+        "Plus loin, les obstacles se rapprochent et s'enchaînent (une haie puis une barre…).",
+        "Un obstacle touché ou un trou = <b>éliminé</b>. La manche finit quand tout le monde est tombé.",
+      ],
+      controls: [
+        "<kbd>Espace</kbd> / <kbd>↑</kbd> / <kbd>Z</kbd> : sauter (maintenir = plus haut)",
+        "<kbd>↓</kbd> / <kbd>S</kbd> : glisser, s'accroupir · en l'air : retomber vite",
+      ],
+      points: [
+        "Classement à la distance : <b>10, 7, 5, 3, 2, 1</b> points selon ta place.",
+      ],
+      example: "Une haie : saut. Une barre juste derrière : tu retombes vite avec ↓ et tu glisses dessous. Un grand trou : tu sautes en gardant appuyé… Bob tombe à 840 m, toi tu tiens jusqu'à 1 020 m : 1re place, <b>10 points</b>.",
     },
     colline: {
       goal: "Rester dans la zone dorée le plus longtemps possible, seul (ou seule ton équipe), en virant les autres à coups de batte.",

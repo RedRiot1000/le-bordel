@@ -12,7 +12,7 @@
   const K = P.K;
   const COP_POWER = (stars) => 0.95 + 0.06 * stars;   // (le même que games/police/server.js)
   const COP_COLOR = "#16213e";
-  const TASER = 64, TASER_CD = 2500;   // (les mêmes que games/police/server.js)
+  const TASER = 64, TASER_CD = 15000;   // (les mêmes que games/police/server.js)
 
   let api = null, root = null;
   let st = null;
@@ -58,7 +58,7 @@
           <ul class="pt-help">
             <li>🏎️ Vous êtes en <b>F1</b> dans une ville. La police arrive après 5 s, de plus en plus nombreuse (⭐ → ⭐⭐⭐⭐⭐) : sportives, motos, vans, puis supercars et camions.</li>
             <li>🚔 Presque à l'arrêt pendant <b>1 s</b> avec <b>2 véhicules de police</b> autour = <b>ARRÊTÉ</b>. Tu deviens flic en <b>Lamborghini de police</b> (elle pousse fort et passe dans les ruelles) et tu aides à coincer les autres !</li>
-            <li>⚡ Flic : <b>clic</b> ou <kbd>E</kbd> = <b>taser</b> droit devant. Une voiture touchée a le <b>moteur coupé 2 s</b>.</li>
+            <li>⚡ Flic : <b>clic</b> ou <kbd>E</kbd> = <b>taser</b> droit devant. Le 1er véhicule touché (même un flic !) a le <b>moteur coupé 2 s</b>. Recharge : 15 s.</li>
             <li>🚁 À ⭐⭐⭐⭐, l'hélico suit un fugitif : la moitié des flics fonce sur lui.</li>
             <li><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> / flèches · <kbd>Espace</kbd> frein à main · <kbd>Shift</kbd> nitro</li>
             <li>🚓 Les flics partent du <b>commissariat</b> (et un peu des sorties). Les <b>portiques jaunes</b> sont des raccourcis : les vans et camions ne passent pas dessous !</li>
@@ -980,8 +980,8 @@
     } else if (roleFlash > 0) {
       roleFlash -= dt;
       band("🚔 ARRÊTÉ !", "Tu es flic maintenant : coince les autres !", "#ff4d4d");
-    } else if (mv && mv.role === "free" && carOf(me())?.emp) {
-      band("⚡ MOTEUR COUPÉ !", "Un flic t'a tasé : tu ne peux plus accélérer pendant 2 s…", "#7cc8ff", true);
+    } else if (mv && carOf(me())?.emp) {
+      band("⚡ MOTEUR COUPÉ !", "Un taser t'a touché : tu ne peux plus accélérer pendant 2 s…", "#7cc8ff", true);
     } else if (mv && mv.role === "free" && mv.arrest > 0.15) {
       band("⚠️ BOUGE !", "La police t'encercle !", "#ff4d4d", true);
     }

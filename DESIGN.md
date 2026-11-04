@@ -507,7 +507,7 @@ Idée de Scotty : tout le monde en **F1**, la police (IA) arrive de plus en plus
 
 ### Flics joueurs : Lamborghini + taser (demande de Scotty)
 - Un joueur arrêté devient flic en **Lamborghini de police** (`lambo` dans physics.js, réservée) : masse 1,75 (pousse comme un van), moteur 640, largeur 24 (passe sous les portiques des ruelles, contrairement aux vans).
-- **Taser** (bit 64 : clic ou E) : un éclair droit devant (950 px/s, portée 650, recharge 2,5 s), arrêté par les murs. Une voiture de fugitif touchée a le **moteur coupé 2 s** (`car.empUntil` : plus d'accélération ni de nitro, on peut encore tourner et freiner ; la prédiction du navigateur fait pareil). Les bots devenus flics tirent quand un fugitif est droit devant.
+- **Taser** (bit 64 : clic ou E) : un éclair droit devant (950 px/s, portée 650, recharge **15 s**), arrêté par les murs et par le **premier véhicule** touché (fugitif, flic IA ou autre joueur, sauf le tireur), qui a le **moteur coupé 2 s** (`car.empUntil` : plus d'accélération ni de nitro, on peut encore tourner et freiner ; la prédiction du navigateur fait pareil). Les bots devenus flics tirent quand un fugitif est droit devant.
 
 ### Ville simple (dernière version, demande de Scotty)
 Problèmes de la version « 3 villes » : on passait à travers certains bâtiments, des rues s'arrêtaient dans le vide. Scotty a demandé une ville simple : 1 seul quartier, pas de rivière, pas de pont, pas de périphérique, mais une ville qu'on ne traverse pas tout droit.
@@ -679,6 +679,27 @@ Choix : la zone se déplace, une zone contestée ne rapporte rien, coup de batte
 - **Modes** : `aleatoire` (défaut : 1 chance sur 2 d'être en équipes, seulement à 4, 6 ou 8 joueurs pour des équipes égales), `equipes` (à partir de 3), `solo`. Manches 3 / 5 / 7, durée 60 / 90 / 120 s.
 - **Bots** : ils vont dans la zone (ou la suivante juste avant le saut) ; près d'un ennemi, ils se placent pour le frapper vers l'extérieur de la zone.
 - **Simulation** : zone contestée 20 à 40 % du temps, des centaines de coups par manche.
+
+## 7 vicies. Parkour 🏃 — validé (« Go »)
+
+Idée de Scotty : un jeu de réflexe comme le dinosaure de Chrome, chaque joueur sur sa ligne, le plus loin gagne.
+Choix : éliminé au 1er choc, le même parcours pour tout le monde, sauter + s'accroupir + glisser + trous, rien d'autre que la course.
+- **Moteur partagé** (`public/games/parkour/course.js`, globalThis.Parkour) :
+  - le parcours, tiré d'une seed et généré au fur et à mesure, toujours dans le même ordre ;
+  - le pas de course (1/30 s), identique sur le serveur et le navigateur.
+- **Coureur** :
+  - vitesse 380 px/s + 13 px/s par seconde de course, plafonnée à 980 ;
+  - saut 820 px/s, gravité 2700 (1500 si on garde appuyé pendant 0,2 s = saut plus haut), ↓ en l'air = plongeon (5200) ;
+  - glissade 0,55 s (ou tant qu'on garde ↓) : hauteur 28 au lieu de 58.
+- **Obstacles** : haie (0–38), caisse (0–72), barre (bloque au-dessus de 40), oiseau haut (40–72), oiseau bas (10–40), trous de 90 à 240 px. Vers 400 m, des enchaînements haie + barre. Le temps entre deux obstacles passe de ~1,5 s à ~0,7 s.
+- **Serveur** :
+  - un pas de course par touche reçue (comme la prédiction du navigateur), jamais plus vite que le temps réel (+ 2 pas) ;
+  - un joueur qui n'envoie plus rien (onglet en pause) court quand même, sans toucher aux commandes ;
+  - fin de manche quand tout le monde est tombé (au plus 4 min) ;
+  - classement à la distance : 10, 7, 5, 3, 2, 1 points.
+- **Écran** : une ligne par joueur (empilées, la mienne encadrée en jaune), ville la nuit en 2 plans de parallaxe, coureur en bâtons (course, saut, glissade), distance en mètres (10 px = 1 m).
+- **Bots** : temps de réaction de 0,16 à 0,28 s, une petite erreur de timing qui grandit avec la vitesse, et un raté de temps en temps.
+- **Simulation** : manches de 25 à 45 s entre bots, avec des écarts nets.
 
 ## 8. Feuille de route
 
