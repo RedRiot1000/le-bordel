@@ -688,17 +688,17 @@ Choix : éliminé au 1er choc, le même parcours pour tout le monde, sauter + s'
   - le parcours, tiré d'une seed et généré au fur et à mesure, toujours dans le même ordre ;
   - le pas de course (1/30 s), identique sur le serveur et le navigateur.
 - **Coureur** :
-  - vitesse 380 px/s + 13 px/s par seconde de course, plafonnée à 980 ;
-  - saut 820 px/s, gravité 2700 (1500 si on garde appuyé pendant 0,2 s = saut plus haut), ↓ en l'air = plongeon (5200) ;
+  - vitesse 420 px/s + 16 px/s par seconde de course, plafonnée à 1060 ;
+  - saut vif et court : 900 px/s, gravité 4200 (2400 si on garde appuyé pendant 0,15 s = saut plus haut), ↓ en l'air = plongeon (7500). Saut simple ≈ 96 px de haut et 0,43 s en l'air, saut maintenu ≈ 143 px ;
   - glissade 0,55 s (ou tant qu'on garde ↓) : hauteur 26 au lieu de 50 (le dessin du bonhomme tient exactement dans cette zone) ;
   - atterrissage : dès qu'on touche le sol on s'y pose, même en plongeon très rapide (avant, on « passait sous le sol » et on mourait comme dans un trou).
-- **Obstacles** : haie (0–38), caisse (0–72), barre (bloque au-dessus de 40), oiseau haut (40–72), oiseau bas (10–40), trous de 90 à 240 px. Vers 400 m, des enchaînements haie + barre. Le temps entre deux obstacles passe de ~1,5 s à ~0,7 s.
+- **Obstacles** : haie (0–38), caisse (0–72), barre (bloque au-dessus de 40), oiseau haut (40–72), oiseau bas (10–40), trous de 90 à 240 px. Dès ~45 m, des enchaînements haie + barre (plus serrés). Difficulté maximale vers 300 m. Le temps entre deux obstacles passe de ~1,35 s à ~0,55 s. Vérifié par calcul : 25 parcours restent toujours passables jusqu'à 7 km par un joueur parfait.
 - **Serveur** :
   - un pas de course par touche reçue (comme la prédiction du navigateur), jamais plus vite que le temps réel (+ 8 pas de marge réseau) ;
   - un joueur qui n'envoie plus rien depuis 1 s (onglet en pause) court quand même, sans toucher aux commandes (un petit lag ne fait jamais rater un saut) ;
   - fin de manche quand tout le monde est tombé (au plus 4 min) ;
   - classement à la distance : 10, 7, 5, 3, 2, 1 points.
-- **Écran** : une ligne par joueur (empilées) ; la mienne a un gros cadre doré, l'étiquette « TOI » et une flèche au-dessus du bonhomme, les autres sont un peu assombries. Ville au crépuscule (ciel clair), 2 plans d'immeubles bas qui ne changent jamais de forme (chacun attaché à sa place), oiseaux dessinés à la taille exacte de leur zone, trous noirs avec bords rayés + cônes, coureur en bâtons (course, saut, glissade), distance en mètres (10 px = 1 m).
+- **Écran** : une ligne par joueur (empilées) ; la mienne a un gros cadre doré, l'étiquette « TOI » et une flèche au-dessus du bonhomme, les autres sont un peu assombries. Ville au crépuscule (ciel clair), 2 plans d'immeubles bas qui ne changent jamais de forme (chacun attaché à sa place), oiseaux dessinés à la taille exacte de leur zone, trous noirs avec bords rayés + cônes, coureur en bâtons (course, saut, glissade) avec halo clair + contour noir pour ressortir du décor, distance en mètres (10 px = 1 m).
 - **Bots** : temps de réaction de 0,16 à 0,28 s, une petite erreur de timing qui grandit avec la vitesse, et un raté de temps en temps.
 - **Simulation** : manches de 25 à 45 s entre bots, avec des écarts nets.
 

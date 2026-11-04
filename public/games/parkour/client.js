@@ -10,7 +10,7 @@
   const K = P.K;
   const W = 1280, HGT = 800;
   const RUN_X = 230;          // où le coureur est dessiné dans sa ligne
-  const BASE = 270;           // hauteur « normale » d'une ligne : le saut le plus haut (tête comprise) y tient
+  const BASE = 235;           // hauteur « normale » d'une ligne : le saut le plus haut (tête comprise) y tient
 
   let api = null, root = null;
   let st = null;
@@ -364,32 +364,38 @@
   }
 
   // Le coureur, vu de côté : il court, saute, glisse, tombe.
+  // Dessiné 3 fois (halo clair, contour noir, couleur) pour bien ressortir sur le décor.
   function drawRunner(c, L, r, color, ts, alpha) {
     const s = L.s, x = RUN_X, foot = L.ground - r.y * s;
     c.save(); c.globalAlpha = alpha;
     // Ombre au sol.
-    if (r.y >= 0) { c.fillStyle = "rgba(0,0,0,0.3)"; c.beginPath(); c.ellipse(x, L.ground + 2, 14 * s * Math.max(0.4, 1 - r.y / 200), 3 * s, 0, 0, Math.PI * 2); c.fill(); }
-    c.strokeStyle = color; c.lineCap = "round"; c.lineWidth = 5 * s;
+    if (r.y >= 0) { c.fillStyle = "rgba(0,0,0,0.35)"; c.beginPath(); c.ellipse(x, L.ground + 2, 14 * s * Math.max(0.4, 1 - r.y / 160), 3 * s, 0, 0, Math.PI * 2); c.fill(); }
     const ph = (r.d / 40) % (Math.PI * 2);
+    // Les traits (membres) et la tête, selon la pose.
+    let lines, head;
     if (r.crouch) {
-      // Glissade : allongé, une jambe devant.
-      c.beginPath(); c.moveTo(x - 16 * s, foot - 10 * s); c.lineTo(x + 10 * s, foot - 14 * s); c.stroke();          // corps
-      c.beginPath(); c.moveTo(x + 10 * s, foot - 14 * s); c.lineTo(x + 24 * s, foot - 4 * s); c.stroke();          // jambe
-      c.beginPath(); c.moveTo(x - 6 * s, foot - 12 * s); c.lineTo(x - 2 * s, foot - 2 * s); c.stroke();            // bras au sol
-      c.fillStyle = color; c.beginPath(); c.arc(x - 18 * s, foot - 15 * s, 7 * s, 0, Math.PI * 2); c.fill();
+      lines = [[x - 16, 10, x + 10, 14, 5], [x + 10, 14, x + 24, 4, 5], [x - 6, 12, x - 2, 2, 5]];
+      head = [x - 18, 15, 7];
     } else {
-      const hip = foot - 21 * s, neck = foot - 37 * s;
       const sw = r.air ? 0.9 : Math.sin(ph);
-      c.beginPath(); c.moveTo(x, hip); c.lineTo(x + 3 * s, neck); c.stroke();                                         // corps
-      // Jambes
-      c.beginPath(); c.moveTo(x, hip); c.lineTo(x + 10 * s * sw, foot - (r.air ? 8 : 0) * s); c.stroke();
-      c.beginPath(); c.moveTo(x, hip); c.lineTo(x - 10 * s * sw, foot - (r.air ? 3 : 0) * s); c.stroke();
-      // Bras
-      c.lineWidth = 5 * s;
-      c.beginPath(); c.moveTo(x + 2 * s, neck + 3 * s); c.lineTo(x - 10 * s * sw, neck + 13 * s); c.stroke();
-      c.beginPath(); c.moveTo(x + 2 * s, neck + 3 * s); c.lineTo(x + 10 * s * sw, neck + 11 * s); c.stroke();
-      c.fillStyle = color; c.beginPath(); c.arc(x + 3 * s, neck - 6 * s, 6.5 * s, 0, Math.PI * 2); c.fill();
+      lines = [
+        [x, 21, x + 3, 37, 5],                                   // corps
+        [x, 21, x + 10 * sw, r.air ? 8 : 0, 5],                  // jambes
+        [x, 21, x - 10 * sw, r.air ? 3 : 0, 5],
+        [x + 2, 34, x - 10 * sw, 24, 4],                         // bras
+        [x + 2, 34, x + 10 * sw, 26, 4],
+      ];
+      head = [x + 3, 43, 6.5];
     }
+    const X = (px) => x + (px - x) * s;   // les x sont donnés « en monde » autour de RUN_X
+    const pass = (col, extra) => {
+      c.strokeStyle = col; c.fillStyle = col; c.lineCap = "round";
+      for (const [x0, y0, x1, y1, w] of lines) { c.lineWidth = (w + extra) * s; c.beginPath(); c.moveTo(X(x0), foot - y0 * s); c.lineTo(X(x1), foot - y1 * s); c.stroke(); }
+      c.beginPath(); c.arc(X(head[0]), foot - head[1] * s, (head[2] + extra / 2) * s, 0, Math.PI * 2); c.fill();
+    };
+    pass("rgba(255,255,255,0.55)", 7);   // halo clair
+    pass("#0b0914", 3.5);                 // contour noir
+    pass(color, 0);                       // la couleur du joueur
     c.restore();
   }
 

@@ -14,15 +14,15 @@
   P.W = 28;                 // largeur du coureur
   P.H_STAND = 50;           // hauteur debout (et en l'air)
   P.H_LOW = 26;             // accroupi / en glissade
-  P.JUMP_V = 820;           // vitesse du saut
-  P.G = 2700, P.G_HOLD = 1500, P.G_DIVE = 5200;   // gravité (normale, saut maintenu, plongeon vers le sol)
-  P.HOLD = 0.2;             // on peut « porter » le saut un moment en gardant la touche
+  P.JUMP_V = 900;           // vitesse du saut (vif et court)
+  P.G = 4200, P.G_HOLD = 2400, P.G_DIVE = 7500;   // gravité (normale, saut maintenu, plongeon vers le sol)
+  P.HOLD = 0.15;            // on peut « porter » le saut un moment en gardant la touche
   P.SLIDE = 0.55;           // durée d'une glissade
   P.START = 900;            // départ : les premiers mètres sont libres
 
   // Vitesse (px/s) selon le temps de course, et selon la distance (pour placer les obstacles).
-  P.speedAt = (t) => Math.min(980, 380 + 13 * t);
-  P.speedAtDist = (d) => Math.min(980, Math.sqrt(380 * 380 + 26 * d));
+  P.speedAt = (t) => Math.min(1060, 420 + 16 * t);
+  P.speedAtDist = (d) => Math.min(1060, Math.sqrt(420 * 420 + 32 * d));
 
   function seeded(seed) {
     let s = seed >>> 0;
@@ -48,7 +48,7 @@
     c.ensure = (d) => {
       while (c.lastX < d + 4000) {
         const x = c.lastX, v = P.speedAtDist(x);
-        const lvl = Math.min(1, x / 40000);           // 0 au début → 1 vers 400 m
+        const lvl = Math.min(1, x / 30000);           // 0 au début → 1 vers 300 m
         const r = rnd();
         // Ce qu'on pose (de plus en plus varié et serré).
         let span = 0;
@@ -57,16 +57,16 @@
         else if (r < 0.58) { const w = Math.round(90 + rnd() * (60 + 90 * lvl)); c.gaps.push({ x, w }); span = w; }
         else if (r < 0.7) c.obs.push({ x, kind: "caisse" });
         else if (r < 0.82) c.obs.push({ x, kind: rnd() < 0.5 ? "oiseau_haut" : "oiseau_bas" });
-        else if (lvl > 0.25) {
+        else if (lvl > 0.15) {
           // Un enchaînement : deux obstacles rapprochés (il faut enchaîner les gestes).
           const a = rnd() < 0.5 ? "haie" : "barre", b = a === "haie" ? "barre" : "haie";
           c.obs.push({ x, kind: a });
-          const dx = Math.round(v * (0.42 - 0.08 * lvl) + 40);
+          const dx = Math.round(v * (0.36 - 0.06 * lvl) + 40);
           c.obs.push({ x: x + dx, kind: b });
           span = dx + KINDS[b].w;
         } else c.obs.push({ x, kind: "haie" });
         // L'espace avant le suivant : du temps de réaction (de moins en moins).
-        const gapT = 1.25 - 0.6 * lvl + rnd() * (0.55 - 0.25 * lvl);
+        const gapT = 1.1 - 0.55 * lvl + rnd() * (0.5 - 0.25 * lvl);
         c.lastX = x + span + Math.round(v * gapT) + 60;
       }
     };
