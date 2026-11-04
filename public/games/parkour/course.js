@@ -12,8 +12,8 @@
   P.TICK = 1 / 30;
   P.K = { JUMP: 1, DOWN: 2 };
   P.W = 28;                 // largeur du coureur
-  P.H_STAND = 58;           // hauteur debout (et en l'air)
-  P.H_LOW = 28;             // accroupi / en glissade
+  P.H_STAND = 50;           // hauteur debout (et en l'air)
+  P.H_LOW = 26;             // accroupi / en glissade
   P.JUMP_V = 820;           // vitesse du saut
   P.G = 2700, P.G_HOLD = 1500, P.G_DIVE = 5200;   // gravité (normale, saut maintenu, plongeon vers le sol)
   P.HOLD = 0.2;             // on peut « porter » le saut un moment en gardant la touche
@@ -103,9 +103,15 @@
       r.air = true;
       const g = down ? P.G_DIVE : jump && r.hold > 0 && r.vy > 0 ? P.G_HOLD : P.G;
       r.hold = Math.max(0, r.hold - dt);
+      const prevY = r.y;
       r.vy -= g * dt; r.y += r.vy * dt;
-      // On retombe sur le sol (s'il y en a).
-      if (r.y <= 0 && !overGap(c, r.d) && r.y > -14) { r.y = 0; r.vy = 0; r.air = false; }
+      const ground = !overGap(c, r.d);
+      if (r.y <= 0 && ground) {
+        // On retombe sur le sol : même si on descend très vite (on ne « passe » jamais à travers).
+        if (prevY >= 0) { r.y = 0; r.vy = 0; r.air = false; }
+        // On était déjà dans le trou et on arrive contre son bord : perdu.
+        else { r.alive = false; r.fall = true; r.pk = k; return "trou"; }
+      }
     }
     r.slide = Math.max(0, r.slide - dt);
     r.crouch = !r.air && (down || r.slide > 0);

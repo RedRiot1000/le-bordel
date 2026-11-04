@@ -40,6 +40,26 @@ console.log("— Parcours et coureur —");
   let rs = null, rl = null;
   for (let i = 0; i < 40; i++) { rs = rs || P.step(stand, 0, cb); rl = rl || P.step(slide, K.DOWN, cb); }
   check(rs === "obstacle" && !rl && slide.alive, "Sous une barre : debout = éliminé, en glissade = ça passe");
+  // Atterrissage : sauter puis plonger (↓) à fond, des dizaines de fois sur sol plat → jamais de « trou ».
+  {
+    const flat = { obs: [], gaps: [], ensure() {} };
+    const rr = P.newRunner();
+    let bad = null;
+    for (let i = 0; i < 3000 && !bad; i++) {
+      const ph = i % 24;
+      const k = ph < 6 ? K.JUMP : ph < 14 ? 0 : K.DOWN;   // saut maintenu, montée, puis plongeon
+      bad = P.step(rr, k, flat);
+    }
+    check(!bad && rr.alive, `Sauter + plonger sur sol plat : on ne meurt jamais à l'atterrissage (${Math.floor(rr.d / 10)} m)`);
+  }
+  // Un trou reste mortel.
+  {
+    const ch = { obs: [], gaps: [{ x: 300, w: 200 }], ensure() {} };
+    const rr = P.newRunner();
+    let res = null;
+    for (let i = 0; i < 200 && !res; i++) res = P.step(rr, 0, ch);
+    check(res === "trou", "Un trou sans sauter : on tombe");
+  }
 }
 
 const socket = io(URL, { transports: ["websocket"], forceNew: true });

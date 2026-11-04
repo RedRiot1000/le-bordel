@@ -215,7 +215,8 @@ export function createGame(ctx) {
       for (const [id, s] of Object.entries(g.runners)) {
         if (s.bot) { while (s.ticks < allowed) advance(id, s.r.alive ? botKeys(s) : 0); }
         // Un joueur qui ne répond plus (onglet en pause) : il court quand même… les mains vides.
-        else while (s.ticks < allowed - 8 && t - s.lastInputAt > 250) advance(id, 0);
+        // (on attend 1 s de silence : un petit trou de réseau ne doit jamais faire « rater » un saut)
+        else while (s.ticks < allowed - 30 && t - s.lastInputAt > 1000) advance(id, 0);
       }
       if (!g.endAt && t - g.playAt > MAX_MS) g.endAt = t;
       if (g.endAt && t >= g.endAt) return endRound();
@@ -264,7 +265,7 @@ export function createGame(ctx) {
       st.seq = s;
       st.lastInputAt = now();
       if (g.phase !== "play") return;
-      const allowed = Math.floor((now() - g.playAt) / TICK_MS) + 2;
+      const allowed = Math.floor((now() - g.playAt) / TICK_MS) + 8;
       if (st.ticks >= allowed) return;
       advance(pid, k & 3);
     },
