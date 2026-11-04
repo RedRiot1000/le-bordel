@@ -747,6 +747,7 @@
     if (mv && showCars) {
       g2d.setTransform(cam.z, 0, 0, cam.z, VIEW_W / 2 - cam.x * cam.z, VIEW_H / 2 - cam.y * cam.z);
       window.VehicleArt.markMe(g2d, mv.x, mv.y, ts, playerOf(me())?.color || "#fff", window.VehicleArt.markAlpha(st.phase, playSeenAt), Math.max(1, 1 / cam.z) * Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)));
+      if (st.settings.nitro && st.phase !== "roundOver") window.VehicleArt.gauge(g2d, mv.x, mv.y, Math.max(1, 1 / cam.z) * Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)), (pred || mv).nitro, (pred || mv).boost);
       g2d.setTransform(1, 0, 0, 1, 0, 0);
     }
 

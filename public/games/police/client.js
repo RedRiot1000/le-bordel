@@ -988,6 +988,13 @@
     if (mv) window.VehicleArt.markMe(c, mv.x, mv.y, ts, mv.role === "cop" ? "#5a8dff" : playerOf(me())?.color || "#fff",
       roleFlash > 0 ? 1 : window.VehicleArt.markAlpha(st.phase === "countdown" ? "countdown" : st.phase, playSeenAt),
       Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)));
+    // Jauges collées à ma voiture : nitro (arc) + taser des flics (pastille qui se remplit).
+    if (mv && st.phase === "play") {
+      const mc = carOf(me());
+      const cop = mc && mc.role === "cop";
+      window.VehicleArt.gauge(c, mv.x, mv.y, Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)), (pred || mv).nitro, (pred || mv).boost,
+        cop ? { cd: 1 - (mc.taser || 0) / TASER_CD, cdLeft: (mc.taser || 0) / 1000, cdLabel: "⚡" } : {});
+    }
     c.restore();
 
     drawMini(view, copsView, cam);

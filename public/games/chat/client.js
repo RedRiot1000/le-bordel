@@ -489,6 +489,7 @@
     if (mv) window.VehicleArt.markMe(c, mv.x, mv.y, ts, mv.role === "cat" ? CAT_COL : MOUSE_COL,
       roleFlash > 0 ? 1 : window.VehicleArt.markAlpha(st.phase === "countdown" ? "countdown" : st.phase, playSeenAt),
       Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)));
+    if (mv && st.phase === "play") window.VehicleArt.gauge(c, mv.x, mv.y, Math.max(1, canvas.width / (canvas.clientWidth || canvas.width)), (pred || mv).nitro, (pred || mv).boost);
     c.restore();
 
     drawMini(view, cam);

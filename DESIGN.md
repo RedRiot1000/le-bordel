@@ -727,6 +727,10 @@ Choix : vue de dessus, course en X tours, nitro + poussettes, virages variés + 
 - **Écran** : caméra qui suit (dézoome un peu avec la vitesse), position + tour, classement en direct, km/h + jauge de nitro (avec le ×rattrapage), mini-carte, compte à rebours d'explosion, cartes de choix de voiture avec aperçu et étoiles.
 - **Bots** : suivent le milieu (un peu décalés), freinent selon le virage qui arrive, évitent la paille, nitro en ligne droite.
 
+### Jauges collées à ma voiture (tous les jeux de voitures)
+
+Demande de Scotty : impossible de regarder la barre de nitro en haut de l'écran pendant une poursuite. Dans Patate chaude, Sumo, Car-foot, Chat et souris, Avis de recherche et Grand Prix, un grand arc de nitro entoure MA voiture (bleu, orange quand ça pousse, rouge clignotant quand il en reste moins d'un quart, halo quand c'est plein). Les flics d'Avis de recherche ont en plus une pastille ⚡ qui se remplit pendant la recharge du taser (avec les secondes) et clignote quand il est prêt. Partagé : VehicleArt.gauge (vehicles-art.js). Les barres en haut restent.
+
 ## 8. Feuille de route
 
 | Phase | Contenu | Objectif |
