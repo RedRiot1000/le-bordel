@@ -698,7 +698,7 @@ Choix : éliminé au 1er choc, le même parcours pour tout le monde, sauter + s'
   - un joueur qui n'envoie plus rien depuis 1 s (onglet en pause) court quand même, sans toucher aux commandes (un petit lag ne fait jamais rater un saut) ;
   - fin de manche quand tout le monde est tombé (au plus 4 min) ;
   - classement à la distance : 10, 7, 5, 3, 2, 1 points.
-- **Écran** : une ligne par joueur (empilées) ; la mienne a un gros cadre doré, l'étiquette « TOI » et une flèche au-dessus du bonhomme, les autres sont un peu assombries. Ville au crépuscule (ciel clair), 2 plans d'immeubles bas qui ne changent jamais de forme (chacun attaché à sa place), oiseaux dessinés à la taille exacte de leur zone, trous noirs avec bords rayés + cônes, coureur en bâtons (course, saut, glissade) avec halo clair + contour noir pour ressortir du décor, distance en mètres (10 px = 1 m).
+- **Écran** : une ligne par joueur (empilées) ; la mienne a un gros cadre doré, l'étiquette « TOI » et une flèche au-dessus du bonhomme, les autres sont un peu assombries. Ville au crépuscule (ciel clair), 2 plans d'immeubles bas qui ne changent jamais de forme (chacun attaché à sa place), obstacles en couleurs vives avec halo clair + contour noir et un triangle rouge au sol devant chacun (haie rayée rouge/blanc, caisse orange, barre jaune/noir, oiseau rouge), tous dessinés à la taille exacte de leur zone de choc, trous noirs avec bords rayés + cônes, coureur en bâtons (course, saut, glissade) avec halo clair + contour noir pour ressortir du décor, distance en mètres (10 px = 1 m).
 - **Bots** : temps de réaction de 0,16 à 0,28 s, une petite erreur de timing qui grandit avec la vitesse, et un raté de temps en temps.
 - **Simulation** : manches de 25 à 45 s entre bots, avec des écarts nets.
 

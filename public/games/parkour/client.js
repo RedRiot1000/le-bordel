@@ -332,34 +332,50 @@
     }
   }
 
+  // Les obstacles : couleurs vives + halo clair + contour noir (comme les bonshommes),
+  // dessinés pile à la taille de leur zone de choc. Un petit « ! » rouge au sol les annonce.
+  function outlined(c, s, pathFn, fill) {
+    c.save();
+    c.lineJoin = "round";
+    pathFn(); c.strokeStyle = "rgba(255,255,255,0.75)"; c.lineWidth = 9 * s; c.stroke();
+    pathFn(); c.strokeStyle = "#0b0914"; c.lineWidth = 4 * s; c.stroke();
+    pathFn(); c.fillStyle = fill; c.fill();
+    c.restore();
+  }
+  const rectPath = (c, x, y, w, h) => () => { c.beginPath(); c.rect(x, y, w, h); };
   function drawObstacle(c, L, o, sx, ts) {
     const K = P.KINDS[o.kind], s = L.s;
     const x = sx, w = K.w * s, y0 = L.ground - K.y1 * s, h = (K.y1 - K.y0) * s;
+    // Repère au sol devant chaque obstacle (triangle rouge).
+    c.fillStyle = "#ff2d2d";
+    c.beginPath(); c.moveTo(x + w / 2 - 8 * s, L.ground + 12 * s); c.lineTo(x + w / 2 + 8 * s, L.ground + 12 * s); c.lineTo(x + w / 2, L.ground + 2 * s); c.fill();
     if (o.kind === "haie") {
-      c.fillStyle = "#f2f2f2"; c.fillRect(x, y0, w, h * 0.35);
-      c.fillStyle = "#e0302f"; for (let k = 0; k < w; k += 10 * s) c.fillRect(x + k, y0, 5 * s, h * 0.35);
-      c.fillStyle = "#777"; c.fillRect(x + 2, y0, 4 * s, h); c.fillRect(x + w - 6 * s, y0, 4 * s, h);
+      // Barrière : 2 poteaux + 2 planches rayées rouge/blanc.
+      for (const px of [x, x + w - 6 * s]) outlined(c, s, rectPath(c, px, y0, 6 * s, h), "#e8e8e8");
+      for (const py of [y0, y0 + h * 0.5]) {
+        outlined(c, s, rectPath(c, x - 3 * s, py, w + 6 * s, 9 * s), "#fff");
+        c.fillStyle = "#ff2d2d"; for (let k = 0; k < w + 6 * s; k += 12 * s) c.fillRect(x - 3 * s + k, py, 6 * s, 9 * s);
+      }
     } else if (o.kind === "caisse") {
-      c.fillStyle = "#9a6a3a"; c.fillRect(x, y0, w, h);
-      c.strokeStyle = "#5b3a1e"; c.lineWidth = 3 * s; c.strokeRect(x + 1.5, y0 + 1.5, w - 3, h - 3);
-      c.beginPath(); c.moveTo(x, y0); c.lineTo(x + w, y0 + h); c.moveTo(x + w, y0); c.lineTo(x, y0 + h); c.stroke();
+      outlined(c, s, rectPath(c, x, y0, w, h), "#e08a2e");
+      c.strokeStyle = "#6b3a10"; c.lineWidth = 3 * s;
+      c.strokeRect(x + 4 * s, y0 + 4 * s, w - 8 * s, h - 8 * s);
+      c.beginPath(); c.moveTo(x + 4 * s, y0 + 4 * s); c.lineTo(x + w - 4 * s, y0 + h - 4 * s); c.moveTo(x + w - 4 * s, y0 + 4 * s); c.lineTo(x + 4 * s, y0 + h - 4 * s); c.stroke();
     } else if (o.kind === "barre") {
+      // Poteaux du haut de la ligne jusqu'à la barre, barre jaune/noir bien épaisse au bas de la zone.
       const by = L.ground - K.y0 * s;
-      c.fillStyle = "#5d6168"; c.fillRect(x + 2, L.y + 6, 6 * s, by - L.y - 6); c.fillRect(x + w - 8 * s, L.y + 6, 6 * s, by - L.y - 6);
-      c.fillStyle = "#ffcf3a"; c.fillRect(x, by - 12 * s, w, 12 * s);
-      c.fillStyle = "#1b1b1b"; for (let k = 0; k < w; k += 10 * s) c.fillRect(x + k, by - 12 * s, 5 * s, 12 * s);
+      for (const px of [x + 2, x + w - 9 * s]) outlined(c, s, rectPath(c, px, L.y + 4, 7 * s, by - L.y - 4), "#9aa3b5");
+      outlined(c, s, rectPath(c, x - 4 * s, by - 16 * s, w + 8 * s, 16 * s), "#ffd400");
+      c.fillStyle = "#111"; for (let k = 0; k < w + 8 * s; k += 12 * s) c.fillRect(x - 4 * s + k, by - 16 * s, 6 * s, 16 * s);
     } else {
-      // Un oiseau qui bat des ailes.
-      const cy = L.ground - ((K.y0 + K.y1) / 2) * s, cx = x + w / 2;
+      // Un oiseau rouge vif qui bat des ailes (taille = sa zone dangereuse).
+      const cy = L.ground - ((K.y0 + K.y1) / 2) * s, cx = x + w / 2, rx = w / 2, ry = h / 2;
       const flap = Math.sin(ts / 70) * 10 * s;
-      const rx = w / 2, ry = h / 2;
-      c.fillStyle = "#1e1e2a";
-      c.beginPath(); c.ellipse(cx, cy, rx, ry * 0.75, 0, 0, Math.PI * 2); c.fill();
-      c.beginPath(); c.moveTo(cx - 4 * s, cy); c.lineTo(cx + 8 * s, cy - ry * 0.4 - flap); c.lineTo(cx + rx, cy); c.closePath(); c.fill();
-      c.beginPath(); c.moveTo(cx - 4 * s, cy); c.lineTo(cx - 12 * s, cy - ry * 0.4 - flap); c.lineTo(cx - rx * 0.8, cy); c.closePath(); c.fill();
-      c.fillStyle = "#ffb347"; c.beginPath(); c.moveTo(cx - rx, cy - 3 * s); c.lineTo(cx - rx - 10 * s, cy); c.lineTo(cx - rx, cy + 3 * s); c.fill();
-      c.fillStyle = "#fff"; c.beginPath(); c.arc(cx - rx * 0.55, cy - ry * 0.25, 3 * s, 0, Math.PI * 2); c.fill();
-      c.fillStyle = "#000"; c.beginPath(); c.arc(cx - rx * 0.6, cy - ry * 0.25, 1.5 * s, 0, Math.PI * 2); c.fill();
+      outlined(c, s, () => { c.beginPath(); c.ellipse(cx, cy, rx, ry * 0.8, 0, 0, Math.PI * 2); }, "#ff3b3b");
+      outlined(c, s, () => { c.beginPath(); c.moveTo(cx - 6 * s, cy); c.lineTo(cx + 6 * s, cy - ry * 0.6 - flap); c.lineTo(cx + rx * 0.9, cy - 2 * s); c.closePath(); }, "#c41e1e");
+      c.fillStyle = "#ffc400"; c.beginPath(); c.moveTo(cx - rx, cy - 4 * s); c.lineTo(cx - rx - 12 * s, cy); c.lineTo(cx - rx, cy + 4 * s); c.fill();
+      c.fillStyle = "#fff"; c.beginPath(); c.arc(cx - rx * 0.5, cy - ry * 0.25, 4 * s, 0, Math.PI * 2); c.fill();
+      c.fillStyle = "#000"; c.beginPath(); c.arc(cx - rx * 0.55, cy - ry * 0.25, 2 * s, 0, Math.PI * 2); c.fill();
     }
   }
 
