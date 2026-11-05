@@ -28,15 +28,32 @@ console.log("— Tour et perso —");
 {
   const a = P.tower(1234), b = P.tower(1234);
   a.ensure(9000); b.ensure(9000);
-  check(JSON.stringify(a.plats) === JSON.stringify(b.plats) && JSON.stringify(a.spikes) === JSON.stringify(b.spikes), "Même seed = même tour");
-  const kinds = new Set(a.plats.map((p) => p.kind));
-  check(["fix", "crumble", "move"].every((k) => kinds.has(k)), "Plateformes fixes, qui s'effritent, qui bougent");
-  check(a.solids.some((s) => s.wall), "Des cheminées (murs)");
-  check(a.spikes.length > 0 && a.spikes.length < a.plats.length * 0.15, `Piques rares (${a.spikes.length} pour ${a.plats.length} plateformes)`);
-  // Chaque marche du chemin principal reste à portée d'un saut.
-  let bad = 0;
-  for (const seed of [1, 2, 3, 4, 5, 6]) { const c = P.tower(seed * 991); c.ensure(12000); for (let i = 1; i < c.main.length; i++) if (c.main[i].y - c.main[i - 1].y > 165) bad++; }
-  check(bad === 0, "Aucune marche trop haute");
+  check(JSON.stringify(a.plats) === JSON.stringify(b.plats) && JSON.stringify(a.spikes) === JSON.stringify(b.spikes) && JSON.stringify(a.solids) === JSON.stringify(b.solids), "Même seed = même labyrinthe");
+  check(a.secs.every((q) => q.routes.filter((r) => r.kind === "puits").length === 1 && q.routes.filter((r) => r.kind === "zigzag").length === 2), "À chaque étage : 1 puits + 2 zigzags");
+  const walls = a.rows.reduce((n, r) => n + r.reduce((x, y) => x + y, 0), 0) / (a.rows.length * P.COLS);
+  check(walls > 0.25, `Des murs partout (${Math.round(walls * 100)} % de la tour)`);
+  check(a.solids.some((q) => q.low) && a.plats.some((p) => p.kind === "crumble") && a.spikes.some((k) => k.faces), "Plafonds bas, rebords qui s'effritent, piques sur les murs");
+  // Un bot termine tous les zigzags (sans lave).
+  {
+    const lava = P.lavaAt; P.lavaAt = () => -1e9;
+    let ok = 0, all = 0;
+    for (const seed of [11, 22, 33]) {
+      const c = P.tower(seed); c.ensure(6 * P.FH);
+      for (let n = 0; n < 6; n++) for (const route of c.secs[n].routes.filter((q) => q.kind === "zigzag")) {
+        all++;
+        for (let t = 0; t < 6; t++) {
+          c.crumbles = {};
+          const r = P.newRunner(route.way[0].x); r.y = c.secs[n].y0; r.on = n ? -1 : 0;
+          const ai = P.newBot(0, 0.1); ai.route = route; ai.forced = true; ai.sec = n;
+          let res = null, done = false;
+          for (let i = 0; i < 750 && !res && !done; i++) { res = P.step(r, P.bot(r, ai, c), c); done = !r.air && r.y >= c.secs[n].y0 + P.FH - 1; }
+          if (done) { ok++; break; }
+        }
+      }
+    }
+    P.lavaAt = lava;
+    check(ok === all, `Tous les zigzags se terminent (${ok}/${all})`);
+  }
   // Sauter, plus haut en maintenant.
   const c0 = box();
   const tap = P.newRunner(300), held = P.newRunner(300);
@@ -55,7 +72,7 @@ console.log("— Tour et perso —");
   const r3 = P.newRunner(300); run(r3, c2, (i) => (i < 8 ? K.JUMP : 0), 90);
   check(r3.y === 0, "Elle s'effrite : on retombe");
   // Saut mural : grimper entre deux murs (cheminée) ; pas deux fois sur le même mur.
-  const c3 = box((c) => { const s = { x: 150, y: 0, w: 30, h: 3000, wall: true }; c.solids.push(s); for (let b = -1; b < 17; b++) c.slot(b).s.push(s); });
+  const c3 = box((c) => { const s = { x: 150, y: 0, w: 30, h: 3000 }; c.solids.push(s); for (let b = -1; b < 17; b++) c.slot(b).s.push(s); });
   const r4 = P.newRunner(70);
   let mem = 0;
   for (let i = 0; i < 180; i++) {

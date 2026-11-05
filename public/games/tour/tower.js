@@ -1,8 +1,10 @@
 // ===================================================================
 //  LA TOUR — La tour + la physique du perso (partagé serveur + navigateur)
-//  Une tour sans fin tirée d'une seed (la même pour tout le monde) :
-//  plateformes fixes, qui s'effritent, qui bougent, cheminées à saut mural,
-//  tunnels à passer accroupi, piques (rares). La lave monte depuis le bas.
+//  Un labyrinthe vertical sans fin tiré d'une seed (le même pour tout le monde).
+//  Étage après étage : un hall, puis 2 ou 3 routes qui montent à l'étage suivant :
+//  - le PUITS : direct, au saut mural, avec des piques sur les murs (rapide, risqué) ;
+//  - le ZIGZAG : couloirs et rebords, plus long, presque sans piques (lent, sûr).
+//  La lave monte depuis le bas.
 //  Le serveur et le navigateur font EXACTEMENT les mêmes calculs.
 //  y = hauteur (0 = le sol, vers le haut), x = de 0 à W.
 //    globalThis.Tower
@@ -12,7 +14,11 @@
   const P = {};
   P.TICK = 1 / 30;
   P.SUB = 2;                 // 2 petits pas par calcul (on ne traverse rien)
-  P.W = 1280;                // largeur de la tour
+  P.TILE = 40;               // une case du labyrinthe
+  P.COLS = 28;               // largeur de la tour (en cases)
+  P.W = P.TILE * P.COLS;
+  P.FROWS = 18;              // hauteur d'un étage (en cases)
+  P.FH = P.TILE * P.FROWS;
   P.K = { LEFT: 1, RIGHT: 2, JUMP: 4, DOWN: 8 };
   P.PW = 26;                 // largeur du perso
   P.H_STAND = 46, P.H_LOW = 26;
@@ -26,7 +32,7 @@
   const BK = 200;            // hauteur d'une tranche de recherche
 
   // La lave : démarre sous le sol, monte de plus en plus vite.
-  P.lavaAt = (t) => -420 + 34 * t + 2 * t * t;
+  P.lavaAt = (t) => -300 + 30 * t + 1.2 * t * t;
 
   function seeded(seed) {
     let s = seed >>> 0;
@@ -43,102 +49,102 @@
   };
 
   // ===================================================================
-  //  LA TOUR (générée au fur et à mesure, toujours dans le même ordre)
+  //  LE LABYRINTHE (généré étage par étage, toujours dans le même ordre)
   // ===================================================================
   P.tower = function (seed) {
     const rnd = seeded(seed);
-    const c = { seed, plats: [], solids: [], spikes: [], main: [], crumbles: {}, bk: new Map(), top: 0, nextChimney: 1400, chim: null };
-    const slot = (b) => { let s = c.bk.get(b); if (!s) { s = { p: [], s: [], k: [] }; c.bk.set(b, s); } return s; };
-    const addPlat = (o) => { o.id = c.plats.length; o.h = 18; c.plats.push(o); slot(Math.floor(o.y / BK)).p.push(o); return o; };
+    const T = P.TILE, C = P.COLS, R = P.FROWS;
+    const c = { seed, plats: [], solids: [], spikes: [], secs: [], rows: [], crumbles: {}, bk: new Map(), top: 0 };
+    const slot = (b) => { let o = c.bk.get(b); if (!o) { o = { p: [], s: [], k: [] }; c.bk.set(b, o); } return o; };
+    const addPlat = (o) => { o.id = c.plats.length; o.h = 12; c.plats.push(o); slot(Math.floor(o.y / BK)).p.push(o); return o; };
     const addBox = (list, key, o) => { list.push(o); for (let b = Math.floor(o.y / BK) - 1; b <= Math.floor((o.y + o.h) / BK) + 1; b++) slot(b)[key].push(o); return o; };
     const solid = (o) => addBox(c.solids, "s", o);
     const spike = (o) => addBox(c.spikes, "k", o);
     c.slot = slot;
+    addPlat({ x: 0, y: 0, w: P.W, kind: "fix", ground: true });
 
-    // Le sol de départ.
-    let last = addPlat({ x: 0, y: 0, w: P.W, kind: "fix", safe: P.W / 2 });
-    c.main.push(last);
-
-    c.ensure = (y) => {
-      while (c.top < y + 1800) {
-        const lvl = Math.min(1, c.top / 9000);
-        const yy = Math.round(last.y + 105 + rnd() * (30 + 12 * lvl));
-        // Zone interdite au chemin principal (une cheminée à côté).
-        let lo = 50, hi = P.W - 50;
-        if (c.chim && yy < c.chim.top + 40) { if (c.chim.side < 0) lo = c.chim.edge + 60; else hi = c.chim.edge - 60; }
-        const w = Math.round(210 - 90 * lvl + rnd() * 60);
-        // Écart avec la plateforme d'avant (bord à bord), vers un côté puis l'autre.
-        const gap = Math.round(30 + rnd() * (90 + 50 * lvl));
-        const lx = P.platX(last, 0);
-        let dir = rnd() < 0.5 ? -1 : 1;
-        if (last.away) dir = last.away;      // (la suite part du côté sans piques)
-        let x = dir > 0 ? lx + last.w + gap : lx - gap - w;
-        if (!last.away && (x < lo || x + w > hi)) { dir = -dir; x = dir > 0 ? lx + last.w + gap : lx - gap - w; }
-        x = Math.max(lo, Math.min(hi - w, x));
-        const r = rnd();
-        let p;
-        if (last.y > 300 && r < 0.05 + 0.2 * lvl && !last.amp) {
-          // Elle bouge.
-          const amp = Math.round(50 + rnd() * 50);
-          p = addPlat({ x: Math.max(lo + amp, Math.min(hi - w - amp, x)), y: yy, w, kind: "move", amp, sp: 1.1 + rnd() * 0.8, ph: rnd() * 6.28 });
-          p.safe = p.w / 2;
-        } else if (last.y > 300 && r < 0.17 + 0.42 * lvl) {
-          p = addPlat({ x, y: yy, w, kind: "crumble", safe: w / 2 });
+    function floor(n) {
+      const y0 = n * P.FH;
+      const g = Array.from({ length: R }, (_, r) => new Uint8Array(C).fill(r < 4 ? 0 : 1));
+      for (let r = 0; r < R; r++) g[r][0] = g[r][C - 1] = 1;
+      const carve = (c0, c1, r0, r1) => { for (let r = r0; r <= r1; r++) for (let q = c0; q <= c1; q++) g[r][q] = 0; };
+      const ledge = (col, yr, risky) => addPlat({ x: col * T, y: y0 + yr, w: 4 * T, kind: !risky && yr % P.FH !== 0 && yr !== 280 && yr !== 480 && rnd() < 0.2 ? "crumble" : "fix" });
+      const routes = [];
+      // Où sont les routes : un puits + 2 zigzags.
+      const layout = Math.floor(rnd() * 3);
+      const regions = layout === 0 ? [["z", 1, 10], ["p", 12, 15], ["z", 17, 26]]
+        : layout === 1 ? [["p", 1, 4], ["z", 6, 15], ["z", 17, 26]]
+        : [["z", 1, 10], ["z", 12, 21], ["p", 23, 26]];
+      for (const [kind, a0, b0] of regions) {
+        if (kind === "p") {
+          // Le puits : tout droit jusqu'à l'étage du dessus, piques sur les murs.
+          carve(a0, b0, 4, R - 1);
+          const left = a0 * T, right = (b0 + 1) * T, cx = (left + right) / 2;
+          let side = rnd() < 0.5 ? 1 : -1;
+          for (let yr = 340; yr < 560; yr += 200 + Math.round(rnd() * 70)) {
+            if (rnd() < 0.8) spike({ x: side > 0 ? left : right - 14, y: y0 + yr, w: 14, h: 44, faces: side });
+            side = -side;
+          }
+          ledge(a0, P.FH, true);
+          const wallSide = rnd() < 0.5 ? -1 : 1;
+          routes.push({ kind: "puits", way: [
+            { x: wallSide < 0 ? left + 22 : right - 22, y: y0, tol: 10 },
+            { x: cx, y: y0 + P.FH, shaft: true, side: wallSide },
+          ] });
         } else {
-          p = addPlat({ x, y: yy, w, kind: "fix", safe: w / 2 });
-          const u = rnd();
-          if (last.y > 700 && u < 0.08 && w >= 170 && x > 340 && x + w < P.W - 340) {
-            // Des piques sur un bout de la plateforme (rare).
-            const sw = Math.round(w * 0.36), left = dir < 0;   // à l'autre bout (pas du côté où on arrive)
-            spike({ x: left ? x : x + w - sw, y: yy, w: sw, h: 16, up: true });
-            p.safe = left ? sw + (w - sw) / 2 : (w - sw) / 2;
-            p.away = left ? 1 : -1;
-          } else if (last.y > 1100 && u > 0.93 && x > lo + 60 && x + w + 170 < hi) {
-            // Tunnel : plateforme plus large, plafond bas hérissé de piques au milieu : on passe accroupi.
-            p.w = w + 170; p.tunnel = true;
-            const bx = x + Math.round((w + 170) / 2) - 55;
-            p.tx = [bx - P.PW, bx + 110 + P.PW]; p.safe = (w + 170) * (dir > 0 ? 0.85 : 0.15);
-            solid({ x: bx, y: yy + 34, w: 110, h: 44, low: true });
-            spike({ x: bx, y: yy + 78, w: 110, h: 16, up: true });
+          // Le zigzag : monter d'un côté, couloir, monter de l'autre, couloir, monter.
+          const leftFirst = rnd() < 0.5;
+          const A = leftFirst ? a0 : b0 - 3, B = leftFirst ? b0 - 3 : a0;
+          carve(A, A + 3, 4, 9); carve(a0, b0, 7, 9); carve(B, B + 3, 7, 14); carve(a0, b0, 12, 14); carve(A, A + 3, 12, R - 1);
+          for (const [col, yr] of [[A, 140], [A, 280], [B, 380], [B, 480], [A, 600], [A, P.FH]]) ledge(col, yr, false);
+          const cA = (A + 2) * T, cB = (B + 2) * T;
+          // Dans les couloirs : un plafond bas (à passer accroupi), ou de rares piques au sol.
+          const lo = Math.min(cA, cB) + 2.6 * T, hi = Math.max(cA, cB) - 2.6 * T;
+          for (const yr of [280, 480]) {
+            const u = rnd(), x = Math.round(lo + rnd() * Math.max(0, hi - lo - 2 * T));
+            if (hi - lo < 2 * T) continue;
+            if (u < 0.34) solid({ x, y: y0 + yr + 34, w: 2 * T, h: 86, low: true });
+            else if (u < 0.42) spike({ x, y: y0 + yr, w: T, h: 16, up: true });
           }
+          routes.push({ kind: "zigzag", way: [
+            { x: cA, y: y0, tol: 60 }, { x: cA, y: y0 + 140, tol: 60 }, { x: cA, y: y0 + 280, tol: 60 }, { x: cB, y: y0 + 280, tol: 40 },
+            { x: cB, y: y0 + 380, tol: 60 }, { x: cB, y: y0 + 480, tol: 60 }, { x: cA, y: y0 + 480, tol: 40 }, { x: cA, y: y0 + 600, tol: 60 }, { x: cA, y: y0 + P.FH, tol: 60 },
+          ] });
         }
-        c.main.push(p);
-        last = p;
-        c.top = yy;
-        // Une plateforme de côté, de temps en temps (autre chemin, parfois piégé).
-        if (rnd() < 0.42) {
-          const sw = Math.round(110 + rnd() * 70), sy = yy + Math.round(rnd() * 40 - 20);
-          const sx = Math.round(lo + rnd() * (hi - lo - sw));
-          const far = sx + sw < p.x - 70 || sx > p.x + p.w + 70;
-          if (far) {
-            const sp = addPlat({ x: sx, y: sy, w: sw, kind: rnd() < 0.3 ? "crumble" : "fix", side: true });
-            if (sp.kind === "fix" && rnd() < 0.13) spike({ x: sx + 10, y: sy, w: sw - 20, h: 16, up: true });
-          }
-        }
-        // Une cheminée (raccourci) : deux murs serrés, on grimpe au saut mural, quelques piques sur les murs.
-        if (!c.chim && c.top > c.nextChimney) {
-          const side = rnd() < 0.5 ? -1 : 1, H = Math.round(560 + rnd() * 340), y0 = c.top + 110;
-          const gapW = 150, t = 30;
-          const wx = side < 0 ? gapW : P.W - gapW - t;      // le mur intérieur (l'autre, c'est le mur de la tour)
-          solid({ x: wx, y: y0, w: t, h: H, wall: true });
-          for (let yy2 = y0 + 170; yy2 < y0 + H - 110; yy2 += 190 + Math.round(rnd() * 120)) {
-            if (rnd() < 0.55) {
-              const onTower = rnd() < 0.5;
-              const sx = onTower ? (side < 0 ? 0 : P.W - 14) : side < 0 ? wx - 14 : wx + t;
-              spike({ x: sx, y: yy2, w: 14, h: 54, faces: (onTower ? -side : side) });
-            }
-          }
-          const topP = addPlat({ x: side < 0 ? 0 : wx, y: y0 + H, w: gapW + t + 60, kind: "fix", side: true });
-          if (side > 0) topP.x = P.W - topP.w;
-          c.chim = { side, edge: side < 0 ? wx + t : wx, top: y0 + H };
-          c.nextChimney = y0 + H + 1100 + rnd() * 900;
-        }
-        if (c.chim && c.top > c.chim.top + 60) c.chim = null;
       }
-    };
+      // Des passages entre les routes (on peut changer d'avis en route).
+      for (let i = 0; i + 1 < regions.length; i++) {
+        if (rnd() < 0.55) {
+          const r0 = rnd() < 0.5 ? 7 : 12;
+          carve(regions[i][2], regions[i + 1][1], r0, r0 + 2);
+        }
+      }
+      // Un plafond bas dans le hall, loin des entrées.
+      if (n > 0 && rnd() < 0.6) {
+        const x = Math.round(2 * T + rnd() * (P.W - 6 * T));
+        if (routes.every((q) => Math.abs(q.way[0].x - x - T) > 130)) solid({ x, y: y0 + 34, w: 2 * T, h: 126, low: true });
+      }
+      // Les murs : des rectangles (pour la physique) + les cases (pour le dessin).
+      const used = g.map((row) => new Uint8Array(row.length));
+      for (let r = 0; r < R; r++) for (let q = 0; q < C; q++) {
+        if (!g[r][q] || used[r][q]) continue;
+        let w = 0;
+        while (q + w < C && g[r][q + w] && !used[r][q + w]) w++;
+        let h = 1;
+        up: while (r + h < R) { for (let k = 0; k < w; k++) if (!g[r + h][q + k] || used[r + h][q + k]) break up; h++; }
+        for (let j = r; j < r + h; j++) for (let k = q; k < q + w; k++) used[j][k] = 1;
+        solid({ x: q * T, y: y0 + r * T, w: w * T, h: h * T });
+      }
+      for (let r = 0; r < R; r++) c.rows.push(g[r]);
+      c.secs.push({ y0, routes });
+      c.top = y0 + P.FH;
+    }
+    c.ensure = (y) => { while (c.top < y + 2000) floor(c.secs.length); };
     c.ensure(0);
     return c;
   };
+  // Cette case est-elle un mur ? (sous le sol : oui)
+  P.tileAt = (c, row, col) => (row < 0 || col < 0 || col >= P.COLS ? 1 : c.rows[row] ? c.rows[row][col] : 1);
 
   // ===================================================================
   //  LE PERSO
@@ -264,6 +270,62 @@
     }
     if (r.y < P.lavaAt(r.t)) { r.alive = false; return "lave"; }
     return null;
+  };
+
+  // ===================================================================
+  //  BOT : il choisit une route à chaque étage et la suit, point par point.
+  //  ai = { sec, route, i, hold, bold (goût du risque), delay (hésitation au saut mural), wait }
+  // ===================================================================
+  P.newBot = (bold, delay) => ({ sec: -1, route: null, i: 0, hold: 0, bold, delay, wait: 0 });
+  P.bot = function (r, ai, c, rnd = Math.random) {
+    const K = P.K;
+    c.ensure(r.y);
+    const si = Math.max(0, Math.floor((r.y + 2) / P.FH));
+    if (!r.air && ai.sec !== si && c.secs[si]) {
+      ai.sec = si;
+      if (!ai.forced) {
+        const rs = c.secs[si].routes, pz = rs.filter((q) => q.kind === "puits"), zz = rs.filter((q) => q.kind !== "puits");
+        ai.route = rnd() < ai.bold && pz.length ? pz[0] : zz.sort((a, b) => Math.abs(a.way[0].x - r.x) - Math.abs(b.way[0].x - r.x))[0];
+      }
+    }
+    const R = ai.route;
+    if (!R) return 0;
+    const way = R.way;
+    if (!r.air) {
+      let j = 0;
+      for (let k = 0; k < way.length; k++) if (way[k].y <= r.y + 4) j = k;
+      const p = way[j];
+      ai.i = Math.abs(r.x - p.x) < (p.tol || 20) && Math.abs(r.y - p.y) < 4 && j + 1 < way.length ? j + 1 : j;
+    }
+    const w = way[ai.i];
+    const dirTo = (x) => (Math.abs(x - r.x) < 6 ? 0 : x > r.x ? K.RIGHT : K.LEFT);
+    const noJump = r.pk & K.JUMP;
+    if (w.shaft) {
+      // Le puits : on saute sur un mur, puis on rebondit de l'un à l'autre.
+      if (!r.air) { ai.hold = 7; return (w.side < 0 ? K.LEFT : K.RIGHT) | (noJump ? 0 : K.JUMP); }
+      const d = r.lastW ? (r.lastW < 0 ? K.RIGHT : K.LEFT) : w.side < 0 ? K.LEFT : K.RIGHT;
+      if (r.wall && r.lock === 0 && r.wall !== r.lastW && !noJump && r.t >= ai.wait) {
+        // Le rebond arrive ~118 px plus haut sur l'autre mur : s'il y a des piques là, il se laisse d'abord glisser.
+        const y2 = r.y + 118;
+        const danger = near(c, y2 - 80, y2 + 80, "k").some((s) => s.faces === r.wall && y2 < s.y + s.h + 14 && y2 + 46 > s.y - 14);
+        const under = near(c, r.y - 70, r.y + 20, "k").some((s) => s.faces === -r.wall && r.y - 40 < s.y + s.h);
+        if (!danger || under) { ai.wait = r.t + rnd() * ai.delay; ai.hold = 0; return d | K.JUMP; }
+      }
+      ai.hold--;
+      return (r.wall && r.wall !== r.lastW ? (r.wall < 0 ? K.LEFT : K.RIGHT) : d) | (ai.hold > 0 && r.vy > 0 ? K.JUMP : 0);
+    }
+    const dk = dirTo(w.x);
+    if (r.air) { ai.hold--; return dk | (ai.hold > 0 && r.vy > 0 ? K.JUMP : 0); }
+    const dirS = w.x > r.x ? 1 : -1;
+    // Plafond bas devant : s'accroupir. Piques au sol devant : sauter.
+    for (const s of near(c, r.y, r.y + 60, "s")) {
+      if (s.low && s.y < r.y + 50 && s.y > r.y && r.x + dirS * 60 > s.x - 14 && r.x + dirS * 60 < s.x + s.w + 80 && (dirS > 0 ? r.x < s.x + s.w + 14 : r.x > s.x - 14)) return dk | K.DOWN;
+    }
+    for (const s of near(c, r.y - 2, r.y + 20, "k")) {
+      if (s.up && Math.abs(s.y - r.y) < 3 && (dirS > 0 ? s.x - r.x : r.x - s.x - s.w) < 46 && (dirS > 0 ? s.x + s.w > r.x : s.x < r.x)) { ai.hold = 4; return dk | (noJump ? 0 : K.JUMP); }
+    }
+    if (w.y > r.y + 10) { ai.hold = 8; return dk | (noJump ? 0 : K.JUMP); }
+    return dk;
   };
 
   // Ce qui est visible entre deux hauteurs (pour le dessin).

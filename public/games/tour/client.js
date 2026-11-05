@@ -9,7 +9,8 @@
 (() => {
   const P = window.Tower;
   const K = P.K;
-  const W = P.W, HGT = 800;
+  const W = 1280, HGT = 800;
+  const Z = 1.4;              // zoom de la caméra : on ne voit que ce qui nous entoure
 
   let api = null, root = null;
   let st = null;
@@ -24,7 +25,7 @@
   let seq = 0, acc = 0;
   const pressed = new Set();
   const shown = {};
-  const cam = { y: 0 };
+  const cam = { x: P.W / 2, y: 0 };
   let particles = [];
   const seenFx = new Set();
   let prevPhase = null, goFlash = 0, playAtLocal = 0;
@@ -44,18 +45,19 @@
       <div class="logo imp-logo">
         <span class="logo-icon">🌋</span>
         <h1>LA TOUR</h1>
-        <p class="tagline">La lave monte. Grimpe. Le dernier en vie gagne.</p>
+        <p class="tagline">Un labyrinthe vertical. La lave monte. Le dernier en vie gagne.</p>
       </div>
       <div class="pt-setup-grid">
         <div class="card"><h2>⚙️ Réglages</h2><div id="to-settings" class="settings"></div></div>
         <div class="card">
           <h2>🎮 Règles & commandes</h2>
           <ul class="pt-help">
-            <li>🌋 Tout le monde grimpe <b>la même tour</b>. La <b>lave</b> monte de plus en plus vite : si elle te touche, tu es éliminé.</li>
+            <li>🌋 Tout le monde grimpe <b>le même labyrinthe</b>. La <b>lave</b> monte de plus en plus vite : si elle te touche, tu es éliminé.</li>
+            <li>🔀 À chaque étage : le <b>puits</b> (direct, au saut mural, avec des piques) ou le <b>zigzag</b> (couloirs et rebords, plus long, plus sûr). Pas de cul-de-sac.</li>
             <li>🏃 <kbd>←</kbd><kbd>→</kbd> ou <kbd>Q</kbd><kbd>D</kbd> : courir · <kbd>Espace</kbd> / <kbd>↑</kbd> / <kbd>Z</kbd> : sauter (maintenir = plus haut).</li>
             <li>🧗 <b>Saut mural</b> : contre un mur, saute pour rebondir vers l'autre côté (pas deux fois de suite sur le même côté).</li>
             <li>⬇️ <kbd>↓</kbd> / <kbd>S</kbd> : s'accroupir (passer sous les plafonds bas) · en l'air : retomber plus vite.</li>
-            <li>🟠 Les plateformes <b>orange</b> s'effritent, les <b>bleues</b> bougent. Les <b>piques</b> rouges éliminent.</li>
+            <li>🟠 Les rebords <b>orange</b> s'effritent. Les <b>piques</b> rouges éliminent.</li>
             <li>🏆 Le <b>dernier en vie</b> gagne la manche (10, 7, 5, 3, 2, 1 points).</li>
           </ul>
         </div>
@@ -299,97 +301,109 @@
     // Qui suit-on ? Moi, sinon le plus haut encore en vie.
     const mine = runnerOf(me());
     let focus = mine && mine.alive ? (myView() || mine) : null;
-    if (!focus) { const up = st.runners.filter((r) => r.alive).sort((a, b) => b.y - a.y)[0]; focus = up ? (shown[up.id] ? { ...up, y: shown[up.id].y } : up) : mine; }
-    const ty = (focus?.y || 0) + 90;
-    cam.y += (ty - cam.y) * Math.min(1, dt * 7);
-    const top = cam.y + HGT / 2, bottom = cam.y - HGT / 2;
-    const Y = (y) => HGT / 2 - (y - cam.y);     // hauteur → écran
+    if (!focus) { const up = st.runners.filter((r) => r.alive).sort((a, b) => b.y - a.y)[0]; focus = up ? (shown[up.id] ? { ...up, ...shown[up.id] } : up) : mine; }
+    const vw = W / Z, vh = HGT / Z;
+    const k = Math.min(1, dt * 9);
+    cam.x += ((focus?.x ?? P.W / 2) - cam.x) * k;
+    cam.y += ((focus?.y ?? 0) + 50 - cam.y) * k;
+    cam.x = Math.max(vw / 2, Math.min(P.W - vw / 2, cam.x));
+    const top = cam.y + vh / 2, bottom = cam.y - vh / 2, left = cam.x - vw / 2, right = cam.x + vw / 2;
+    const Y = (y) => -(y - cam.y);     // hauteur → écran (dans le repère zoomé)
+    tower.ensure(top);
 
-    // Le fond : ciel clair du crépuscule, murs de briques qui défilent moins vite.
+    // Le fond des couloirs : clair (on doit bien voir où on va).
     const lava = P.lavaAt(t);
     const gr = c.createLinearGradient(0, 0, 0, HGT);
-    gr.addColorStop(0, "#5a78c8"); gr.addColorStop(0.6, "#a58bd0"); gr.addColorStop(1, "#f2a56b");
+    gr.addColorStop(0, "#8fa6e0"); gr.addColorStop(1, "#d9b3c9");
+    c.setTransform(1, 0, 0, 1, 0, 0);
     c.fillStyle = gr; c.fillRect(0, 0, W, HGT);
-    // Pierres du fond, fixes dans le monde (elles ne changent jamais).
-    const BH = 70, par = 0.5, sc = cam.y * par;
-    c.fillStyle = "rgba(255,255,255,0.09)";
-    for (let row = Math.floor((sc - HGT) / BH); row < (sc + HGT) / BH; row++) {
-      for (let col = 0; col < W / 140 + 1; col++) {
-        if (hash(row, col) < 0.55) continue;
-        const x = col * 140 + (row % 2 ? 70 : 0), y = HGT / 2 - (row * BH - sc);
-        c.fillRect(x + 4, y + 4, 132, BH - 8);
+    c.setTransform(Z, 0, 0, Z, W / 2 - cam.x * Z, HGT / 2);
+
+    // Les murs, case par case : pierres sombres, bord clair du côté des couloirs.
+    const T = P.TILE;
+    const r0 = Math.floor(bottom / T) - 1, r1 = Math.ceil(top / T) + 1, q0 = Math.max(0, Math.floor(left / T) - 1), q1 = Math.min(P.COLS - 1, Math.ceil(right / T) + 1);
+    for (let row = r0; row <= r1; row++) for (let q = q0; q <= q1; q++) {
+      const x = q * T, y = Y((row + 1) * T);
+      if (!P.tileAt(tower, row, q)) {
+        // Briques du fond, très légères (fixes).
+        if (hash(row, q) < 0.22) { c.fillStyle = "rgba(255,255,255,0.13)"; c.fillRect(x + 3, y + 3, T - 6, T / 2 - 4); }
+        continue;
       }
+      c.fillStyle = hash(row, q) < 0.5 ? "#39325a" : "#413965";
+      c.fillRect(x, y, T + 0.5, T + 0.5);
+      c.fillStyle = "rgba(0,0,0,0.16)"; c.fillRect(x, y + T / 2 - 1, T, 2); c.fillRect(x + (row % 2 ? T / 2 : T - 2), y, 2, T / 2); c.fillRect(x + (row % 2 ? 2 : T / 2), y + T / 2, 2, T / 2);
+    }
+    // Bord clair : on voit tout de suite la forme des couloirs.
+    c.fillStyle = "#e9e4ff";
+    for (let row = r0; row <= r1; row++) for (let q = q0; q <= q1; q++) {
+      if (!P.tileAt(tower, row, q)) continue;
+      const x = q * T, y = Y((row + 1) * T);
+      if (!P.tileAt(tower, row + 1, q)) c.fillRect(x, y, T, 5);        // dessus (le sol)
+      if (!P.tileAt(tower, row - 1, q)) c.fillRect(x, y + T - 3, T, 3);
+      if (q > 0 && !P.tileAt(tower, row, q - 1)) c.fillRect(x, y, 3, T);
+      if (q < P.COLS - 1 && !P.tileAt(tower, row, q + 1)) c.fillRect(x + T - 3, y, 3, T);
     }
 
-    // Murs de la tour (bords de l'écran).
-    c.fillStyle = "#3a3355"; c.fillRect(0, 0, 8, HGT); c.fillRect(W - 8, 0, 8, HGT);
-
-    // Le sol de départ en dessous.
     const v = P.view(tower, bottom - 40, top + 40);
-
-    // Blocs (cheminées, plafonds bas).
+    // Plafonds bas.
     for (const s of v.solids) {
-      const y = Y(s.y + s.h), h = s.h;
-      c.fillStyle = "#3a3355"; c.fillRect(s.x, y, s.w, h);
-      c.strokeStyle = "#f4f0ff"; c.lineWidth = 3; c.strokeRect(s.x + 1.5, y + 1.5, s.w - 3, h - 3);
-      c.fillStyle = "rgba(255,255,255,0.13)";
-      for (let yy = y + 8; yy < y + h - 6; yy += 22) c.fillRect(s.x + 5, yy, s.w - 10, 3);
+      if (!s.low) continue;
+      const y = Y(s.y + s.h);
+      c.fillStyle = "#413965"; c.fillRect(s.x, y, s.w, s.h);
+      c.fillStyle = "#ffcf3a"; c.fillRect(s.x, y + s.h - 8, s.w, 8);
+      c.fillStyle = "#1b1b1b"; for (let q = 0; q < s.w; q += 16) c.fillRect(s.x + q, y + s.h - 8, 8, 8);
+      c.strokeStyle = "#e9e4ff"; c.lineWidth = 3; c.strokeRect(s.x + 1.5, y + 1.5, s.w - 3, s.h - 3);
     }
-    // Plateformes.
+    // Rebords.
     for (const p of v.plats) {
+      if (p.ground) continue;
       const on = P.platOn(tower, p, t);
-      const px = P.platX(p, t), y = Y(p.y);
-      const c0 = tower.crumbles[p.id];
+      const px = p.x, y = Y(p.y), c0 = tower.crumbles[p.id];
       if (p.kind === "crumble" && c0 !== undefined && !on) {
-        // Elle est tombée : on voit juste où elle va revenir.
-        c.strokeStyle = "rgba(255,255,255,0.35)"; c.setLineDash([8, 8]); c.lineWidth = 2; c.strokeRect(px, y, p.w, p.h); c.setLineDash([]);
+        c.strokeStyle = "rgba(255,255,255,0.5)"; c.setLineDash([8, 8]); c.lineWidth = 2; c.strokeRect(px, y, p.w, p.h); c.setLineDash([]);
         continue;
       }
       let sh = 0;
-      if (p.kind === "crumble" && c0 !== undefined && t >= c0 && t < c0 + P.CRUMBLE) sh = (Math.random() - 0.5) * 6;   // elle tremble
-      const col = p.kind === "crumble" ? "#ff9a2e" : p.kind === "move" ? "#3bb8ff" : "#58d06a";
-      c.fillStyle = "rgba(0,0,0,0.3)"; c.fillRect(px + 4 + sh, y + 6, p.w, p.h);
-      c.fillStyle = col; c.fillRect(px + sh, y, p.w, p.h);
-      c.fillStyle = "rgba(255,255,255,0.6)"; c.fillRect(px + sh, y, p.w, 4);
-      c.strokeStyle = "#1b1830"; c.lineWidth = 3; c.strokeRect(px + sh, y, p.w, p.h);
-      if (p.kind === "crumble") { c.strokeStyle = "rgba(90,40,0,0.7)"; c.lineWidth = 2; for (let k = 14; k < p.w; k += 30) { c.beginPath(); c.moveTo(px + sh + k, y + 2); c.lineTo(px + sh + k + 7, y + 10); c.lineTo(px + sh + k - 2, y + p.h - 2); c.stroke(); } }
-      if (p.kind === "move") { c.fillStyle = "#fff"; c.font = "bold 14px Segoe UI, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("◀ ▶", px + p.w / 2, y + p.h / 2 + 1); }
+      if (p.kind === "crumble" && c0 !== undefined && t >= c0 && t < c0 + P.CRUMBLE) sh = (Math.random() - 0.5) * 6;
+      c.fillStyle = p.kind === "crumble" ? "#ff9a2e" : "#58d06a"; c.fillRect(px + sh, y, p.w, p.h);
+      c.fillStyle = "rgba(255,255,255,0.65)"; c.fillRect(px + sh, y, p.w, 3);
+      c.strokeStyle = "#1b1830"; c.lineWidth = 2; c.strokeRect(px + sh, y, p.w, p.h);
+      if (p.kind === "crumble") { c.strokeStyle = "rgba(90,40,0,0.7)"; c.lineWidth = 2; for (let q = 14; q < p.w; q += 30) { c.beginPath(); c.moveTo(px + sh + q, y + 1); c.lineTo(px + sh + q + 6, y + 6); c.lineTo(px + sh + q - 2, y + p.h - 1); c.stroke(); } }
     }
     // Piques : rouge et blanc, avec un contour.
     for (const s of v.spikes) {
       const vert = s.faces !== undefined;
       c.fillStyle = "#ff2d2d"; c.strokeStyle = "#fff"; c.lineWidth = 2;
       if (!vert) {
-        const n = Math.max(2, Math.round(s.w / 16)), w = s.w / n, base = Y(s.y);
+        const n = Math.max(2, Math.round(s.w / 14)), w = s.w / n, base = Y(s.y);
         for (let i = 0; i < n; i++) { c.beginPath(); c.moveTo(s.x + i * w, base); c.lineTo(s.x + i * w + w / 2, base - s.h - 6); c.lineTo(s.x + (i + 1) * w, base); c.closePath(); c.fill(); c.stroke(); }
       } else {
-        const n = Math.max(2, Math.round(s.h / 16)), h = s.h / n, top0 = Y(s.y + s.h), dirX = s.faces;
+        const n = Math.max(2, Math.round(s.h / 14)), h = s.h / n, top0 = Y(s.y + s.h), dirX = s.faces;
         const bx = dirX > 0 ? s.x : s.x + s.w;
         for (let i = 0; i < n; i++) { c.beginPath(); c.moveTo(bx, top0 + i * h); c.lineTo(bx + dirX * (s.w + 6), top0 + i * h + h / 2); c.lineTo(bx, top0 + (i + 1) * h); c.closePath(); c.fill(); c.stroke(); }
       }
     }
 
     // Les persos (les autres lissés, le mien prédit).
-    for (const r0 of st.runners) {
-      if (!r0.alive) continue;
-      const isMe = r0.id === me();
-      let r = r0;
+    for (const r0b of st.runners) {
+      if (!r0b.alive) continue;
+      const isMe = r0b.id === me();
+      let r = r0b;
       if (isMe && pred) r = myView();
       else {
-        const sh = shown[r0.id] || (shown[r0.id] = { x: r0.x, y: r0.y });
-        const k = Math.min(1, dt * 16);
-        sh.x += (r0.x - sh.x) * k; sh.y += (r0.y - sh.y) * k;
-        if (Math.hypot(r0.x - sh.x, r0.y - sh.y) > 200) { sh.x = r0.x; sh.y = r0.y; }
-        r = { ...r0, x: sh.x, y: sh.y };
+        const sh = shown[r0b.id] || (shown[r0b.id] = { x: r0b.x, y: r0b.y });
+        const kk = Math.min(1, dt * 16);
+        sh.x += (r0b.x - sh.x) * kk; sh.y += (r0b.y - sh.y) * kk;
+        if (Math.hypot(r0b.x - sh.x, r0b.y - sh.y) > 200) { sh.x = r0b.x; sh.y = r0b.y; }
+        r = { ...r0b, x: sh.x, y: sh.y };
       }
       if (r.y > top + 80 || r.y < bottom - 80) continue;
-      drawRunner(c, r, Y(r.y), colorOf(r0.id), isMe);
-      // Pseudo.
-      const lab = pseudoOf(r0.id), hy = Y(r.y) - P.height(r) - 14;
-      c.font = "bold 14px Segoe UI, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
-      const lw = c.measureText(lab).width + 12;
+      drawRunner(c, r, Y(r.y), colorOf(r0b.id), isMe);
+      const lab = pseudoOf(r0b.id), hy = Y(r.y) - P.height(r) - 14;
+      c.font = "bold 12px Segoe UI, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
+      const lw = c.measureText(lab).width + 10;
       c.fillStyle = isMe ? "rgba(255,210,63,0.95)" : "rgba(0,0,0,0.6)";
-      c.beginPath(); c.roundRect(r.x - lw / 2, hy - 10, lw, 20, 6); c.fill();
+      c.beginPath(); c.roundRect(r.x - lw / 2, hy - 9, lw, 18, 5); c.fill();
       c.fillStyle = isMe ? "#1b1830" : "#fff"; c.fillText(lab, r.x, hy + 1);
     }
 
@@ -399,19 +413,21 @@
     c.globalAlpha = 1;
 
     // La lave.
-    const ly = Y(lava);
-    if (ly < HGT + 40) {
+    const ly = Y(lava), bot = vh / 2 + 20;
+    if (ly < bot) {
+      const wave = (x) => ly + Math.sin(x / 70 + ts / 300) * 7 + Math.sin(x / 31 - ts / 210) * 4;
       const g2 = c.createLinearGradient(0, ly, 0, ly + 160);
       g2.addColorStop(0, "#ffb020"); g2.addColorStop(0.15, "#ff5a1f"); g2.addColorStop(1, "#a01808");
       c.fillStyle = g2;
-      c.beginPath(); c.moveTo(0, HGT);
-      for (let x = 0; x <= W; x += 32) c.lineTo(x, ly + Math.sin(x / 70 + ts / 300) * 7 + Math.sin(x / 31 - ts / 210) * 4);
-      c.lineTo(W, HGT); c.closePath(); c.fill();
+      c.beginPath(); c.moveTo(left - 20, bot);
+      for (let x = left - 20; x <= right + 32; x += 24) c.lineTo(x, wave(x));
+      c.lineTo(right + 32, bot); c.closePath(); c.fill();
       c.strokeStyle = "#ffe14d"; c.lineWidth = 4;
       c.beginPath();
-      for (let x = 0; x <= W; x += 32) { const yy = ly + Math.sin(x / 70 + ts / 300) * 7 + Math.sin(x / 31 - ts / 210) * 4; x ? c.lineTo(x, yy) : c.moveTo(x, yy); }
+      for (let x = left - 20; x <= right + 32; x += 24) { x === left - 20 ? c.moveTo(x, wave(x)) : c.lineTo(x, wave(x)); }
       c.stroke();
     }
+    c.setTransform(1, 0, 0, 1, 0, 0);
     // La lave est proche : l'écran rougit.
     const my = mine && mine.alive ? (pred || mine).y : null;
     const gapL = my === null ? 9999 : my - lava;

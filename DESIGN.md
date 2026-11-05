@@ -732,23 +732,22 @@ Choix : vue de dessus, course en X tours, nitro + poussettes, virages variés + 
 
 Demande de Scotty : la barre en haut était trop loin des yeux pendant une poursuite ; l'arc autour de la voiture gênait la vue. Dans Avis de recherche et Chat et souris, une grosse barre 🔥 NITRO est dessinée juste SOUS la mini-carte (bleu, orange qui clignote pendant la nitro, rouge sous 25 %), et pour les flics une barre ⚡ TASER (jaune qui se remplit, secondes restantes, « PRÊT ! » qui clignote). Partagé : VehicleArt.bar (vehicles-art.js). La touche M (grande carte) et le texte « M = carte » ont été retirés.
 
-## 7 duovicies. La Tour 🌋 — validé (« Go »)
+## 7 duovicies. La Tour 🌋 — refaite en labyrinthe (« Go »)
 
-Idée de Scotty : un parkour vertical, on court, on saute, on s'accroupit, on saute sur les murs, piques rares, le dernier en vie gagne.
-Choix : lave qui monte, même tour pour tous, aucun contact entre joueurs, plateformes variées + piques + raccourcis.
-- **Moteur partagé** (`public/games/tour/tower.js`, globalThis.Tower) : la tour (seed, générée au fur et à mesure) et le pas du perso (1/30 s), identiques sur le serveur et le navigateur.
-- **Perso** : course 340 px/s, accroupi 190 ; saut 760 px/s (129 px, 170 px en maintenant) ; ↓ en l'air = chute rapide ; petit temps de grâce au bord (0,08 s) et saut mémorisé (0,1 s).
-- **Saut mural** : contre un mur on glisse, sauter rebondit de l'autre côté ; pas deux fois de suite le même côté (sinon on monterait un mur seul).
-- **Tour** :
-  - chemin principal de plateformes (marches de 105 à 147 px, de plus en plus étroites) ; vérifié par calcul : chaque saut du chemin est faisable ;
-  - vertes fixes, orange qui s'effritent (0,6 s après le passage, reviennent 1,5 s plus tard pour ne pas bloquer ceux qui suivent), bleues qui bougent ;
-  - piques rares, à l'autre bout de la plateforme par rapport à l'arrivée, la suite part du côté sûr ;
-  - cheminées (raccourci) : un mur à côté du mur de la tour, on y monte ~290 px/s (les marches ~240), quelques piques sur les murs ;
-  - tunnels : plafond bas hérissé de piques, à passer accroupi.
-- **Lave** : hauteur = -420 + 34 t + 2 t² (identique partout, calculée à partir du temps du perso). L'écran rougit sous 34 m.
+Idée de Scotty : un parkour vertical, on court, on saute, on s'accroupit, on saute sur les murs, le dernier en vie gagne. La 1re version (plateformes dans le vide) ne lui plaisait pas : il voulait un espace serré, des murs partout, plusieurs chemins.
+Choix : labyrinthe vertical, routes rapide/risquée ou lente/sûre, caméra zoomée, mouvement inchangé, aucun contact entre joueurs.
+- **Moteur partagé** (`public/games/tour/tower.js`, globalThis.Tower) : le labyrinthe (seed, étage par étage), le pas du perso (1/30 s) et le bot, identiques sur le serveur et le navigateur.
+- **Perso** : course 340 px/s, accroupi 190 ; saut 760 px/s (129 px, 170 px en maintenant) ; ↓ en l'air = chute rapide ; temps de grâce au bord (0,08 s), saut mémorisé (0,1 s).
+- **Saut mural** : contre un mur on glisse, sauter rebondit de l'autre côté ; pas deux fois de suite le même côté.
+- **Labyrinthe** : cases de 40 px, 28 de large. Un étage = 18 cases (720 px, soit 72 m au compteur) : un hall de 160 px, puis un bloc de murs où sont creusées 3 routes qui arrivent au hall du dessus (un rebord ferme chaque arrivée, on ne retombe pas d'un étage) :
+  - **puits** (rapide, risqué) : 160 px de large, tout droit au saut mural, 1 ou 2 piques sur les murs, jamais près du bas ni du sommet ;
+  - **2 zigzags** (lents, sûrs) : monter sur des rebords, couloir, monter de l'autre côté, couloir, monter. Plafonds bas à passer accroupi, de rares piques au sol, rebords orange qui s'effritent (0,6 s, reviennent 1,5 s plus tard) ;
+  - des passages relient parfois les routes entre elles. Pas de cul-de-sac.
+- **Vérifié** : un bot termine chaque zigzag ; une recherche exhaustive des touches trouve une montée dans chaque puits (48 puits, 0 impossible).
+- **Lave** : hauteur = -300 + 30 t + 1,2 t². L'écran rougit sous 34 m.
 - **Fin** : 2,5 s après qu'il ne reste qu'un joueur ; points 10, 7, 5, 3, 2, 1 (survivant, puis ordre inverse des éliminations). Au plus 4 min.
-- **Écran** : caméra qui suit (spectateur : le plus haut en vie), hauteur en gros à gauche, distance à la lave, barre de position de tout le monde à droite. Décor clair, persos avec halo + contour.
-- **Bots** : suivent le chemin principal, cible fixe pendant un saut, traversent les tunnels accroupis, ratés de temps en temps.
+- **Écran** : caméra zoomée ×1,4 qui suit dans les 2 sens (spectateur : le plus haut en vie), couloirs clairs et murs sombres avec bord clair, hauteur en gros à gauche, distance à la lave, barre de position à droite.
+- **Bots** : à chaque étage, ils choisissent une route selon leur goût du risque et la suivent point par point, avec des pauses.
 
 ## 8. Feuille de route
 

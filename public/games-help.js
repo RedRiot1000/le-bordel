@@ -318,13 +318,13 @@
       example: "Tu prends la VIPÈRE. Dans l'épingle, tu dérapes au frein à main : ta nitro se remplit. En ligne droite, Bob en TITAN te tasse dans l'herbe… mais tu es 4e, ta nitro remonte ×1,6 : tu la vides et tu le dépasses avant la ligne. 2e : <b>7 points</b>.",
     },
     tour: {
-      goal: "Être le dernier en vie : grimpe la tour plus vite que la lave.",
+      goal: "Être le dernier en vie : grimpe le labyrinthe plus vite que la lave.",
       steps: [
-        "Tout le monde grimpe <b>la même tour</b> en même temps (on se traverse, aucun contact). Une nouvelle tour à chaque manche.",
+        "Tout le monde grimpe <b>le même labyrinthe vertical</b> en même temps (on se traverse, aucun contact). Un nouveau labyrinthe à chaque manche.",
         "La <b>lave</b> monte du bas, de plus en plus vite. Si elle te touche, tu es éliminé. L'écran rougit quand elle approche.",
-        "<b>Cours</b> et <b>saute</b> de plateforme en plateforme : les vertes sont fixes, les <b>orange s'effritent</b> juste après ton passage, les <b>bleues bougent</b>.",
-        "<b>Saut mural</b> : contre un mur, saute pour rebondir de l'autre côté. Dans les <b>cheminées</b> (deux murs serrés), ça fait monter très vite… mais attention aux piques.",
-        "<b>Accroupis-toi</b> pour passer sous les plafonds bas. Les <b>piques</b> rouges (rares) t'éliminent.",
+        "À chaque étage, choisis ta route : le <b>puits</b> (tout droit, au saut mural, avec des piques sur les murs) ou le <b>zigzag</b> (couloirs et rebords, plus long mais plus sûr). Les routes se rejoignent à l'étage du dessus, il n'y a pas de cul-de-sac.",
+        "<b>Saut mural</b> : contre un mur, saute pour rebondir de l'autre côté (pas deux fois de suite du même côté). Les rebords <b>orange s'effritent</b> juste après ton passage.",
+        "<b>Accroupis-toi</b> pour passer sous les plafonds bas (bande jaune et noire). Les <b>piques</b> rouges t'éliminent.",
       ],
       controls: [
         "<kbd>←</kbd><kbd>→</kbd> / <kbd>Q</kbd><kbd>D</kbd> : courir",
@@ -334,7 +334,7 @@
       points: [
         "Classement à l'ordre d'élimination : <b>10, 7, 5, 3, 2, 1</b> points. Le dernier en vie prend 10 points.",
       ],
-      example: "Tu vois une cheminée : tu rebondis de mur en mur et tu gagnes 60 m d'un coup. Bob reste sur les plateformes, une orange s'effrite sous ses pieds, la lave le rattrape. Tu es le dernier en vie : <b>10 points</b>.",
+      example: "La lave est proche : tu prends le puits, tu rebondis de mur en mur en évitant les piques et tu gagnes un étage d'un coup. Bob prend le zigzag, plus sûr mais plus long, et la lave le rattrape. Tu es le dernier en vie : <b>10 points</b>.",
     },
     colline: {
       goal: "Rester dans la zone dorée le plus longtemps possible, seul (ou seule ton équipe), en virant les autres à coups de batte.",

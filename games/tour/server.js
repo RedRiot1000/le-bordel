@@ -1,7 +1,8 @@
 // ===================================================================
 //  LA TOUR — Moteur du jeu (module du hub Le Bordel)
-//  Tout le monde grimpe la même tour, la lave monte de plus en plus vite.
-//  Courir, sauter, s'accroupir, sauter sur les murs. Piques (rares).
+//  Tout le monde grimpe le même labyrinthe vertical, la lave monte de plus en plus vite.
+//  À chaque étage : le puits (rapide, risqué) ou le zigzag (lent, sûr).
+//  Courir, sauter, s'accroupir, sauter sur les murs.
 //  Le dernier en vie gagne la manche. On se traverse entre joueurs.
 //  Le SERVEUR fait foi : il avance chaque perso d'un pas à chaque touche
 //  reçue (comme le navigateur), jamais plus vite que le temps réel.
@@ -19,7 +20,7 @@ export const meta = {
   family: "Action",
   minPlayers: 2,
   maxPlayers: 8,
-  description: "Grimpe la tour plus vite que la lave : sauts, sauts muraux, piques… le dernier en vie gagne !",
+  description: "Un labyrinthe vertical, la lave qui monte : puits risqué ou zigzag sûr ? Le dernier en vie gagne !",
 };
 
 const TICK_MS = 1000 / 30;
@@ -102,7 +103,7 @@ export function createGame(ctx) {
       const x = P.W * (i + 1) / (list.length + 1);
       g.runners[p.id] = {
         r: P.newRunner(x), bot: !!p.bot, seq: 0, lastInputAt: 0, ticks: 0, cause: null, deadAt: 0,
-        ai: { m: 0, wait: 0, react: 0.02 + Math.random() * 0.08, slip: 0.01 + Math.random() * 0.03, err: 0, hold: 0 },
+        ai: P.newBot(0.05 + Math.random() * 0.3, 0.05 + Math.random() * 0.2), pause: 0,
       };
     });
     g.phase = "countdown";
@@ -163,46 +164,12 @@ export function createGame(ctx) {
   }
 
   // =================================================================
-  //  BOTS : ils suivent le chemin principal, plateforme après plateforme,
-  //  avec un temps de réaction et des ratés (de plus en plus avec la vitesse de la lave).
+  //  BOTS : ils suivent une route à chaque étage (P.bot) et s'arrêtent parfois une seconde.
   // =================================================================
   function botKeys(s) {
-    const r = s.r, ai = s.ai, c = g.tower, main = c.main;
-    c.ensure(r.y);
-    // (en l'air, il garde la cible de son saut ; il ne choisit la suivante qu'une fois posé)
-    if (!r.air || !ai.jt) {
-      while (ai.m + 1 < main.length - 1 && main[ai.m + 1].y <= r.y + 8) ai.m++;
-      while (ai.m > 0 && main[ai.m].y > r.y + 8) ai.m--;
-      if (!r.air) ai.jt = null;
-    }
-    const cur = main[ai.m], tgt = ai.jt || main[ai.m + 1];
-    if (!tgt) return 0;
-    const px = P.platX(tgt, r.t);
-    const tx = px + (tgt.safe ?? tgt.w / 2) + ai.err;
-    const dx = tx - r.x;
-    const dirK = Math.abs(dx) < 8 ? 0 : dx > 0 ? K.RIGHT : K.LEFT;
-    if (r.air) {
-      ai.hold--;
-      return dirK | (r.vy > 0 && ai.hold > 0 ? K.JUMP : 0);
-    }
-    if (r.t < ai.wait) return 0;
-    // Tunnel : on le traverse accroupi avant de sauter.
-    if (cur.tunnel && r.y === cur.y) {
-      const toFar = dx > 0 ? r.x < cur.tx[1] + 10 : r.x > cur.tx[0] - 10;     // le bloc est encore entre lui et la suite
-      if (toFar) return dirK | (r.x > cur.tx[0] - 50 && r.x < cur.tx[1] + 50 ? K.DOWN : 0);
-    }
-    const gap = Math.max(px - r.x, r.x - (px + tgt.w), 0);
-    if (!P.platOn(c, tgt, r.t)) return 0;
-    if (gap < 120 + Math.random() * 30) {
-      // Un raté de temps en temps : il saute mal.
-      const hard = Math.min(1, r.t / 90);
-      ai.err = (Math.random() - 0.5) * (tgt.w * 0.5 + 120 * hard * (Math.random() < ai.slip * 6 ? 3 : 0.4));
-      ai.hold = 8;
-      ai.jt = tgt;
-      ai.wait = r.t + ai.react + (Math.random() < ai.slip ? 0.6 : 0);
-      return dirK | (r.pk & K.JUMP ? 0 : K.JUMP);
-    }
-    return dirK;
+    if (s.r.t < s.pause) return 0;
+    if (!s.r.air && Math.random() < 0.004) { s.pause = s.r.t + 0.3 + Math.random() * 0.7; return 0; }
+    return P.bot(s.r, s.ai, g.tower);
   }
 
   // =================================================================
