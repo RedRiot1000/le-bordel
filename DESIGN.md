@@ -739,12 +739,13 @@ Choix : labyrinthe vertical, routes rapide/risquée ou lente/sûre, caméra zoom
 - **Moteur partagé** (`public/games/tour/tower.js`, globalThis.Tower) : le labyrinthe (seed, étage par étage), le pas du perso (1/30 s) et le bot, identiques sur le serveur et le navigateur.
 - **Perso** : course 340 px/s, accroupi 190 ; saut 760 px/s (129 px, 170 px en maintenant) ; ↓ en l'air = chute rapide ; temps de grâce au bord (0,08 s), saut mémorisé (0,1 s).
 - **Saut mural** : contre un mur on glisse, sauter rebondit de l'autre côté ; pas deux fois de suite le même côté.
-- **Labyrinthe** : cases de 40 px, 28 de large. Un étage = 18 cases (720 px, soit 72 m au compteur) : un hall de 160 px, puis un bloc de murs où sont creusées 3 routes qui arrivent au hall du dessus (un rebord ferme chaque arrivée, on ne retombe pas d'un étage) :
-  - **puits** (rapide, risqué) : 160 px de large, tout droit au saut mural, 1 ou 2 piques sur les murs, jamais près du bas ni du sommet ;
-  - **2 zigzags** (lents, sûrs) : monter sur des rebords, couloir, monter de l'autre côté, couloir, monter. Plafonds bas à passer accroupi, de rares piques au sol, rebords orange qui s'effritent (0,6 s, reviennent 1,5 s plus tard) ;
-  - des passages relient parfois les routes entre elles. Pas de cul-de-sac.
-- **Vérifié** : un bot termine chaque zigzag ; une recherche exhaustive des touches trouve une montée dans chaque puits (48 puits, 0 impossible).
-- **Lave** : hauteur = -300 + 30 t + 1,2 t². L'écran rougit sous 34 m.
+- **Labyrinthe** (resserré à la demande de Scotty : plus de saut mural, plus de passages accroupis, presque plus de rebords verts) : cases de 40 px, 28 de large. Un étage = 24 cases (960 px, soit 96 m au compteur) : un hall bas (120 px, 2-3 plafonds bas), puis un bloc de murs où sont creusées 3 routes qui arrivent au hall du dessus. Un seul rebord par route, à l'arrivée :
+  - **puits** (rapide, risqué) : 120 px de large, tout droit au saut mural, 2-3 piques sur les murs, jamais près du bas ni du sommet ;
+  - **2 zigzags** (lents, sûrs) : monter au saut mural (cheminée de 120 px), ramper dans un couloir de 80 px sous un long plafond bas, remonter de l'autre côté, recommencer. Pas de piques. Arrivée parfois orange (s'effrite en 0,6 s, revient 1,5 s plus tard).
+  - Pas de cul-de-sac. Pas de passages entre les routes : ils perçaient les murs qui servent à rebondir.
+  - Entrée de chaque couloir plus haute (on y arrive en plein vol), et 2 cases de sol avant le plafond bas (on ne s'accroupit pas en l'air).
+- **Vérifié** : une recherche exhaustive des touches trouve une solution pour chaque montée de chaque route (puits et zigzags).
+- **Lave** : hauteur = -400 + 26 t + t². Saut mural : 800 px/s. L'écran rougit sous 34 m.
 - **Fin** : 2,5 s après qu'il ne reste qu'un joueur ; points 10, 7, 5, 3, 2, 1 (survivant, puis ordre inverse des éliminations). Au plus 4 min.
 - **Écran** : caméra zoomée ×1,4 qui suit dans les 2 sens (spectateur : le plus haut en vie), couloirs clairs et murs sombres avec bord clair, hauteur en gros à gauche, distance à la lave, barre de position à droite.
 - **Bots** : à chaque étage, ils choisissent une route selon leur goût du risque et la suivent point par point, avec des pauses.

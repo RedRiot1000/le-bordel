@@ -53,11 +53,11 @@
           <h2>🎮 Règles & commandes</h2>
           <ul class="pt-help">
             <li>🌋 Tout le monde grimpe <b>le même labyrinthe</b>. La <b>lave</b> monte de plus en plus vite : si elle te touche, tu es éliminé.</li>
-            <li>🔀 À chaque étage : le <b>puits</b> (direct, au saut mural, avec des piques) ou le <b>zigzag</b> (couloirs et rebords, plus long, plus sûr). Pas de cul-de-sac.</li>
+            <li>🔀 À chaque étage : le <b>puits</b> (direct, au saut mural, avec des piques) ou le <b>zigzag</b> (sauts muraux et couloirs à passer accroupi, plus long, plus sûr). Pas de cul-de-sac.</li>
             <li>🏃 <kbd>←</kbd><kbd>→</kbd> ou <kbd>Q</kbd><kbd>D</kbd> : courir · <kbd>Espace</kbd> / <kbd>↑</kbd> / <kbd>Z</kbd> : sauter (maintenir = plus haut).</li>
             <li>🧗 <b>Saut mural</b> : contre un mur, saute pour rebondir vers l'autre côté (pas deux fois de suite sur le même côté).</li>
             <li>⬇️ <kbd>↓</kbd> / <kbd>S</kbd> : s'accroupir (passer sous les plafonds bas) · en l'air : retomber plus vite.</li>
-            <li>🟠 Les rebords <b>orange</b> s'effritent. Les <b>piques</b> rouges éliminent.</li>
+            <li>🟠 Certains rebords d'arrivée sont <b>orange</b> : ils s'effritent. Les <b>piques</b> rouges éliminent.</li>
             <li>🏆 Le <b>dernier en vie</b> gagne la manche (10, 7, 5, 3, 2, 1 points).</li>
           </ul>
         </div>

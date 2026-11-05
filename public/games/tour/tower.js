@@ -17,7 +17,7 @@
   P.TILE = 40;               // une case du labyrinthe
   P.COLS = 28;               // largeur de la tour (en cases)
   P.W = P.TILE * P.COLS;
-  P.FROWS = 18;              // hauteur d'un étage (en cases)
+  P.FROWS = 24;              // hauteur d'un étage (en cases)
   P.FH = P.TILE * P.FROWS;
   P.K = { LEFT: 1, RIGHT: 2, JUMP: 4, DOWN: 8 };
   P.PW = 26;                 // largeur du perso
@@ -26,13 +26,13 @@
   P.ACC_G = 2800, P.ACC_A = 1700;
   P.JUMP_V = 760, P.G = 2200, P.G_HOLD = 1300, P.HOLD = 0.18, P.G_DOWN = 3900;
   P.MAX_FALL = 1000;
-  P.WALL_SLIDE = 120, P.WJ_V = 720, P.WJ_X = 380, P.WJ_LOCK = 0.14;
+  P.WALL_SLIDE = 120, P.WJ_V = 800, P.WJ_X = 380, P.WJ_LOCK = 0.14;
   P.COYOTE = 0.08, P.BUFFER = 0.1;
   P.CRUMBLE = 0.6, P.CRUMBLE_BACK = 1.5;   // s'effrite 0,6 s après ; revient 1,5 s plus tard (pour ceux qui sont derrière)
   const BK = 200;            // hauteur d'une tranche de recherche
 
   // La lave : démarre sous le sol, monte de plus en plus vite.
-  P.lavaAt = (t) => -300 + 30 * t + 1.2 * t * t;
+  P.lavaAt = (t) => -400 + 26 * t + 1.0 * t * t;
 
   function seeded(seed) {
     let s = seed >>> 0;
@@ -65,64 +65,70 @@
 
     function floor(n) {
       const y0 = n * P.FH;
-      const g = Array.from({ length: R }, (_, r) => new Uint8Array(C).fill(r < 4 ? 0 : 1));
+      const HALL = 3, H1 = 10, H2 = 17, CH = 2;        // hall ; rangées des 2 couloirs ; hauteur d'un couloir
+      const g = Array.from({ length: R }, (_, r) => new Uint8Array(C).fill(r < HALL ? 0 : 1));
       for (let r = 0; r < R; r++) g[r][0] = g[r][C - 1] = 1;
       const carve = (c0, c1, r0, r1) => { for (let r = r0; r <= r1; r++) for (let q = c0; q <= c1; q++) g[r][q] = 0; };
-      const ledge = (col, yr, risky) => addPlat({ x: col * T, y: y0 + yr, w: 4 * T, kind: !risky && yr % P.FH !== 0 && yr !== 280 && yr !== 480 && rnd() < 0.2 ? "crumble" : "fix" });
+      // Un seul rebord par route : l'arrivée à l'étage du dessus (le reste se monte au saut mural).
+      const cap = (col, risky) => addPlat({ x: col * T, y: y0 + P.FH, w: 3 * T, kind: !risky && rnd() < 0.3 ? "crumble" : "fix" });
+      // Plafond bas : il faut passer accroupi.
+      const low = (x, yr, w, h) => solid({ x, y: y0 + yr + 34, w, h, low: true });
       const routes = [];
-      // Où sont les routes : un puits + 2 zigzags.
       const layout = Math.floor(rnd() * 3);
-      const regions = layout === 0 ? [["z", 1, 10], ["p", 12, 15], ["z", 17, 26]]
-        : layout === 1 ? [["p", 1, 4], ["z", 6, 15], ["z", 17, 26]]
-        : [["z", 1, 10], ["z", 12, 21], ["p", 23, 26]];
+      const regions = layout === 0 ? [["z", 1, 11], ["p", 13, 15], ["z", 17, 26]]
+        : layout === 1 ? [["p", 1, 3], ["z", 5, 15], ["z", 17, 26]]
+        : [["z", 1, 10], ["z", 12, 22], ["p", 24, 26]];
       for (const [kind, a0, b0] of regions) {
         if (kind === "p") {
           // Le puits : tout droit jusqu'à l'étage du dessus, piques sur les murs.
-          carve(a0, b0, 4, R - 1);
+          carve(a0, b0, HALL, R - 1);
           const left = a0 * T, right = (b0 + 1) * T, cx = (left + right) / 2;
           let side = rnd() < 0.5 ? 1 : -1;
-          for (let yr = 340; yr < 560; yr += 200 + Math.round(rnd() * 70)) {
-            if (rnd() < 0.8) spike({ x: side > 0 ? left : right - 14, y: y0 + yr, w: 14, h: 44, faces: side });
+          for (let yr = 340; yr < P.FH - 230; yr += 190 + Math.round(rnd() * 70)) {
+            if (rnd() < 0.85) spike({ x: side > 0 ? left : right - 14, y: y0 + yr, w: 14, h: 44, faces: side });
             side = -side;
           }
-          ledge(a0, P.FH, true);
+          cap(a0, true);
           const wallSide = rnd() < 0.5 ? -1 : 1;
           routes.push({ kind: "puits", way: [
             { x: wallSide < 0 ? left + 22 : right - 22, y: y0, tol: 10 },
             { x: cx, y: y0 + P.FH, shaft: true, side: wallSide },
           ] });
         } else {
-          // Le zigzag : monter d'un côté, couloir, monter de l'autre, couloir, monter.
+          // Le zigzag : monter au saut mural, ramper dans un couloir, remonter de l'autre côté, etc.
           const leftFirst = rnd() < 0.5;
-          const A = leftFirst ? a0 : b0 - 3, B = leftFirst ? b0 - 3 : a0;
-          carve(A, A + 3, 4, 9); carve(a0, b0, 7, 9); carve(B, B + 3, 7, 14); carve(a0, b0, 12, 14); carve(A, A + 3, 12, R - 1);
-          for (const [col, yr] of [[A, 140], [A, 280], [B, 380], [B, 480], [A, 600], [A, P.FH]]) ledge(col, yr, false);
-          const cA = (A + 2) * T, cB = (B + 2) * T;
-          // Dans les couloirs : un plafond bas (à passer accroupi), ou de rares piques au sol.
-          const lo = Math.min(cA, cB) + 2.6 * T, hi = Math.max(cA, cB) - 2.6 * T;
-          for (const yr of [280, 480]) {
-            const u = rnd(), x = Math.round(lo + rnd() * Math.max(0, hi - lo - 2 * T));
-            if (hi - lo < 2 * T) continue;
-            if (u < 0.34) solid({ x, y: y0 + yr + 34, w: 2 * T, h: 86, low: true });
-            else if (u < 0.42) spike({ x, y: y0 + yr, w: T, h: 16, up: true });
+          const A = leftFirst ? a0 : b0 - 2, B = leftFirst ? b0 - 2 : a0;
+          const dir = leftFirst ? 1 : -1;                 // de A vers B
+          carve(A, A + 2, HALL, H1 + CH - 1); carve(a0, b0, H1, H1 + CH - 1); carve(B, B + 2, H1, H2 + CH - 1); carve(a0, b0, H2, H2 + CH - 1); carve(A, A + 2, H2, R - 1);
+          // L'entrée de chaque couloir est plus haute : on y arrive en plein vol.
+          const up1 = H1 + CH, up2 = H2 + CH;
+          carve(A, A + 2, up1, up1 + 1); carve(dir > 0 ? A + 3 : A - 2, dir > 0 ? A + 4 : A - 1, up1, up1 + 1);
+          carve(B, B + 2, up2, up2 + 1); carve(dir > 0 ? B - 2 : B + 3, dir > 0 ? B - 1 : B + 4, up2, up2 + 1);
+          cap(A, false);
+          const fA = H1 * T, fB = H2 * T;
+          const wallA = dir > 0 ? A * T + 22 : (A + 3) * T - 22;     // contre le mur extérieur, côté A
+          const wallB = dir > 0 ? (B + 3) * T - 22 : B * T + 22;     // contre le mur extérieur, côté B
+          // Les couloirs : un long plafond bas, à passer accroupi. On entre en l'air d'un côté (il faut
+          // 2 cases de sol pour se poser : on ne s'accroupit pas en l'air) ; de l'autre côté, on arrive en marchant.
+          const in0 = Math.min(A, B) + 3, in1 = Math.max(A, B) - 1;
+          for (const [yr, from] of [[fA, A], [fB, B]]) {
+            const lo = from < (in0 + in1) / 2 ? in0 + 2 : in0, hi = from < (in0 + in1) / 2 ? in1 : in1 - 2;
+            if (hi >= lo) low(lo * T, yr, (hi - lo + 1) * T, CH * T - 34);
           }
           routes.push({ kind: "zigzag", way: [
-            { x: cA, y: y0, tol: 60 }, { x: cA, y: y0 + 140, tol: 60 }, { x: cA, y: y0 + 280, tol: 60 }, { x: cB, y: y0 + 280, tol: 40 },
-            { x: cB, y: y0 + 380, tol: 60 }, { x: cB, y: y0 + 480, tol: 60 }, { x: cA, y: y0 + 480, tol: 40 }, { x: cA, y: y0 + 600, tol: 60 }, { x: cA, y: y0 + P.FH, tol: 60 },
+            { x: wallA, y: y0, tol: 10 }, { x: wallA, y: y0 + fA, shaft: true, side: -dir, exit: dir },
+            { x: wallB, y: y0 + fA, tol: 10 }, { x: wallB, y: y0 + fB, shaft: true, side: dir, exit: -dir },
+            { x: wallA, y: y0 + fB, tol: 10 }, { x: wallA, y: y0 + P.FH, shaft: true, side: -dir },
           ] });
         }
       }
-      // Des passages entre les routes (on peut changer d'avis en route).
-      for (let i = 0; i + 1 < regions.length; i++) {
-        if (rnd() < 0.55) {
-          const r0 = rnd() < 0.5 ? 7 : 12;
-          carve(regions[i][2], regions[i + 1][1], r0, r0 + 2);
+      // Le hall : bas de plafond par endroits (loin des entrées).
+      if (n > 0) {
+        const hh = HALL * T - 34;
+        for (let k = 0, m = 2 + Math.floor(rnd() * 2); k < m; k++) {
+          const x = (2 + Math.floor(rnd() * (C - 6))) * T;
+          if (routes.every((q) => q.way[0].x < x - 70 || q.way[0].x > x + 3 * T + 70) && !c.solids.some((o) => o.low && o.y === y0 + 34 && Math.abs(o.x - x) < 3 * T)) low(x, 0, 3 * T, hh);
         }
-      }
-      // Un plafond bas dans le hall, loin des entrées.
-      if (n > 0 && rnd() < 0.6) {
-        const x = Math.round(2 * T + rnd() * (P.W - 6 * T));
-        if (routes.every((q) => Math.abs(q.way[0].x - x - T) > 130)) solid({ x, y: y0 + 34, w: 2 * T, h: 126, low: true });
       }
       // Les murs : des rectangles (pour la physique) + les cases (pour le dessin).
       const used = g.map((row) => new Uint8Array(row.length));
@@ -303,6 +309,10 @@
     if (w.shaft) {
       // Le puits : on saute sur un mur, puis on rebondit de l'un à l'autre.
       if (!r.air) { ai.hold = 7; return (w.side < 0 ? K.LEFT : K.RIGHT) | (noJump ? 0 : K.JUMP); }
+      // Au-dessus de l'arrivée : il se laisse retomber dessus.
+      if (!w.exit && r.y > w.y + 2) return 0;
+      // Assez haut : il sort dans le couloir.
+      if (w.exit && r.y > w.y + 2 && (r.lastW === w.side || r.wall === w.exit)) return w.exit > 0 ? K.RIGHT : K.LEFT;
       const d = r.lastW ? (r.lastW < 0 ? K.RIGHT : K.LEFT) : w.side < 0 ? K.LEFT : K.RIGHT;
       if (r.wall && r.lock === 0 && r.wall !== r.lastW && !noJump && r.t >= ai.wait) {
         // Le rebond arrive ~118 px plus haut sur l'autre mur : s'il y a des piques là, il se laisse d'abord glisser.
@@ -325,6 +335,12 @@
       if (s.up && Math.abs(s.y - r.y) < 3 && (dirS > 0 ? s.x - r.x : r.x - s.x - s.w) < 46 && (dirS > 0 ? s.x + s.w > r.x : s.x < r.x)) { ai.hold = 4; return dk | (noJump ? 0 : K.JUMP); }
     }
     if (w.y > r.y + 10) { ai.hold = 8; return dk | (noJump ? 0 : K.JUMP); }
+    // Un trou devant (le haut d'un puits) : sauter par-dessus.
+    if (dk) {
+      const ax = r.x + dirS * 34, col = Math.floor(ax / P.TILE), row = Math.round(r.y / P.TILE) - 1;
+      const hole = !P.tileAt(c, row, col) && !near(c, r.y - 2, r.y + 2, "p").some((p) => Math.abs(p.y - r.y) < 1 && ax > p.x && ax < p.x + p.w);
+      if (hole) { ai.hold = 6; return dk | (noJump ? 0 : K.JUMP); }
+    }
     return dk;
   };
 

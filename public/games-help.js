@@ -322,7 +322,7 @@
       steps: [
         "Tout le monde grimpe <b>le même labyrinthe vertical</b> en même temps (on se traverse, aucun contact). Un nouveau labyrinthe à chaque manche.",
         "La <b>lave</b> monte du bas, de plus en plus vite. Si elle te touche, tu es éliminé. L'écran rougit quand elle approche.",
-        "À chaque étage, choisis ta route : le <b>puits</b> (tout droit, au saut mural, avec des piques sur les murs) ou le <b>zigzag</b> (couloirs et rebords, plus long mais plus sûr). Les routes se rejoignent à l'étage du dessus, il n'y a pas de cul-de-sac.",
+        "À chaque étage, choisis ta route : le <b>puits</b> (tout droit, au saut mural, avec des piques sur les murs) ou le <b>zigzag</b> (sauts muraux et couloirs à passer accroupi, plus long mais plus sûr). Les routes se rejoignent à l'étage du dessus, il n'y a pas de cul-de-sac.",
         "<b>Saut mural</b> : contre un mur, saute pour rebondir de l'autre côté (pas deux fois de suite du même côté). Les rebords <b>orange s'effritent</b> juste après ton passage.",
         "<b>Accroupis-toi</b> pour passer sous les plafonds bas (bande jaune et noire). Les <b>piques</b> rouges t'éliminent.",
       ],
