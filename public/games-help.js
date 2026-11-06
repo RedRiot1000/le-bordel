@@ -373,6 +373,7 @@
       goal: "Flics : mettre tous les runners en prison. Runners : tenir 2 min et libérer les autres.",
       steps: [
         "Les rôles changent à chaque manche. Les runners partent 5 s avant les flics.",
+        "Au début, un flic <b>pose la prison</b> où il veut (clic ou <kbd>Espace</kbd>). Une place est dégagée à cet endroit.",
         "<b>Flic</b> : tire au taser. Le runner touché est sonné : touche-le pour l'envoyer en prison.",
         "<b>Runner</b> : cours, cache-toi dans les maisons et les ruelles.",
         "Reste 2 s sur un <b>bouton rouge</b>, à côté de la prison : tout le monde est libéré.",

@@ -1,7 +1,8 @@
 // ===================================================================
 //  CAVALE — Moteur du jeu (module du hub Le Bordel)
 //  Flics contre runners, à pied, dans un quartier tiré au hasard.
-//  Le flic tire au taser (le runner est sonné 2 s) puis le touche : en prison.
+//  Un gardien pose la prison où il veut au début de la manche.
+//  Le flic tire au taser (le runner est sonné) puis le touche : en prison.
 //  Un runner libre reste 2 s sur un bouton : tout le monde est libéré.
 //  Les flics gagnent si tous les runners sont en prison, les runners s'ils
 //  tiennent jusqu'à la fin du chrono. Les rôles tournent à chaque manche.
@@ -28,6 +29,7 @@ export const meta = {
 const TICK_MS = 1000 / 30;
 export const ROUND_MS = 120000;        // une manche : 2 min
 export const HEAD_START = 5000;        // les runners partent 5 s avant les flics
+export const PLACE_MS = 10000;         // le gardien a 10 s pour poser la prison (sinon elle se pose toute seule)
 export const RANGE = 340;              // portée du taser
 export const TASER_CD = 5000;          // recharge du taser
 export const RECOIL_MS = 400;          // le flic ne bouge plus juste après un tir (un tir de loin ne suffit pas)
@@ -36,15 +38,15 @@ export const STUN_MS = 1500;           // runner sonné
 export const CUFF_R = 42;              // distance pour menotter
 export const SAFE_MS = 2000;           // protégé juste après une évasion
 export const BUTTON_R = 50, BUTTON_S = 2;
-export const SPEED = 1.2;              // tout le monde court un peu plus vite que dans les autres jeux
-export const SPRINT = 1.5, SPRINT_MS = 3000;
-export const CAMP_R = 330, CAMP_S = 5, CAMP_SLOW = 0.55;   // un flic qui reste près de la prison ralentit
+export const SPEED = 1.8;              // tout le monde court bien plus vite que dans les autres jeux
+export const SPRINT = 1.4, SPRINT_MS = 3000;
+export const CAMP_R = 420, CAMP_S = 5, CAMP_SLOW = 0.55;   // un flic qui reste près de la prison ralentit
 const BUTTON_CD = 5000;                // après une évasion : les boutons se rechargent
 const SMOKE_MS = 5000, SMOKE_R = 120;
 const BANANA_MS = 30000, SLIP_MS = 1000;
 const BAR_MS = 8000, BAR_LEN = 128, BAR_W = 26;
 const RAPID_MS = 10000;
-const BOXES = 16, BOX_BACK = 10000;
+const BOXES = 24, BOX_BACK = 10000;
 const COUNTDOWN_MS = 3000, END_DELAY = 1800, ROUND_OVER_MS = 7000, FINISH_DELAY = 15000;
 export const GADGETS = { runner: ["sprint", "fumi", "banane"], cop: ["sprint", "barrage", "rapide"] };
 export const copCount = (n) => (n <= 5 ? 1 : 2);
@@ -81,7 +83,7 @@ export function createGame(ctx) {
     phase: "setup",       // setup | countdown | play | roundOver | over
     settings: ctx.savedSettings ? { ...defaultSettings(), ...ctx.savedSettings } : defaultSettings(),
     scores: {}, round: 0, turn: [],
-    seed: 0, map: null,
+    seed: 0, map: null, warden: null, prison: null,
     heroes: {},           // id -> { h, role, jailed, stunUntil, safeUntil, taserAt, rapidUntil, sprintUntil, gadget, camp, gains… }
     boxes: [], bananas: [], smokes: [], bars: [], itemId: 0,
     press: [0, 0], btnReadyAt: 0,
@@ -100,7 +102,9 @@ export function createGame(ctx) {
   const addFx = (o) => { g.fx.push({ id: ++g.fxId, t: now(), ...o }); if (g.fx.length > 40) g.fx.shift(); };
 
   // Les bonshommes ne peuvent pas bouger pendant ces moments-là.
-  const locked = (s, t) => t < s.stunUntil || (s.role === "cop" && (t < g.playAt + HEAD_START || t < s.recoilUntil));
+  const locked = (s, t) => t < s.stunUntil || (s.role === "cop" && (t < s.recoilUntil || (!s.warden && t < g.playAt + HEAD_START)));
+  // Le taser ne marche qu'une fois la prison posée et les 5 s passées.
+  const huntOn = (t) => !!g.prison && t >= g.playAt + HEAD_START;
   const speedOf = (s, t) => SPEED * (t < s.sprintUntil ? SPRINT : 1) * (s.role === "cop" && s.camp >= CAMP_S ? CAMP_SLOW : 1);
   const envOf = (s, t) => ({ walls: true, w: Q.W, h: Q.H, noDash: true, speedMul: speedOf(s, t), rects: [...Q.near(g.map, s.h.x, s.h.y), ...g.bars] });
 
@@ -110,7 +114,8 @@ export function createGame(ctx) {
   function publicState() {
     const t = now();
     return {
-      t, phase: g.phase, settings: g.settings, round: g.round, seed: g.seed,
+      t, phase: g.phase, settings: g.settings, round: g.round, seed: g.seed, prison: g.prison, warden: g.warden,
+      placeLeft: g.phase === "play" && !g.prison ? Math.max(0, g.playAt + PLACE_MS - t) : 0,
       players: players().map((p) => ({ ...p, score: g.scores[p.id] || 0 })),
       heroes: Object.entries(g.heroes).map(([id, s]) => ({
         id, seq: s.seq, role: s.role, jailed: s.jailed, stun: Math.max(0, s.stunUntil - t), safe: t < s.safeUntil,
@@ -126,6 +131,7 @@ export function createGame(ctx) {
       buttonsReady: t >= g.btnReadyAt,
       timeLeft: g.phase === "play" ? Math.max(0, ROUND_MS - (t - g.playAt)) : ROUND_MS,
       copWait: g.phase === "play" ? Math.max(0, g.playAt + HEAD_START - t) : HEAD_START,
+      hunting: huntOn(t),
       phaseLeft: Math.max(0, g.phaseEnd - t),
       feed: g.feed.slice(-4),
       lastRound: g.lastRound,
@@ -157,7 +163,9 @@ export function createGame(ctx) {
     g.seed = (Math.random() * 2 ** 31) >>> 0;
     g.map = Q.build(g.seed);
     g.heroes = {};
-    const spots = [...g.map.runSpots], copSpots = shuffle(g.map.copSpots);
+    g.prison = null;
+    g.warden = order[(((g.round - 1) * nc) % n)];       // le premier flic de la manche pose la prison
+    const spots = [...g.map.runSpots], copSpots = g.map.copSpots;
     // Des runners bien éparpillés.
     const taken = [];
     let ci = 0;
@@ -167,7 +175,7 @@ export function createGame(ctx) {
       if (role === "cop") sp = copSpots[ci++ % copSpots.length];
       else { sp = spots.find((o) => taken.every((q) => dist(o, q) > 420)) || spots[0]; taken.push(sp); }
       g.heroes[p.id] = {
-        h: H.newHero(sp.x, sp.y, 0), role, jailed: false, stunUntil: 0, recoilUntil: 0, safeUntil: 0, taserAt: 0, rapidUntil: 0, sprintUntil: 0,
+        h: H.newHero(sp.x, sp.y, 0), role, warden: p.id === g.warden, jailed: false, stunUntil: 0, recoilUntil: 0, safeUntil: 0, taserAt: 0, rapidUntil: 0, sprintUntil: 0,
         gadget: null, camp: 0, bot: !!p.bot, seq: 0, lastInputAt: 0, prevK: 0, aim: null, ai: { brave: Math.random() < 0.7 }, arrests: 0, frees: 0, gain: 0,
       };
       g.scores[p.id] = g.scores[p.id] || 0;
@@ -240,11 +248,30 @@ export function createGame(ctx) {
       H.collideWalls(s.h, env);
       for (const [oid, o] of Object.entries(g.heroes)) if (oid !== id && o.jailed === s.jailed) H.collideHeroes(s.h, o.h);
     }
+    if (g.phase === "play" && !g.prison && s.warden && k & (K.FIRE | K.DASH) && !(s.prevK & (K.FIRE | K.DASH))) { placePrison(id, s); s.prevK = k; return; }
     if (g.phase === "play" && !locked(s, t) && !s.jailed) {
-      if (s.role === "cop" && k & K.FIRE && !(s.prevK & K.FIRE)) shoot(id, s, aim ?? s.h.face, t);
+      if (s.role === "cop" && huntOn(t) && k & K.FIRE && !(s.prevK & K.FIRE)) shoot(id, s, aim ?? s.h.face, t);
       if (k & K.DASH && !(s.prevK & K.DASH)) useGadget(id, s, t);
     }
     s.prevK = k;
+  }
+
+  // Le gardien pose la prison à ses pieds : une place est dégagée, ceux qui s'y trouvent sont mis dehors.
+  function placePrison(id, s) {
+    const { c, r } = Q.prisonSpot(s.h.x, s.h.y);
+    Q.prisonAt(g.map, c, r);
+    g.prison = { c, r };
+    const P = g.map.prison;
+    for (const o of Object.values(g.heroes)) {
+      if (o.h.x < P.x - 24 || o.h.x > P.x + P.w + 24 || o.h.y < P.y - 24 || o.h.y > P.y + P.h + 24) continue;
+      const sp = g.map.freeSpots.slice().sort((a, b) => dist(a, o.h) - dist(b, o.h))[0];
+      o.h.x = sp.x; o.h.y = sp.y; o.h.vx = 0; o.h.vy = 0;
+    }
+    // Les caisses recouvertes sont déplacées ailleurs.
+    const M = Q.MARGIN * Q.T;
+    g.boxes = g.boxes.filter((b) => b.x < P.x - M || b.x > P.x + P.w + M || b.y < P.y - M || b.y > P.y + P.h + M);
+    addFx({ kind: "place", x: Math.round(P.cx), y: Math.round(P.cy) });
+    say(`🔒 ${pseudo(id)} a posé la prison !`);
   }
 
   // Le tir : en ligne droite jusqu'au premier mur, barrage ou fumigène. Il touche le premier runner sur la ligne.
@@ -291,7 +318,7 @@ export function createGame(ctx) {
   function arrest(copId, cop, runId, r) {
     r.jailed = true;
     r.stunUntil = 0;
-    const sp = g.map.jailSpots[all("runner").filter(([, s]) => s.jailed).length % g.map.jailSpots.length];
+    const sp = g.map.jailSpots[all("runner").filter(([, s]) => s.jailed).length % g.map.jailSpots.length];   // (sa place dans la cellule)
     addFx({ kind: "cuff", x: Math.round(r.h.x), y: Math.round(r.h.y) });
     r.h.x = sp.x; r.h.y = sp.y; r.h.vx = 0; r.h.vy = 0;
     r.gadget = null; r.sprintUntil = 0;
@@ -318,6 +345,11 @@ export function createGame(ctx) {
 
   // Ce qui se passe tout seul à chaque calcul.
   function world(dt, t) {
+    // Le gardien a trop attendu : la prison se pose là où il est.
+    if (!g.prison) {
+      if (t >= g.playAt + PLACE_MS) { const w = g.heroes[g.warden]; if (w) placePrison(g.warden, w); }
+      if (!g.prison) return;
+    }
     g.smokes = g.smokes.filter((m) => t < m.until);
     g.bananas = g.bananas.filter((m) => t < m.until);
     g.bars = g.bars.filter((m) => t < m.until);
@@ -368,6 +400,14 @@ export function createGame(ctx) {
   function copBot(s, t) {
     if (locked(s, t)) return { k: 0, aim: null };
     const h = s.h, ai = s.ai;
+    // Le gardien bot court un peu, puis pose la prison.
+    if (!g.prison) {
+      if (!s.warden) return { k: 0, aim: null };
+      if (!ai.placeAt) { ai.placeAt = t + 1800 + Math.random() * 3000; ai.goal = pick(g.map.boxSpots); }
+      if (t >= ai.placeAt) return { k: K.DASH, aim: null };
+      return { k: go(s, ai.goal, t), aim: null };
+    }
+    if (!huntOn(t)) return { k: 0, aim: null };
     // Il ne poursuit que ceux qu'il voit (ou qu'il vient de voir) : on peut lui échapper.
     const free = freeRunners().map(([, o]) => o).filter((o) => t >= o.safeUntil && dist(o.h, h) < 520 && Q.sees(g.map, h, o.h));
     if (free.length) { ai.lastSeen = { x: free[0].h.x, y: free[0].h.y }; ai.lastAt = t; }
@@ -406,7 +446,7 @@ export function createGame(ctx) {
     const threat = dc < 460 && close && Q.sees(g.map, h, close.h);
     let k = 0;
     // Libérer les autres, si un bouton n'est pas gardé.
-    if ((ai.brave || jailedCount() >= freeRunners().length) && jailedCount() > 0 && t >= g.btnReadyAt) {
+    if (g.prison && (ai.brave || jailedCount() >= freeRunners().length) && jailedCount() > 0 && t >= g.btnReadyAt) {
       const b = g.map.buttons.filter((o) => cops.every((c) => dist(c.h, o) > 230)).sort((a, c) => dist(a, h) - dist(c, h))[0];
       if (b) { if (dist(b, h) < 34) return { k: 0, aim: null }; if (!threat || dist(b, h) < 240) return { k: go(s, b, t), aim: null }; }
     }
@@ -456,6 +496,7 @@ export function createGame(ctx) {
     delete g.heroes[id];
     if (g.phase !== "play" || g.win) return;
     if (!all("cop").length) finishRound("runners");
+    else if (!g.prison && !g.heroes[g.warden]) g.warden = all("cop")[0][0], g.heroes[g.warden].warden = true;
     else if (!freeRunners().length) finishRound("cops");
   }
 

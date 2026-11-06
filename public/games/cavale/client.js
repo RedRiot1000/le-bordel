@@ -9,7 +9,7 @@
 (() => {
   const H = window.Pieton, Q = window.Quartier;
   const K = H.K;
-  const W = 1280, HGT = 800, AIM_MAX = 320, RANGE = 340, BUTTON_R = 50, CAMP_R = 330, CAMP_S = 5;
+  const W = 1280, HGT = 800, AIM_MAX = 320, RANGE = 340, BUTTON_R = 50, CAMP_R = 420, CAMP_S = 5;
   const NAMES = { sprint: "⚡ Sprint", fumi: "💨 Fumigène", banane: "🍌 Peau de banane", barrage: "🚧 Barrage", rapide: "🔋 Taser rapide" };
 
   let api = null, root = null;
@@ -52,6 +52,7 @@
         <div class="card">
           <h2>🎮 Règles & commandes</h2>
           <ul class="pt-help">
+            <li>🔒 Au début, un flic <b>pose la prison</b> où il veut (clic ou <kbd>Espace</kbd>).</li>
             <li>🚓 <b>Flics</b> : tire au taser (clic gauche), puis touche le runner sonné pour l'envoyer en prison.</li>
             <li>🏃 <b>Runners</b> : ne te fais pas prendre. Reste 2 s sur un <b>bouton</b> à côté de la prison pour libérer tout le monde.</li>
             <li>🏆 Les flics gagnent si tous les runners sont en prison. Sinon, les runners gagnent au bout de 2 min.</li>
@@ -127,6 +128,8 @@
       $("cv-setup").classList.add("hidden");
       $("cv-play").classList.remove("hidden");
       if (st.seed !== mapSeed) { mapSeed = st.seed; map = Q.build(st.seed); paintWorld(); }
+      // Le gardien vient de poser la prison : on l'ajoute au quartier.
+      if (st.prison && !map.prison) { Q.prisonAt(map, st.prison.c, st.prison.r); paintPrison(); }
       handleFx();
       reconcile();
       lastSnapRecv = performance.now();
@@ -287,6 +290,7 @@
       seenFx.add(f.id);
       if (f.kind === "zap") { zaps.push({ ...f, life: 0.18 }); if (f.hit) burst(f.x2, f.y2, 16, ["#ffe14d", "#7fd8ff", "#fff"]); }
       else if (f.kind === "cuff") burst(f.x, f.y, 24, ["#3a8bff", "#fff"]);
+      else if (f.kind === "place") { flash = 0.5; burst(f.x, f.y, 40, ["#7fb0ff", "#fff"], 380); }
       else if (f.kind === "free") { flash = 1; burst(f.x, f.y, 50, ["#3dff7a", "#ffe14d", "#fff"], 420); }
       else if (f.kind === "use") burst(f.x, f.y, 10, ["#fff", "#ffd23f"], 120);
     }
@@ -317,7 +321,7 @@
   function renderHud() {
     $("cv-round").textContent = `Manche ${st.round}/${st.settings.rounds}`;
     const mine = heroOf(me());
-    const txt = !mine ? "👀 Tu regardes" : mine.role === "cop" ? (mine.camp >= CAMP_S ? "🚓 Flic · 🐌 Tu campes la prison : tu ralentis !" : "🚓 Tu es FLIC") : mine.jailed ? "🔒 En prison : attends qu'on te libère" : mine.stun > 0 ? "⚡ Sonné !" : "🏃 Tu es RUNNER";
+    const txt = !mine ? "👀 Tu regardes" : !st.prison && st.warden === me() ? "🔒 Pose la prison : clic ou Espace" : mine.role === "cop" ? (mine.camp >= CAMP_S ? "🚓 Flic · 🐌 Tu campes la prison : tu ralentis !" : "🚓 Tu es FLIC") : mine.jailed ? "🔒 En prison : attends qu'on te libère" : mine.stun > 0 ? "⚡ Sonné !" : "🏃 Tu es RUNNER";
     if ($("cv-me").textContent !== txt) $("cv-me").textContent = txt;
     const runners = st.heroes.filter((h) => h.role === "runner"), inJail = runners.filter((h) => h.jailed).length;
     $("cv-jail").textContent = `🔒 ${inJail}/${runners.length} en prison`;
@@ -372,55 +376,165 @@
   //  LE QUARTIER (dessiné une seule fois par manche)
   // ===================================================================
   const hash = (a, b) => { let h = Math.imul(a ^ 0x9e3779b9, 2654435761) ^ Math.imul(b + 0x7f4a7c15, 1597334677); h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
+  const ROOFS = [["#8d939c", "#a6acb5"], ["#a06f52", "#b98668"], ["#6d8ba3", "#88a4ba"], ["#bda67f", "#d0bb96"], ["#7f8c6e", "#98a585"], ["#9c6a6a", "#b48282"]];
+  const BRICKS = [["#a8583f", "#b4624a"], ["#d9cbb0", "#e3d7be"], ["#8f9aa8", "#9ca7b5"], ["#c9a26d", "#d4af7c"]];
   function paintWorld() {
-    const T = Q.T, C = Q.COLS, R = Q.ROWS;
+    const T = Q.T, C = Q.COLS, R = Q.ROWS, cells = map.cells, ground = map.ground;
     worldImg = document.createElement("canvas"); worldImg.width = Q.W; worldImg.height = Q.H;
     const c = worldImg.getContext("2d");
-    // La route et ses pointillés.
-    c.fillStyle = "#7b818a"; c.fillRect(0, 0, Q.W, Q.H);
-    c.strokeStyle = "rgba(255,255,255,0.65)"; c.lineWidth = 4; c.setLineDash([26, 26]);
-    const lines = (list, n, vert) => { let p = 2; for (const [, b] of [[0, 0], ...list]) { const at = (b ? b + 2 : 2) * T; c.beginPath(); if (vert) { c.moveTo(at, 0); c.lineTo(at, n); } else { c.moveTo(0, at); c.lineTo(n, at); } c.stroke(); p++; } };
-    lines(map.xs, Q.H, true); lines(map.ys, Q.W, false);
+    const G = (q, r) => (q < 0 || r < 0 || q >= C || r >= R ? -1 : ground[r * C + q]);
+    const S = (q, r) => (q < 0 || r < 0 || q >= C || r >= R ? 0 : cells[r * C + q]);
+    // L'asphalte, un peu tacheté.
+    c.fillStyle = "#62666e"; c.fillRect(0, 0, Q.W, Q.H);
+    for (let i = 0; i < 9000; i++) { c.fillStyle = i % 2 ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.07)"; c.fillRect(hash(i, 1) * Q.W, hash(i, 2) * Q.H, 2 + hash(i, 3) * 5, 2 + hash(i, 4) * 3); }
+    // Les rues : leur centre, les pointillés entre deux carrefours, les passages piétons.
+    const sx = [0, ...map.xs.slice(0, -1).map(([, b]) => b), Q.COLS - 4], sy = [0, ...map.ys.slice(0, -1).map(([, b]) => b), Q.ROWS - 4];
+    c.strokeStyle = "rgba(255,255,255,0.75)"; c.lineWidth = 3; c.setLineDash([24, 26]);
+    for (const a of sx) for (let i = 0; i + 1 < sy.length; i++) { c.beginPath(); c.moveTo((a + 2) * T, (sy[i] + 6) * T); c.lineTo((a + 2) * T, (sy[i + 1] - 2) * T); c.stroke(); }
+    for (const b of sy) for (let i = 0; i + 1 < sx.length; i++) { c.beginPath(); c.moveTo((sx[i] + 6) * T, (b + 2) * T); c.lineTo((sx[i + 1] - 2) * T, (b + 2) * T); c.stroke(); }
     c.setLineDash([]);
-    // Le sol.
-    const COL = { 1: ["#d8d2c4", "#cfc8b9"], 2: ["#e3c497", "#dcbb8b"], 3: ["#8fd66f", "#86cd66"], 4: ["#efe6cf", "#e6dcc2"], 5: ["#c7d3e3", "#bccadc"] };
+    c.fillStyle = "rgba(245,245,245,0.85)";
+    for (const a of sx) for (const b of sy) {
+      for (let k = 0; k < 8; k++) {
+        const o = 6 + k * 15;
+        c.fillRect(a * T + o, (b - 1.7) * T, 9, 1.3 * T); c.fillRect(a * T + o, (b + 4.4) * T, 9, 1.3 * T);
+        c.fillRect((a - 1.7) * T, b * T + o, 1.3 * T, 9); c.fillRect((a + 4.4) * T, b * T + o, 1.3 * T, 9);
+      }
+    }
+    // Le sol des pâtés.
     for (let r = 0; r < R; r++) for (let q = 0; q < C; q++) {
-      const g = map.ground[r * C + q];
+      const g = ground[r * C + q], x = q * T, y = r * T, h = hash(r, q);
       if (!g) continue;
-      c.fillStyle = COL[g][(r + q) % 2]; c.fillRect(q * T, r * T, T + 0.5, T + 0.5);
+      if (g === Q.WALK) { c.fillStyle = (r + q) % 2 ? "#cfcabf" : "#d6d1c6"; c.fillRect(x, y, T + 0.5, T + 0.5); c.fillStyle = "rgba(0,0,0,0.07)"; c.fillRect(x, y, T, 1); c.fillRect(x, y, 1, T); }
+      else if (g === Q.FLOOR) {
+        // Le plancher des maisons : une couleur par pièce.
+        const room = hash(q >> 3, r >> 3);
+        c.fillStyle = room < 0.5 ? ((r % 2) ? "#d9b88a" : "#d2b182") : (r + q) % 2 ? "#e8e3d8" : "#ddd7ca"; c.fillRect(x, y, T + 0.5, T + 0.5);
+        if (room < 0.5) { c.fillStyle = "rgba(90,55,20,0.18)"; c.fillRect(x, y + 15, T, 1); c.fillRect(x + (r % 2 ? 8 : 22), y, 1, T); }
+      } else if (g === Q.GRASS) {
+        c.fillStyle = (q >> 1) % 2 ? "#79c760" : "#71bf58"; c.fillRect(x, y, T + 0.5, T + 0.5);
+        for (let k = 0; k < 3; k++) { c.fillStyle = "rgba(30,90,30,0.2)"; c.fillRect(x + hash(r * 3 + k, q) * 28, y + hash(r, q * 3 + k) * 28, 2, 4); }
+        if (h < 0.03) { c.fillStyle = ["#fff", "#ffd23f", "#ff6b8a"][Math.floor(h * 100) % 3]; for (let k = 0; k < 5; k++) { c.beginPath(); c.arc(x + 6 + hash(k, q) * 20, y + 6 + hash(r, k) * 20, 2, 0, 7); c.fill(); } }
+      }
     }
-    // Ce qui bloque.
-    const solid = (q, r) => q >= 0 && r >= 0 && q < C && r < R && map.cells[r * C + q];
+    // La bordure des trottoirs.
+    c.fillStyle = "#a9a59c";
     for (let r = 0; r < R; r++) for (let q = 0; q < C; q++) {
-      const v = map.cells[r * C + q], x = q * T, y = r * T;
-      if (!v) continue;
-      if (v === 1) { c.fillStyle = hash(r, q) < 0.5 ? "#a8583f" : "#b4624a"; c.fillRect(x, y, T + 0.5, T + 0.5); c.fillStyle = "rgba(60,20,10,0.28)"; c.fillRect(x, y + 15, T, 2); c.fillRect(x + (r % 2 ? 15 : 3), y, 2, 15); c.fillRect(x + (r % 2 ? 3 : 15), y + 16, 2, 16); }
-      else if (v === 6) { c.fillStyle = (Math.floor(q / 3) + Math.floor(r / 3)) % 2 ? "#5d7f96" : "#648aa2"; c.fillRect(x, y, T + 0.5, T + 0.5); }
-      else if (v === 2) { c.fillStyle = "#8fd66f"; c.fillRect(x, y, T + 0.5, T + 0.5); c.fillStyle = "#c79a55"; for (let k = 2; k < T; k += 8) c.fillRect(x + k, y + 4, 4, T - 8); c.fillRect(x, y + 8, T, 3); c.fillRect(x, y + T - 11, T, 3); }
-      else if (v === 3) { if (!solid(q - 1, r) && !solid(q, r - 1)) { c.fillStyle = "rgba(0,0,0,0.2)"; c.beginPath(); c.arc(x + 36, y + 38, 32, 0, 7); c.fill(); c.fillStyle = "#3f9a4a"; c.beginPath(); c.arc(x + 32, y + 32, 32, 0, 7); c.fill(); c.fillStyle = "#58b85c"; c.beginPath(); c.arc(x + 25, y + 24, 19, 0, 7); c.fill(); } }
-      else if (v === 4) { c.fillStyle = "#c98f4d"; c.fillRect(x, y, T + 0.5, T + 0.5); c.strokeStyle = "#7b5226"; c.lineWidth = 3; c.strokeRect(x + 2, y + 2, T - 4, T - 4); c.beginPath(); c.moveTo(x + 3, y + 3); c.lineTo(x + T - 3, y + T - 3); c.stroke(); }
-      else if (v === 5) { c.fillStyle = "#3f6cc4"; c.fillRect(x, y, T + 0.5, T + 0.5); c.fillStyle = "#dfe8f8"; for (let k = 4; k < T; k += 10) c.fillRect(x + k, y + 4, 3, T - 8); }
+      if (ground[r * C + q] !== Q.WALK) continue;
+      const x = q * T, y = r * T;
+      if (G(q, r - 1) === 0) c.fillRect(x, y, T, 3);
+      if (G(q, r + 1) === 0) c.fillRect(x, y + T - 3, T, 3);
+      if (G(q - 1, r) === 0) c.fillRect(x, y, 3, T);
+      if (G(q + 1, r) === 0) c.fillRect(x + T - 3, y, 3, T);
     }
-    // Le bord des murs : on voit tout de suite leur forme.
-    c.fillStyle = "rgba(255,255,255,0.55)";
+    // Les ombres portées des bâtiments (le soleil est en haut à gauche).
+    c.fillStyle = "rgba(10,20,40,0.26)";
+    for (let r = 0; r < R; r++) for (let q = 0; q < C; q++) { const v = S(q, r); if (v === 1 || v === 6) c.fillRect(q * T + 12, r * T + 14, T, T); }
+    // Les toits : chaque immeuble a sa couleur, son rebord, ses machines.
+    const seen = new Uint8Array(C * R);
     for (let r = 0; r < R; r++) for (let q = 0; q < C; q++) {
-      const v = map.cells[r * C + q];
-      if (!v || v === 3 || v === 2) continue;
-      if (!solid(q, r - 1)) c.fillRect(q * T, r * T, T, 4);
+      if (S(q, r) !== 6 || seen[r * C + q]) continue;
+      const list = [], stack = [r * C + q];
+      seen[r * C + q] = 1;
+      while (stack.length) { const i = stack.pop(), a = i % C, b = (i - a) / C; list.push([a, b]); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (S(a + dx, b + dy) === 6 && !seen[(b + dy) * C + a + dx]) { seen[(b + dy) * C + a + dx] = 1; stack.push((b + dy) * C + a + dx); } }
+      const [dark, light] = ROOFS[Math.floor(hash(q, r) * ROOFS.length)];
+      for (const [a, b] of list) {
+        const x = a * T, y = b * T;
+        c.fillStyle = dark; c.fillRect(x, y, T + 0.5, T + 0.5);
+        c.fillStyle = light;
+        if (S(a, b - 1) !== 6) c.fillRect(x, y, T, 7);
+        if (S(a, b + 1) !== 6) c.fillRect(x, y + T - 7, T, 7);
+        if (S(a - 1, b) !== 6) c.fillRect(x, y, 7, T);
+        if (S(a + 1, b) !== 6) c.fillRect(x + T - 7, y, 7, T);
+      }
+      // Des machines sur le toit, là où il y a de la place.
+      for (const [a, b] of list) {
+        if (hash(a * 3, b * 5) > 0.1 || S(a + 1, b) !== 6 || S(a, b + 1) !== 6 || S(a - 1, b) !== 6 || S(a, b - 1) !== 6 || S(a + 1, b + 1) !== 6) continue;
+        const x = a * T + 6, y = b * T + 6, u = hash(a, b);
+        if (u < 0.5) {
+          c.fillStyle = "rgba(0,0,0,0.25)"; c.fillRect(x + 4, y + 5, 42, 34);
+          c.fillStyle = "#c7ccd3"; c.fillRect(x, y, 42, 34); c.strokeStyle = "#7d838c"; c.lineWidth = 2; c.strokeRect(x, y, 42, 34);
+          c.beginPath(); c.arc(x + 21, y + 17, 11, 0, 7); c.stroke(); c.beginPath(); c.moveTo(x + 10, y + 17); c.lineTo(x + 32, y + 17); c.moveTo(x + 21, y + 6); c.lineTo(x + 21, y + 28); c.stroke();
+        } else { c.fillStyle = "#284a66"; c.fillRect(x, y, 46, 30); c.fillStyle = "rgba(160,215,255,0.5)"; c.fillRect(x + 3, y + 3, 18, 24); c.fillRect(x + 25, y + 3, 18, 24); }
+      }
     }
-    c.fillStyle = "rgba(0,0,0,0.26)";
+    // Les autres obstacles.
     for (let r = 0; r < R; r++) for (let q = 0; q < C; q++) {
-      const v = map.cells[r * C + q];
-      if (!v || v === 3 || v === 2) continue;
-      if (!solid(q, r + 1)) c.fillRect(q * T, (r + 1) * T, T, 7);
+      const v = S(q, r), x = q * T, y = r * T;
+      if (v === 1) {
+        const [a, b] = BRICKS[Math.floor(hash(q >> 4, r >> 4) * BRICKS.length)];
+        c.fillStyle = hash(r, q) < 0.5 ? a : b; c.fillRect(x, y, T + 0.5, T + 0.5);
+        c.fillStyle = "rgba(40,20,10,0.22)"; c.fillRect(x, y + 15, T, 2); c.fillRect(x + (r % 2 ? 15 : 3), y, 2, 15); c.fillRect(x + (r % 2 ? 3 : 15), y + 16, 2, 16);
+        c.fillStyle = "rgba(255,255,255,0.5)"; if (S(q, r - 1) !== 1) c.fillRect(x, y, T, 4);
+      } else if (v === 2) {
+        c.fillStyle = "#79c760"; c.fillRect(x, y, T + 0.5, T + 0.5);
+        c.fillStyle = "#b98a4c"; for (let k = 2; k < T; k += 8) c.fillRect(x + k, y + 5, 4, T - 10);
+        c.fillRect(x, y + 9, T, 3); c.fillRect(x, y + T - 12, T, 3);
+      } else if (v === 3) {
+        if (S(q - 1, r) === 3 || S(q, r - 1) === 3) continue;
+        c.fillStyle = "rgba(10,30,10,0.28)"; c.beginPath(); c.arc(x + 42, y + 44, 33, 0, 7); c.fill();
+        for (const [dx, dy, rr, col] of [[32, 32, 32, "#2f8a3e"], [20, 24, 18, "#3fa24c"], [42, 26, 16, "#3fa24c"], [28, 42, 16, "#379646"], [26, 20, 10, "#62c26a"]]) { c.fillStyle = col; c.beginPath(); c.arc(x + dx, y + dy, rr, 0, 7); c.fill(); }
+      } else if (v === 4) {
+        // Une cabane de jardin.
+        if (S(q - 1, r) === 4 || S(q, r - 1) === 4) continue;
+        c.fillStyle = "rgba(0,0,0,0.25)"; c.fillRect(x + 7, y + 8, 2 * T, 2 * T);
+        c.fillStyle = "#b5764a"; c.fillRect(x, y, 2 * T, T); c.fillStyle = "#94603a"; c.fillRect(x, y + T, 2 * T, T);
+        c.fillStyle = "rgba(0,0,0,0.2)"; for (let k = 0; k < 2 * T; k += 8) c.fillRect(x, y + k, 2 * T, 1);
+      } else if (v === 8) {
+        c.fillStyle = "rgba(0,0,0,0.25)"; c.beginPath(); c.arc(x + 19, y + 20, 12, 0, 7); c.fill();
+        c.fillStyle = "#2f6b4a"; c.beginPath(); c.arc(x + 16, y + 16, 12, 0, 7); c.fill(); c.fillStyle = "#4a9a70"; c.beginPath(); c.arc(x + 16, y + 16, 7, 0, 7); c.fill();
+      }
     }
-    // Le mot PRISON au sol.
-    const P = map.prison;
-    c.font = "900 44px Segoe UI, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "rgba(40,70,130,0.3)"; c.fillText("PRISON", P.cx, P.cy);
-    // La mini-carte.
+    // Les lampadaires, sur les trottoirs.
+    for (let r = 0; r < R; r += 1) for (let q = 0; q < C; q += 1) {
+      if (ground[r * C + q] !== Q.WALK || S(q, r) || hash(q * 7, r * 11) > 0.03) continue;
+      c.fillStyle = "#3c4047"; c.beginPath(); c.arc(q * T + 16, r * T + 16, 4, 0, 7); c.fill();
+      c.strokeStyle = "#3c4047"; c.lineWidth = 3; c.beginPath(); c.moveTo(q * T + 16, r * T + 16); c.lineTo(q * T + 30, r * T + 12); c.stroke();
+    }
+    paintMini();
+  }
+  function paintMini() {
     miniImg = document.createElement("canvas"); miniImg.width = 232; miniImg.height = Math.round(232 * Q.H / Q.W);
-    const m = miniImg.getContext("2d");
-    m.drawImage(worldImg, 0, 0, miniImg.width, miniImg.height);
+    miniImg.getContext("2d").drawImage(worldImg, 0, 0, miniImg.width, miniImg.height);
+  }
+  // La prison et sa place, ajoutées quand le gardien la pose.
+  function paintPrison() {
+    const T = Q.T, M = Q.MARGIN, P = map.prison, c = worldImg.getContext("2d");
+    const x0 = (P.c - M) * T, y0 = (P.r - M) * T, w = (Q.PW + 2 * M) * T, h = (Q.PH + 2 * M) * T;
+    // La place : de grandes dalles.
+    c.fillStyle = "#e6dcc4"; c.fillRect(x0, y0, w, h);
+    c.strokeStyle = "rgba(120,100,70,0.22)"; c.lineWidth = 1.5;
+    for (let x = x0; x <= x0 + w; x += T * 2) { c.beginPath(); c.moveTo(x, y0); c.lineTo(x, y0 + h); c.stroke(); }
+    for (let y = y0; y <= y0 + h; y += T * 2) { c.beginPath(); c.moveTo(x0, y); c.lineTo(x0 + w, y); c.stroke(); }
+    c.strokeStyle = "#b8ad94"; c.lineWidth = 6; c.strokeRect(x0 + 3, y0 + 3, w - 6, h - 6);
+    // L'ombre, la cour, les murs de béton et les miradors.
+    c.fillStyle = "rgba(10,20,40,0.26)"; c.fillRect(P.x + 14, P.y + 16, P.w, P.h);
+    c.fillStyle = "#c9d2de"; c.fillRect(P.x, P.y, P.w, P.h);
+    c.strokeStyle = "rgba(60,80,110,0.18)"; c.lineWidth = 2;
+    for (let x = P.x + T; x < P.x + P.w; x += T) { c.beginPath(); c.moveTo(x, P.y); c.lineTo(x, P.y + P.h); c.stroke(); }
+    c.fillStyle = "#68768c";
+    c.fillRect(P.x, P.y, P.w, T); c.fillRect(P.x, P.y + P.h - T, P.w, T); c.fillRect(P.x, P.y, T, P.h); c.fillRect(P.x + P.w - T, P.y, T, P.h);
+    c.fillStyle = "#8896ad"; c.fillRect(P.x + 4, P.y + 4, P.w - 8, 8); c.fillRect(P.x + 4, P.y + P.h - T + 4, P.w - 8, 8);
+    c.fillStyle = "#e9eef6"; for (let x = P.x + 6; x < P.x + P.w - 6; x += 14) { c.fillRect(x, P.y + 16, 4, 12); c.fillRect(x, P.y + P.h - 16, 4, 12); }
+    for (const [x, y] of [[P.x, P.y], [P.x + P.w - T, P.y], [P.x, P.y + P.h - T], [P.x + P.w - T, P.y + P.h - T]]) { c.fillStyle = "#3f4c63"; c.fillRect(x - 6, y - 6, T + 12, T + 12); c.fillStyle = "#ffd23f"; c.beginPath(); c.arc(x + T / 2, y + T / 2, 8, 0, 7); c.fill(); }
+    c.font = "900 40px Segoe UI, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "rgba(50,70,110,0.32)"; c.fillText("PRISON", P.cx, P.cy);
+    paintMini();
+  }
+  // Une voiture garée, vue de dessus.
+  function drawCar(c, o) {
+    const T = Q.T, horiz = o.w > o.h, L = 2 * T - 4, B = T - 8;
+    c.save();
+    c.translate(o.c * T + (o.w * T) / 2, o.r * T + (o.h * T) / 2);
+    if (!horiz) c.rotate(Math.PI / 2);
+    if (o.flip) c.rotate(Math.PI);
+    c.fillStyle = "rgba(0,0,0,0.3)"; c.beginPath(); c.roundRect(-L / 2 + 3, -B / 2 + 4, L, B, 7); c.fill();
+    c.fillStyle = o.col; c.beginPath(); c.roundRect(-L / 2, -B / 2, L, B, 7); c.fill();
+    c.fillStyle = "rgba(255,255,255,0.22)"; c.fillRect(-L / 2 + 6, -B / 2 + 2, L - 12, 3);
+    c.fillStyle = "#1e2730"; c.beginPath(); c.roundRect(-8, -B / 2 + 3, 26, B - 6, 3); c.fill();
+    c.fillStyle = "#3e5468"; c.fillRect(11, -B / 2 + 4, 6, B - 8); c.fillRect(-7, -B / 2 + 4, 4, B - 8);
+    c.fillStyle = "#ffe9a0"; c.fillRect(L / 2 - 3, -B / 2 + 3, 3, 5); c.fillRect(L / 2 - 3, B / 2 - 8, 3, 5);
+    c.fillStyle = "#e0413c"; c.fillRect(-L / 2, -B / 2 + 3, 3, 5); c.fillRect(-L / 2, B / 2 - 8, 3, 5);
+    c.restore();
   }
 
   // ===================================================================
@@ -459,8 +573,17 @@
     c.drawImage(worldImg, ox, oy, W, HGT, 0, 0, W, HGT);
     c.setTransform(1, 0, 0, 1, -ox, -oy);
 
+    for (const o of map.cars) { const x = o.c * Q.T, y = o.r * Q.T; if (x > ox - 80 && x < ox + W + 80 && y > oy - 80 && y < oy + HGT + 80) drawCar(c, o); }
+    // Le gardien voit où tombera la prison.
+    if (!st.prison && st.phase === "play" && st.warden === me() && mine) {
+      const p = Q.prisonSpot(mine.x, mine.y), x = p.c * Q.T, y = p.r * Q.T, m = Q.MARGIN * Q.T, pw = Q.PW * Q.T, ph = Q.PH * Q.T;
+      c.fillStyle = "rgba(47,111,255,0.14)"; c.fillRect(x - m, y - m, pw + 2 * m, ph + 2 * m);
+      c.fillStyle = "rgba(47,111,255,0.3)"; c.fillRect(x, y, pw, ph);
+      c.strokeStyle = "#2f6fff"; c.lineWidth = 5; c.setLineDash([18, 12]); c.strokeRect(x, y, pw, ph); c.setLineDash([]);
+      c.font = "900 32px Segoe UI, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#17357e"; c.fillText("PRISON", x + pw / 2, y + ph / 2);
+    }
     // La zone où un flic se fatigue.
-    if (mine?.role === "cop") {
+    if (mine?.role === "cop" && map.prison) {
       c.strokeStyle = mine.camp > 0 ? "rgba(255,120,40,0.8)" : "rgba(63,108,196,0.35)"; c.lineWidth = 4; c.setLineDash([16, 14]);
       c.beginPath(); c.arc(map.prison.cx, map.prison.cy, CAMP_R, 0, 7); c.stroke(); c.setLineDash([]);
     }
@@ -519,7 +642,7 @@
     for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.92; p.vy *= 0.92; c.globalAlpha = Math.max(0, p.life / p.max); c.fillStyle = p.col; c.fillRect(p.x - 3, p.y - 3, 6, 6); }
     c.globalAlpha = 1;
     // Mon viseur de flic.
-    if (mine?.role === "cop" && st.phase === "play") {
+    if (mine?.role === "cop" && st.hunting) {
       const a = Math.atan2(mouse.oy, mouse.ox), d = Math.hypot(mouse.ox, mouse.oy), reach = Q.ray(map, mine.x, mine.y, a, RANGE);
       const ready = mine.taser <= 0, tx = mine.x + Math.cos(a) * d, ty = mine.y + Math.sin(a) * d;
       c.setLineDash([6, 8]); c.strokeStyle = ready ? "rgba(30,140,255,0.9)" : "rgba(40,40,60,0.35)"; c.lineWidth = 3;
@@ -543,7 +666,11 @@
     c.font = "900 36px Segoe UI, sans-serif"; c.fillStyle = left <= 15 ? "#ff6b6b" : "#fff";
     c.fillText(`${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`, W / 2, 40);
     // Les flics attendent le départ.
-    if (st.phase === "play" && st.copWait > 0) {
+    if (st.phase === "play" && !st.prison) {
+      panel(c, W / 2 - 310, 76, 620, 46);
+      c.font = "bold 24px Segoe UI, sans-serif"; c.fillStyle = "#ffd23f";
+      c.fillText(st.warden === me() ? `🔒 Choisis ta place, clic ou Espace pour poser la prison (${Math.ceil(st.placeLeft / 1000)} s)` : `🔒 ${esc(pseudoOf(st.warden))} choisit où poser la prison…`, W / 2, 100);
+    } else if (st.phase === "play" && st.copWait > 0) {
       panel(c, W / 2 - 240, 76, 480, 46);
       c.font = "bold 24px Segoe UI, sans-serif"; c.fillStyle = "#ffd23f";
       c.fillText(`${mine?.role === "cop" ? "🚓 Tu pars" : "🏃 Cours ! Les flics partent"} dans ${Math.ceil(st.copWait / 1000)} s`, W / 2, 100);
@@ -553,6 +680,7 @@
     panel(c, mx - 6, my - 6, mw + 12, mh + bars + 12);
     c.drawImage(miniImg, mx, my);
     const P = (p) => [mx + p.x * mw / Q.W, my + p.y * mh / Q.H];
+    if (map.prison) { const [x, y] = P(map.prison); c.fillStyle = "rgba(63,108,196,0.75)"; c.fillRect(x, y, map.prison.w * mw / Q.W, map.prison.h * mh / Q.H); }
     for (const b of map.buttons) { const [x, y] = P(b); c.fillStyle = st.buttonsReady ? "#ff4d5a" : "#9aa3af"; c.beginPath(); c.arc(x, y, 5, 0, 7); c.fill(); c.strokeStyle = "#fff"; c.lineWidth = 1.5; c.stroke(); }
     for (const h of st.heroes) {
       if (mine && h.role !== mine.role && h.id !== me()) continue;
@@ -575,7 +703,7 @@
       c.font = "900 70px Segoe UI, sans-serif"; c.fillStyle = mine?.role === "cop" ? "#7fb0ff" : "#ffd23f";
       c.fillText(!mine ? "Tu regardes" : mine.role === "cop" ? "🚓 TU ES FLIC" : "🏃 TU ES RUNNER", W / 2, HGT / 2 - 48);
       c.font = "26px Segoe UI, sans-serif"; c.fillStyle = "#fff";
-      c.fillText(mine?.role === "cop" ? "Tire au taser, puis touche le runner sonné" : "Ne te fais pas prendre, libère les autres avec les boutons rouges", W / 2, HGT / 2 + 14);
+      c.fillText(st.warden === me() ? "D'abord, pose la prison où tu veux" : mine?.role === "cop" ? "Tire au taser, puis touche le runner sonné" : "Ne te fais pas prendre, libère les autres avec les boutons rouges", W / 2, HGT / 2 + 14);
       c.font = "900 44px Segoe UI, sans-serif"; c.fillText(String(n), W / 2, HGT / 2 + 66);
     }
     if (mine?.role === "cop" && st.phase === "play" && document.pointerLockElement !== canvas) {

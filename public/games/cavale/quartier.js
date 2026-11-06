@@ -2,7 +2,8 @@
 //  CAVALE — Le quartier (partagé serveur + navigateur)
 //  Un quartier tiré d'une seed : le serveur et le navigateur construisent
 //  EXACTEMENT le même. Rues, ruelles, immeubles, maisons à traverser,
-//  cours clôturées, parcs. La prison est au milieu, sur une grande place.
+//  cours clôturées, parcs, voitures garées. La prison n'y est pas : c'est un
+//  gardien qui la pose où il veut (Q.prisonAt dégage une place à cet endroit).
 //  Tout est rangé dans une grille de cases de 32 px.
 //    globalThis.Quartier
 // ===================================================================
@@ -10,12 +11,13 @@
 (function (root) {
   const Q = {};
   Q.T = 32;                 // taille d'une case
-  Q.COLS = 80; Q.ROWS = 54;
+  Q.COLS = 104; Q.ROWS = 70;
   Q.W = Q.T * Q.COLS; Q.H = Q.T * Q.ROWS;
-  Q.PW = 14; Q.PH = 10;     // la prison, en cases
+  Q.PW = 12; Q.PH = 8;      // la prison, en cases
+  Q.MARGIN = 4;             // la place dégagée autour
   const CELL = 128;         // case de la grille de recherche des murs
 
-  // Ce qui bloque (t.cells) : 1 mur, 2 clôture (on tire à travers), 3 arbre, 4 caisse, 5 mur de prison, 6 toit.
+  // Ce qui bloque (t.cells) : 1 mur, 2 clôture (on tire à travers), 3 arbre, 4 cabane, 5 mur de prison, 6 toit, 7 voiture, 8 poubelle.
   // Le sol (t.ground) : 0 route, 1 trottoir, 2 plancher, 3 herbe, 4 place, 5 prison.
   Q.ROAD = 0; Q.WALK = 1; Q.FLOOR = 2; Q.GRASS = 3; Q.PLAZA = 4; Q.JAIL = 5;
 
@@ -92,23 +94,42 @@
     }
     for (const [y0, y1] of ys) for (const [x0, x1] of xs) block(x0, y0, x1, y1);
 
-    // La place et la prison, au milieu.
-    const px = Math.floor((C - Q.PW) / 2), py = Math.floor((R - Q.PH) / 2), P = 5;
-    put(cells, px - P, py - P, px + Q.PW + P, py + Q.PH + P, 0);
-    put(ground, px - P, py - P, px + Q.PW + P, py + Q.PH + P, Q.PLAZA);
-    put(cells, px, py, px + Q.PW, py + Q.PH, 5);
-    put(cells, px + 1, py + 1, px + Q.PW - 1, py + Q.PH - 1, 0);
-    put(ground, px, py, px + Q.PW, py + Q.PH, Q.JAIL);
+    // Des voitures garées le long des trottoirs (d'un seul côté de chaque rue, pour laisser passer).
+    const COLORS = ["#d8373f", "#2f6fd0", "#f2f2f2", "#2b2e35", "#e0a52e", "#3f9a6a", "#8c93a0"];
+    const cars = [];
+    const park = (c, r, w, h) => {
+      for (let j = r; j < r + h; j++) for (let k = c; k < c + w; k++) if (!inside(k, j) || cells[at(k, j)] || ground[at(k, j)]) return;
+      put(cells, c, r, c + w, r + h, 7);
+      cars.push({ c, r, w, h, col: COLORS[irand(0, COLORS.length - 1)], flip: rnd() < 0.5 });
+    };
+    ys.forEach(([y0, y1], i) => { if (i === ys.length - 1) return; const row = rnd() < 0.5 ? y1 : ys[i + 1][0] - 1; for (const [x0, x1] of xs) for (let c = x0 + 1; c < x1 - 2; c += 3) if (rnd() < 0.4) park(c, row, 2, 1); });
+    xs.forEach(([x0, x1], i) => { if (i === xs.length - 1) return; const col = rnd() < 0.5 ? x1 : xs[i + 1][0] - 1; for (const [y0, y1] of ys) for (let r = y0 + 1; r < y1 - 2; r += 3) if (rnd() < 0.4) park(col, r, 1, 2); });
+    // Quelques poubelles au bord des trottoirs.
+    for (let r = 1; r < R - 1; r++) for (let c = 1; c < C - 1; c++) if (ground[at(c, r)] === Q.WALK && !cells[at(c, r)] && rnd() < 0.012) cells[at(c, r)] = 8;
 
-    const T = Q.T, cx = (px + Q.PW / 2) * T, cy = (py + Q.PH / 2) * T;
-    const t = { seed, cells, ground, xs, ys, prison: { x: px * T, y: py * T, w: Q.PW * T, h: Q.PH * T, cx, cy } };
-    // Les 2 boutons d'ouverture, de chaque côté de la prison.
-    t.buttons = [{ id: 0, x: (px - 3) * T, y: cy }, { id: 1, x: (px + Q.PW + 3) * T, y: cy }];
-    t.jailSpots = []; for (let i = 0; i < 8; i++) t.jailSpots.push({ x: (px + 3 + (i % 4) * 2.8) * T, y: (py + 3 + Math.floor(i / 4) * 4) * T });
-    t.freeSpots = []; for (let i = 0; i < 8; i++) t.freeSpots.push({ x: (px + 1 + (i % 4) * 4) * T, y: i < 4 ? (py - 3) * T : (py + Q.PH + 3) * T });
-    t.copSpots = []; for (let i = 0; i < 4; i++) t.copSpots.push({ x: (px + 3 + i * 3) * T, y: i % 2 ? (py - 2) * T : (py + Q.PH + 2) * T });
+    const t = { seed, cells, ground, xs, ys, cars, prison: null, buttons: [], jailSpots: [], freeSpots: [], flows: new Map() };
+    finish(t);
+    const T = Q.T, cx = Q.W / 2, cy = Q.H / 2;
+    // Les départs des runners (loin de la prison) et les emplacements des gadgets (carrefours, cours, parcs, maisons).
+    const far = [], spots = [], mid = [];
+    for (let r = 2; r < R - 2; r += 2) for (let c = 2; c < C - 2; c += 2) {
+      if (!t.walk[at(c, r)]) continue;
+      const p = { x: c * T + 16, y: r * T + 16 }, d = Math.hypot(p.x - cx, p.y - cy);
+      if (d > 1000) far.push(p);
+      if (d < 420) mid.push(p);
+      spots.push(p);
+    }
+    t.runSpots = mix(far);
+    t.copSpots = mix(mid).slice(0, 4);
+    t.boxSpots = [];
+    for (const s of mix(spots)) { if (t.boxSpots.every((o) => Math.hypot(o.x - s.x, o.y - s.y) > 300)) t.boxSpots.push(s); if (t.boxSpots.length >= 40) break; }
+    return t;
+  };
 
-    // Les murs en rectangles (pour la physique), rangés dans une grille.
+  // Les murs en rectangles (pour la physique), rangés dans une grille, et les endroits où marcher.
+  function finish(t) {
+    const C = Q.COLS, R = Q.ROWS, T = Q.T, { cells, ground } = t;
+    const at = (c, r) => r * C + c;
     const used = new Uint8Array(C * R);
     t.rects = [];
     for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
@@ -127,8 +148,7 @@
       const b0 = Math.max(0, Math.floor((o.y - 40) / CELL)), b1 = Math.min(t.gh - 1, Math.floor((o.y + o.h + 40) / CELL));
       for (let b = b0; b <= b1; b++) for (let a = a0; a <= a1; a++) t.grid[b * t.gw + a].push(o);
     }
-
-    // Où peut-on marcher ? Une case sans mur autour, reliée à la place (pour les bots et les points de départ).
+    // Où peut-on marcher ? Une case sans mur autour, reliée à la rue du bord.
     const clear = new Uint8Array(C * R);
     for (let r = 1; r < R - 1; r++) for (let c = 1; c < C - 1; c++) {
       let ok = ground[at(c, r)] !== Q.JAIL;
@@ -136,28 +156,44 @@
       clear[at(c, r)] = ok ? 1 : 0;
     }
     t.walk = new Uint8Array(C * R);
-    const start = at(px - 3, py + 2), stack = [start];
+    const start = at(2, 2), stack = [start];
     t.walk[start] = 1;
     while (stack.length) {
       const i = stack.pop(), c = i % C, r = (i - c) / C;
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const n = at(c + dx, r + dy);
-        if (inside(c + dx, r + dy) && clear[n] && !t.walk[n]) { t.walk[n] = 1; stack.push(n); }
+        const a = c + dx, b = r + dy, n = at(a, b);
+        if (a >= 0 && b >= 0 && a < C && b < R && clear[n] && !t.walk[n]) { t.walk[n] = 1; stack.push(n); }
       }
     }
-    // Les départs des runners (loin de la prison) et les emplacements des gadgets (carrefours, cours, parcs, maisons).
-    const far = [], spots = [];
-    for (let r = 2; r < R - 2; r += 2) for (let c = 2; c < C - 2; c += 2) {
-      if (!t.walk[at(c, r)]) continue;
-      const d = Math.hypot(c * T - cx, r * T - cy), g = ground[at(c, r)];
-      if (d > 800) far.push({ x: c * T + 16, y: r * T + 16 });
-      if (d > 380 && g !== Q.PLAZA) spots.push({ x: c * T + 16, y: r * T + 16 });
-    }
-    t.runSpots = mix(far);
-    t.boxSpots = [];
-    for (const s of mix(spots)) { if (t.boxSpots.every((o) => Math.hypot(o.x - s.x, o.y - s.y) > 300)) t.boxSpots.push(s); if (t.boxSpots.length >= 26) break; }
-    t.flows = new Map();
-    return t;
+    t.flows.clear();
+  }
+
+  // Où tombe la prison si le gardien la pose ici ? (coin haut-gauche, en cases ; elle reste dans le quartier)
+  Q.prisonSpot = function (x, y) {
+    const m = Q.MARGIN + 2;
+    return { c: Math.max(m, Math.min(Q.COLS - Q.PW - m, Math.round(x / Q.T - Q.PW / 2))), r: Math.max(m, Math.min(Q.ROWS - Q.PH - m, Math.round(y / Q.T - Q.PH / 2))) };
+  };
+  // Le gardien pose la prison : on dégage une place, on construit, on place les 2 boutons.
+  Q.prisonAt = function (t, c0, r0) {
+    const C = Q.COLS, T = Q.T, M = Q.MARGIN, { cells, ground } = t;
+    const put = (a, x0, y0, x1, y1, v) => { for (let r = y0; r < y1; r++) for (let c = x0; c < x1; c++) a[r * C + c] = v; };
+    // Une voiture touchée par la place disparaît en entier.
+    t.cars = t.cars.filter((o) => {
+      const hit = o.c + o.w > c0 - M && o.c < c0 + Q.PW + M && o.r + o.h > r0 - M && o.r < r0 + Q.PH + M;
+      if (hit) put(cells, o.c, o.r, o.c + o.w, o.r + o.h, 0);
+      return !hit;
+    });
+    put(cells, c0 - M, r0 - M, c0 + Q.PW + M, r0 + Q.PH + M, 0);
+    put(ground, c0 - M, r0 - M, c0 + Q.PW + M, r0 + Q.PH + M, Q.PLAZA);
+    put(cells, c0, r0, c0 + Q.PW, r0 + Q.PH, 5);
+    put(cells, c0 + 1, r0 + 1, c0 + Q.PW - 1, r0 + Q.PH - 1, 0);
+    put(ground, c0, r0, c0 + Q.PW, r0 + Q.PH, Q.JAIL);
+    const cx = (c0 + Q.PW / 2) * T, cy = (r0 + Q.PH / 2) * T;
+    t.prison = { c: c0, r: r0, x: c0 * T, y: r0 * T, w: Q.PW * T, h: Q.PH * T, cx, cy };
+    t.buttons = [{ id: 0, x: (c0 - 2) * T, y: cy }, { id: 1, x: (c0 + Q.PW + 2) * T, y: cy }];
+    t.jailSpots = []; for (let i = 0; i < 8; i++) t.jailSpots.push({ x: (c0 + 2.5 + (i % 4) * 2.3) * T, y: (r0 + 2.5 + Math.floor(i / 4) * 3) * T });
+    t.freeSpots = []; for (let i = 0; i < 8; i++) t.freeSpots.push({ x: (c0 + 1.5 + (i % 4) * 3) * T, y: i < 4 ? (r0 - 2) * T : (r0 + Q.PH + 2) * T });
+    finish(t);
   };
 
   // Les murs proches d'un point.
@@ -165,12 +201,12 @@
     const a = Math.floor(x / CELL), b = Math.floor(y / CELL);
     return a < 0 || b < 0 || a >= t.gw || b >= t.gh ? [] : t.grid[b * t.gw + a];
   };
-  // Y a-t-il un obstacle pour un tir sur ce point ? (les clôtures laissent passer)
+  // Y a-t-il un obstacle pour un tir sur ce point ? (les clôtures et les poubelles laissent passer)
   Q.blocksShot = function (t, x, y) {
     const c = Math.floor(x / Q.T), r = Math.floor(y / Q.T);
     if (c < 0 || r < 0 || c >= Q.COLS || r >= Q.ROWS) return true;
     const v = t.cells[r * Q.COLS + c];
-    return v !== 0 && v !== 2;
+    return v !== 0 && v !== 2 && v !== 8;
   };
   // Jusqu'où va un tir ? Renvoie la distance parcourue avant un mur (au plus max).
   Q.ray = function (t, x, y, a, max) {

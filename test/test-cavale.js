@@ -24,21 +24,30 @@ console.log("— Quartier —");
   for (let s = 0; s < 80; s++) {
     const t = Q.build(s * 7919);
     const on = (p) => t.walk[Math.floor(p.y / Q.T) * Q.COLS + Math.floor(p.x / Q.T)];
-    if (![...t.buttons, ...t.copSpots, ...t.freeSpots, ...t.runSpots.slice(0, 20), ...t.boxSpots].every(on)) ok = false;
-    if (t.runSpots.length < 40 || t.boxSpots.length < 16) ok = false;
+    const p = Q.prisonSpot((s * 523) % Q.W, (s * 311) % Q.H);
+    Q.prisonAt(t, p.c, p.r);
+    if (![...t.buttons, ...t.freeSpots, ...t.runSpots.slice(0, 20).filter(on)].every(on)) ok = false;
+    if (t.copSpots.length < 3) ok = false;
+    if (t.runSpots.length < 40 || t.boxSpots.length < 24 || t.cars.length < 15) ok = false;
     if (t.ground.includes(Q.FLOOR)) houses++;
     walls = Math.min(walls, t.cells.filter((v) => v).length / t.cells.length);
   }
-  check(ok, "80 quartiers : boutons, départs et caisses tous accessibles");
+  check(ok, "80 quartiers, prison posée n'importe où : boutons et sorties accessibles, voitures garées");
   check(houses >= 70, `Des maisons à traverser (${houses}/80 quartiers)`);
   check(walls > 0.08, `Le quartier n'est pas vide (au moins ${Math.round(walls * 100)} % de murs)`);
-  const t = Q.build(5), P = t.prison;
+  const t = Q.build(5);
+  check(t.prison === null && t.buttons.length === 0, "Au début, pas de prison : c'est un gardien qui la pose");
+  const sp = Q.prisonSpot(99999, -50);
+  check(sp.c + Q.PW < Q.COLS && sp.r > 0, "La prison reste dans le quartier, même posée dans un coin");
+  Q.prisonAt(t, 40, 30);
+  const P = t.prison;
   const inside = t.jailSpots[0], out = t.buttons[0];
   check(!t.walk[Math.floor(inside.y / Q.T) * Q.COLS + Math.floor(inside.x / Q.T)], "La prison n'est pas reliée au quartier");
   check(t.buttons.length === 2 && t.buttons[0].x < P.x && t.buttons[1].x > P.x + P.w, "2 boutons, de chaque côté de la prison");
   check(!Q.sees(t, inside, out), "On ne tire pas à travers les murs de la prison");
   const f = Q.flow(t, t.buttons[1].x, t.buttons[1].y), p = Q.next(t, f, t.runSpots[0].x, t.runSpots[0].y);
   check(p && p.left > 0, "Les bots trouvent un chemin jusqu'au bouton");
+  check(Q.near(t, P.x - 20, P.cy).every((o) => o.x + o.w <= P.x + 1 || o.x >= P.x - 1), "Une place dégagée autour de la prison");
   check(copCount(3) === 1 && copCount(4) === 1 && copCount(5) === 1 && copCount(6) === 2 && copCount(8) === 2, "1 flic jusqu'à 5 joueurs, puis 2");
   check(ROUND_MS === 120000 && RANGE > 200, "Manche de 2 min");
 }
@@ -76,15 +85,16 @@ async function run() {
   check(game.heroes.filter((h) => h.role === "cop").length === 1, "1 flic, 3 runners");
   const round1Cop = game.heroes.find((h) => h.role === "cop").id;
   await waitFor(() => game.phase === "play", 5000);
-  const cop = game.heroes.find((h) => h.role === "cop");
-  await wait(600);
-  const c2 = game.heroes.find((h) => h.role === "cop");
-  check(game.copWait > 0 && c2.lock && Math.hypot(c2.x - cop.x, c2.y - cop.y) < 1, "Le flic attend 5 s (les runners partent avant)");
+  check(game.prison === null && game.heroes.find((h) => h.id === game.warden)?.role === "cop", "Un gardien doit poser la prison");
+  if (game.warden === me) { await wait(300); socket.emit("gameAction", { type: "in", data: { s: 1, k: K.DASH, a: 0 } }); }
+  await waitFor(() => game.prison, 11000);
+  check(!!game.prison, `La prison est posée (case ${game.prison?.c}, ${game.prison?.r})`);
   // Je cours en calculant de mon côté, comme le navigateur : le serveur doit trouver pareil.
   await waitFor(() => game.copWait <= 0, 6000);
-  let seq = 0;
+  let seq = 5;
   const m0 = game.heroes.find((h) => h.id === me);
   const t = Q.build(game.seed);
+  Q.prisonAt(t, game.prison.c, game.prison.r);
   const pred = H.copy(m0); pred.stun = 0;
   const keys = [K.UP, K.UP | K.LEFT, K.LEFT, K.DOWN | K.LEFT, K.DOWN, K.RIGHT];
   let stepN = 0, worst = 0;

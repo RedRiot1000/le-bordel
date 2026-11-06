@@ -817,11 +817,13 @@ Scotty trouvait certaines descriptions trop complexes. Règle : la carte du jeu 
 
 Inspiré du mode Cops and Runners de Garry's Mod. Jeu à pied, vue de dessus, 3 à 8 joueurs, en équipes qui tournent.
 - **Équipes** : 1 flic jusqu'à 5 joueurs, 2 ensuite. Les rôles tournent à chaque manche, chacun joue flic à son tour. 4 manches de 2 min par défaut.
-- **Quartier** (`public/games/cavale/quartier.js`, globalThis.Quartier, partagé serveur + navigateur) : tiré d'une seed, en cases de 32 px, 80 × 54. Rues de 4 cases, ruelles, maisons à traverser, cours clôturées (on tire à travers), parcs, immeubles. Prison sur une place au milieu.
+- **Quartier** (`public/games/cavale/quartier.js`, globalThis.Quartier, partagé serveur + navigateur) : tiré d'une seed, en cases de 32 px, 104 × 70. Rues de 4 cases, ruelles, maisons à traverser, cours clôturées (on tire à travers), parcs, immeubles, voitures garées et poubelles. Dessin réaliste : asphalte, passages piétons, bordures, toits variés avec machines, ombres portées, lampadaires.
+- **Prison** : un gardien (le premier flic de la manche) la pose où il veut, clic ou Espace, avec un aperçu au sol. Il a 10 s, sinon elle se pose à ses pieds. `Q.prisonAt` dégage une place de 4 cases autour (bâtiments et voitures disparaissent). Le taser ne marche qu'une fois la prison posée et les 5 s passées.
+- **Vitesse** : ×1,8 (414 px/s) à la demande de Scotty, sprint ×1,4.
 - **Déroulé** : les runners partent 5 s avant les flics. Le taser (clic gauche, tir instantané, portée 340 px, recharge 5 s) sonne le runner 1,5 s ; le flic reste figé 0,4 s après un tir ; il doit toucher le runner sonné pour l'envoyer en prison. Un runner libre reste 2 s sur un des 2 boutons : tout le monde est libéré, protégé 2 s, boutons rechargés en 5 s.
 - **Fin** : les flics gagnent si tous les runners sont en prison, les runners s'ils tiennent 2 min.
-- **Anti-camping** : un flic qui reste 5 s près de la prison (330 px) ralentit de 45 %.
-- **Gadgets** : caisses jaunes (16, retour en 10 s), un seul à la fois, Espace / E / clic droit. Runners : sprint, fumigène (bloque les tirs et la vue), peau de banane. Flics : sprint, barrage (8 s), taser rapide (10 s, recharge 1,5 s).
+- **Anti-camping** : un flic qui reste 5 s près de la prison (420 px) ralentit de 45 %.
+- **Gadgets** : caisses jaunes (24, retour en 10 s), un seul à la fois, Espace / E / clic droit. Runners : sprint, fumigène (bloque les tirs et la vue), peau de banane. Flics : sprint, barrage (8 s), taser rapide (10 s, recharge 1,5 s).
 - **Points** : +2 par arrestation, +3 par libération, +3 si libre à la fin, +2 pour l'équipe gagnante.
 - **Écart avec la proposition** : 2 flics au plus (3 à 8 joueurs les rendaient trop forts), portée 340 au lieu de 380, stun 1,5 s au lieu de 2 s, recharge 5 s au lieu de 4 s et 0,4 s de recul, pour équilibrer d'après les simulations.
 - **Bots** : chemin par carte des distances. Le flic ne poursuit que ceux qu'il voit (520 px), sinon il va où il les a perdus ou fait sa ronde. Le runner fuit, ramasse des gadgets et va aux boutons non gardés.
