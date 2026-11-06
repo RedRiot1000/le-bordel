@@ -750,6 +750,22 @@ Choix : labyrinthe vertical, routes rapide/risquée ou lente/sûre, caméra zoom
 - **Écran** : caméra zoomée ×1,4 qui suit dans les 2 sens (spectateur : le plus haut en vie), couloirs clairs et murs sombres avec bord clair, hauteur en gros à gauche, distance à la lave, barre de position à droite.
 - **Bots** : à chaque étage, ils choisissent une route selon leur goût du risque et la suivent point par point, avec des pauses.
 
+## 7 tervicies. Cambrioleurs 💰 — validé (« Go »)
+
+Lampe torche et La Nuit du Tueur ont été retirés (trop lents, rôles déséquilibrés ; le code reste dans l'historique Git). Le manoir est gardé (`public/games/manoir/`) pour ce jeu, où tout le monde joue à égalité.
+- **Principe** : chacun pour soi dans le même manoir, une camionnette par joueur dans le jardin de devant. Manche de 2 min 30, classement à l'argent (10, 7, 5, 3, 2, 1).
+- **Manoir** : `M.build(seed, n, { small: true })`, plus petit, tout éclairé (le décor de nuit est peint plus clair), portes ouvertes, escaliers et passages secrets gardés.
+- **Butin** (`public/games/casse/loot.js`) : un seul objet à la fois, ramassé en passant dessus, déposé en arrivant à sa camionnette. Argenterie 100 $ (vitesse ×1,05), vase 300 $ (×0,9), tableau 600 $ (×0,72), coffre 1 500 $ (×0,5) ; mains vides ×1,15. Nouveaux objets toutes les 2,5 s.
+- **Pousser** (Espace) : fait lâcher l'objet, n'importe qui peut le ramasser (1,2 s de délai pour celui qui l'a lâché).
+- **Gardiens** : 2 à 4, vitesse ×0,82, voient à 240 px (pas à travers les murs), préfèrent ceux qui portent. Attrapé = objet lâché, sonné 2 s, puis 3,5 s de tranquillité.
+- **Coffre-fort** : un par 40 s, annoncé avec sa pièce. **Alarme** : les 30 dernières secondes, le butin déposé vaut double.
+- **Écran** : caméra qui suit, classement en direct, mini-carte (gros objets, gardiens, ma camionnette), flèche vers ma camionnette quand je porte, annonces en bas à gauche.
+- **Bots** : meilleur objet selon valeur et distance, retour à la camionnette, poussent ceux qui portent à côté d'eux.
+
+### Temps de réflexion doublés
+
+Demande de Scotty : Classement, Pense pareil, 2 vérités 1 mensonge, Sur 10 et Qui de nous ? laissent environ 2 fois plus de temps (écrire, classer, voter, choisir le thème).
+
 ## 8. Feuille de route
 
 | Phase | Contenu | Objectif |

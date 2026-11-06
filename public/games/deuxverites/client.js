@@ -105,8 +105,8 @@
           `<button class="cat-chip ${s.themes === v ? "on" : ""}" data-themes="${v}" ${host ? "" : "disabled"}>${label}</button>`).join("")}
       </div></div>
       <div class="setting-block"><label>Manches (1 thème par manche)</label>${chips("rounds", [[1, "1"], [2, "2"], [3, "3"]])}</div>
-      <div class="setting-block"><label>Temps pour écrire</label>${chips("writeTime", [[60, "60 s"], [90, "90 s"], [120, "2 min"]])}</div>
-      <div class="setting-block"><label>Temps pour voter (par joueur)</label>${chips("guessTime", [[20, "20 s"], [25, "25 s"], [35, "35 s"]])}</div>
+      <div class="setting-block"><label>Temps pour écrire</label>${chips("writeTime", [[120, "2 min"], [180, "3 min"], [240, "4 min"]])}</div>
+      <div class="setting-block"><label>Temps pour voter (par joueur)</label>${chips("guessTime", [[35, "35 s"], [50, "50 s"], [70, "70 s"]])}</div>
       ${host ? "" : '<p class="settings-note">Seul l\'hôte peut modifier les réglages.</p>'}`;
     if (host) panel.querySelectorAll("[data-key]").forEach((b) => {
       b.onclick = () => api.action("settings", { settings: { [b.dataset.key]: Number(b.dataset.v) } });

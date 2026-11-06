@@ -37,8 +37,8 @@ async function run() {
   const picked = await emit("pickGame", { gameId: "deuxverites" });
   await wait(200);
   check(picked.ok && game?.phase === "setup", "« 2 vérités, 1 mensonge » se lance");
-  check(game.settings.rounds === 2 && game.settings.writeTime === 90 && game.settings.guessTime === 25 && game.settings.themes === "joueurs", "Par défaut : 2 manches, 90 s, 25 s, chacun choisit son thème");
-  await act("settings", { settings: { rounds: 1, writeTime: 60, guessTime: 20 } });
+  check(game.settings.rounds === 2 && game.settings.writeTime === 180 && game.settings.guessTime === 50 && game.settings.themes === "joueurs", "Par défaut : 2 manches, 180 s, 50 s, chacun choisit son thème");
+  await act("settings", { settings: { rounds: 1, writeTime: 120, guessTime: 35 } });
   await act("start");
   await wait(200);
   check(game.phase === "write" && !!game.theme?.title && !!game.theme.hint, `Thème : « ${game.theme.title} »`);

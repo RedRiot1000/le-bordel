@@ -1,0 +1,6 @@
+/* CAMBRIOLEURS — styles (le reste vient de patate.css et chat.css : .pt-*, .ch-*) */
+#ca-canvas {
+  display: block; width: 100%; height: auto; max-height: 76vh; object-fit: contain;
+  border-radius: var(--radius); border: 3px solid rgba(90, 220, 140, 0.45); box-shadow: var(--shadow);
+}
+.pt-arena-wrap.over #ca-canvas { display: none; }

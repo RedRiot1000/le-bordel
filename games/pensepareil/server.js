@@ -29,7 +29,7 @@ const GUESSES = ["Je sais pas", "Aucune idée", "Pizza", "Chat", "Rouge", "Paris
 
 function defaultSettings() {
   // themes : "joueurs" = chacun écrit ses thèmes au début (défaut) · "banque" = thèmes tout prêts
-  return { rounds: 8, answerTime: 30, themes: "joueurs" };
+  return { rounds: 8, answerTime: 60, themes: "joueurs" };
 }
 
 export const playlist = {
@@ -167,7 +167,7 @@ export function createGame(ctx) {
     g.proposals = {};
     g.perPlayer = Math.max(1, Math.min(3, Math.ceil(g.settings.rounds / g.who.length)));
     g.phase = "propose";
-    const ms = (30 + 20 * g.perPlayer) * 1000;
+    const ms = (60 + 40 * g.perPlayer) * 1000;
     g.deadline = now() + ms;
     g.timer = ctx.setTimeout(endPropose, ms);
     for (const id of g.who.filter(isBot)) {
@@ -299,7 +299,7 @@ export function createGame(ctx) {
       if (!ctx.isHost(pid) || g.phase !== "setup" || !settings) return;
       const s = { ...g.settings, ...settings };
       if (![5, 8, 12].includes(s.rounds)) s.rounds = 8;
-      if (![20, 30, 45].includes(s.answerTime)) s.answerTime = 30;
+      if (![45, 60, 90].includes(s.answerTime)) s.answerTime = 60;
       if (!["joueurs", "banque"].includes(s.themes)) s.themes = "joueurs";
       g.settings = s;
       ctx.saveSettings({ ...s });

@@ -27,7 +27,7 @@ const THEME_LEN = 60;
 
 function defaultSettings() {
   // themes : "joueurs" = chacun peut choisir son propre thème (défaut) · "banque" = le même thème tiré au sort pour tous
-  return { rounds: 2, writeTime: 90, guessTime: 25, themes: "joueurs" };
+  return { rounds: 2, writeTime: 180, guessTime: 50, themes: "joueurs" };
 }
 
 export const playlist = {
@@ -244,8 +244,8 @@ export function createGame(ctx) {
       if (!ctx.isHost(pid) || g.phase !== "setup" || !settings) return;
       const s = { ...g.settings, ...settings };
       if (![1, 2, 3].includes(s.rounds)) s.rounds = 2;
-      if (![60, 90, 120].includes(s.writeTime)) s.writeTime = 90;
-      if (![20, 25, 35].includes(s.guessTime)) s.guessTime = 25;
+      if (![120, 180, 240].includes(s.writeTime)) s.writeTime = 180;
+      if (![35, 50, 70].includes(s.guessTime)) s.guessTime = 50;
       if (!["joueurs", "banque"].includes(s.themes)) s.themes = "joueurs";
       g.settings = s;
       ctx.saveSettings({ ...s });

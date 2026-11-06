@@ -24,7 +24,7 @@ const FINISH_DELAY = 15000;    // playlist : temps pour lire le palmarès
 const MAX_LEN = 100;           // longueur max d'une question
 
 function defaultSettings() {
-  return { perPlayer: 1, writeTime: 45, voteTime: 15 };
+  return { perPlayer: 1, writeTime: 90, voteTime: 30 };
 }
 
 // ===================================================================
@@ -271,8 +271,8 @@ export function createGame(ctx) {
       if (!ctx.isHost(pid) || g.phase !== "setup" || !settings) return;
       const s = { ...g.settings, ...settings };
       if (![1, 2, 3].includes(s.perPlayer)) s.perPlayer = 1;
-      if (![30, 45, 60].includes(s.writeTime)) s.writeTime = 45;
-      if (![10, 15, 20].includes(s.voteTime)) s.voteTime = 15;
+      if (![60, 90, 120].includes(s.writeTime)) s.writeTime = 90;
+      if (![20, 30, 40].includes(s.voteTime)) s.voteTime = 30;
       g.settings = s;
       ctx.saveSettings({ ...s });
       ctx.update();

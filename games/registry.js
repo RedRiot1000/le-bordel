@@ -20,8 +20,7 @@ import * as deuxverites from "./deuxverites/server.js";
 import * as sol from "./sol/server.js";
 import * as territoire from "./territoire/server.js";
 import * as neige from "./neige/server.js";
-import * as lampe from "./lampe/server.js";
-import * as tueur from "./tueur/server.js";
+import * as casse from "./casse/server.js";
 import * as colline from "./colline/server.js";
 import * as parkour from "./parkour/server.js";
 import * as course from "./course/server.js";
@@ -45,8 +44,7 @@ export const GAMES = {
   [sol.meta.id]: sol,
   [territoire.meta.id]: territoire,
   [neige.meta.id]: neige,
-  [lampe.meta.id]: lampe,
-  [tueur.meta.id]: tueur,
+  [casse.meta.id]: casse,
   [colline.meta.id]: colline,
   [parkour.meta.id]: parkour,
   [course.meta.id]: course,

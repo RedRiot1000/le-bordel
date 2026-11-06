@@ -21,7 +21,7 @@ export const meta = {
   pausable: true,      // jeu de réflexion : l'hôte (ou la moitié des joueurs) peut mettre en pause
 };
 
-const THEME_MS = 15000;        // vote du thème
+const THEME_MS = 30000;        // vote du thème
 const REVEAL_MS = 10000;       // révélation d'un joueur
 const FINISH_DELAY = 15000;    // playlist : temps pour lire le classement
 const MAX_LEN = 80;            // longueur max d'un indice
@@ -30,7 +30,7 @@ const MAX_LEN = 80;            // longueur max d'un indice
 export const pointsFor = (diff) => (diff === 0 ? 3 : diff === 1 ? 2 : diff === 2 ? 1 : 0);
 
 function defaultSettings() {
-  return { rounds: 3, writeTime: 60, guessTime: 20 };
+  return { rounds: 3, writeTime: 120, guessTime: 40 };
 }
 
 // ===================================================================
@@ -303,8 +303,8 @@ export function createGame(ctx) {
       if (!ctx.isHost(pid) || g.phase !== "setup" || !settings) return;
       const s = { ...g.settings, ...settings };
       if (![1, 2, 3, 5].includes(s.rounds)) s.rounds = 3;
-      if (![45, 60, 90].includes(s.writeTime)) s.writeTime = 60;
-      if (![15, 20, 30].includes(s.guessTime)) s.guessTime = 20;
+      if (![90, 120, 180].includes(s.writeTime)) s.writeTime = 120;
+      if (![30, 40, 60].includes(s.guessTime)) s.guessTime = 40;
       g.settings = s;
       ctx.saveSettings({ ...s });
       ctx.update();

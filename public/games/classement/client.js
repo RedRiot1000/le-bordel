@@ -19,7 +19,7 @@
   const playerOf = (id) => st?.players.find((p) => p.id === id);
   const pseudoOf = (id) => playerOf(id)?.pseudo || "?";
   const N = 5;
-  const PICK_S = 15;
+  const PICK_S = 30;
 
   window.GAMES.classement = {
     mount(rootEl, hubApi) {
@@ -103,7 +103,7 @@
       `<button class="cat-chip ${s[key] === v ? "on" : ""}" data-key="${key}" data-v="${v}" ${host ? "" : "disabled"}>${label}</button>`).join("")}</div>`;
     panel.innerHTML = `
       <div class="setting-block"><label>Chacun est juge</label>${chips("laps", [[1, "1 fois"], [2, "2 fois"]])}</div>
-      <div class="setting-block"><label>Temps pour classer</label>${chips("rankTime", [[30, "30 s"], [45, "45 s"], [60, "60 s"]])}</div>
+      <div class="setting-block"><label>Temps pour classer</label>${chips("rankTime", [[60, "60 s"], [90, "90 s"], [120, "2 min"]])}</div>
       ${host ? "" : '<p class="settings-note">Seul l\'hôte peut modifier les réglages.</p>'}`;
     if (host) panel.querySelectorAll("[data-key]").forEach((b) => {
       b.onclick = () => api.action("settings", { settings: { [b.dataset.key]: Number(b.dataset.v) } });

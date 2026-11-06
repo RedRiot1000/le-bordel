@@ -42,11 +42,11 @@ async function run() {
   const picked = await emit("pickGame", { gameId: "sur10" });
   await wait(200);
   check(picked.ok && game?.phase === "setup", "« Sur 10 » se lance à 3 joueurs");
-  check(game.settings.rounds === 3 && game.settings.writeTime === 60 && game.settings.guessTime === 20, "Par défaut : 3 manches, 60 s, 20 s");
+  check(game.settings.rounds === 3 && game.settings.writeTime === 120 && game.settings.guessTime === 40, "Par défaut : 3 manches, 120 s, 40 s");
   await act("settings", { settings: { rounds: 7 } });
   await wait(100);
   check(game.settings.rounds === 3, "Réglage invalide ramené à la valeur par défaut");
-  await act("settings", { settings: { rounds: 2, guessTime: 15 } });
+  await act("settings", { settings: { rounds: 2, guessTime: 30 } });
 
   await act("start");
   await wait(200);
@@ -57,7 +57,7 @@ async function run() {
   await act("theme", { index: 2 });   // je change d'avis
   await wait(100);
   check(game.phase !== "theme" || game.themeVote.votes[me] === 2, "On peut changer son vote");
-  await waitFor(() => game.phase === "write", 17000);
+  await waitFor(() => game.phase === "write", 33000);
   check(game.phase === "write" && choices.includes(game.theme.title), `Thème choisi : « ${game.theme.title} »`);
 
   check(!!(await act("write", { clue: "Raclette" })).error, "Sans note : refusé");
@@ -66,13 +66,13 @@ async function run() {
   const w = await act("write", { note: 7, clue: "  Ma   super   réponse  " });
   check(w.ok, "Note 7 + indice envoyés");
 
-  await waitFor(() => game.phase === "guess", 15000);
+  await waitFor(() => game.phase === "guess", 130000);
   check(game.phase === "guess" && game.turn.total === 3, "Phase « on devine » : 3 joueurs à deviner");
   check(game.turn.note === undefined && !JSON.stringify(game).includes('"note":'), "La note n'est jamais envoyée avant la révélation");
 
   let sawMine = false, refusedSelf = false, refusedTwice = false, refusedBad = false, gainsOk = true;
   for (let num = 1; num <= 3; num++) {
-    await waitFor(() => game.phase === "guess" && game.turn.num === num, 20000);
+    await waitFor(() => game.phase === "guess" && game.turn.num === num, 45000);
     const t = game.turn;
     if (t.id === me) {
       sawMine = t.clue === "Ma super réponse";
@@ -82,7 +82,7 @@ async function run() {
       await act("guess", { value: 5 });
       refusedTwice = !!(await act("guess", { value: 6 })).error;
     }
-    await waitFor(() => game.phase === "reveal" && game.turn.num === num, 20000);
+    await waitFor(() => game.phase === "reveal" && game.turn.num === num, 45000);
     const r = game.turn;
     if (r.id === me && r.note !== 7) gainsOk = false;
     // Les points de chaque devineur et de l'auteur.
@@ -104,11 +104,11 @@ async function run() {
   await waitFor(() => game.phase === "theme", 5000);
   check(game.phase === "theme" && game.round === 2 && !game.themeVote.choices.some((c) => c.title === game.history?.[0]?.theme), "Manche 2 : nouveau vote de thème");
   // Je ne fais rien cette manche : on avance quand même.
-  await waitFor(() => game.phase === "write", 17000);
+  await waitFor(() => game.phase === "write", 33000);
   const theme2 = game.theme.title;
   await act("write", { note: 0, clue: "Un truc nul" });
   for (let num = 1; num <= 3; num++) {
-    await waitFor(() => game.phase === "reveal" && game.turn.num === num, 30000);   // (écriture des bots + 15 s)
+    await waitFor(() => game.phase === "reveal" && game.turn.num === num, 130000);   // (écriture des bots + temps de vote)
     await act("next");
   }
   await waitFor(() => game.phase === "over", 5000);
@@ -128,4 +128,4 @@ async function run() {
 }
 
 run().catch((e) => { console.error(e); process.exit(1); });
-setTimeout(() => { console.log("⏰ Trop long"); process.exit(1); }, 200000);
+setTimeout(() => { console.log("⏰ Trop long"); process.exit(1); }, 560000);

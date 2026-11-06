@@ -21,7 +21,7 @@
   const playerOf = (id) => st?.players.find((p) => p.id === id);
   const pseudoOf = (id) => playerOf(id)?.pseudo || "?";
   const DRUM_MS = 1300;          // suspense avant d'afficher la vraie note
-  const THEME_S = 15;
+  const THEME_S = 30;
 
   window.GAMES.sur10 = {
     mount(rootEl, hubApi) {
@@ -109,8 +109,8 @@
       `<button class="cat-chip ${s[key] === v ? "on" : ""}" data-key="${key}" data-v="${v}" ${host ? "" : "disabled"}>${label}</button>`).join("")}</div>`;
     panel.innerHTML = `
       <div class="setting-block"><label>Manches (1 thème par manche)</label>${chips("rounds", [[1, "1"], [2, "2"], [3, "3"], [5, "5"]])}</div>
-      <div class="setting-block"><label>Temps pour la note + l'indice</label>${chips("writeTime", [[45, "45 s"], [60, "60 s"], [90, "90 s"]])}</div>
-      <div class="setting-block"><label>Temps pour deviner (par joueur)</label>${chips("guessTime", [[15, "15 s"], [20, "20 s"], [30, "30 s"]])}</div>
+      <div class="setting-block"><label>Temps pour la note + l'indice</label>${chips("writeTime", [[90, "90 s"], [120, "2 min"], [180, "3 min"]])}</div>
+      <div class="setting-block"><label>Temps pour deviner (par joueur)</label>${chips("guessTime", [[30, "30 s"], [40, "40 s"], [60, "60 s"]])}</div>
       ${host ? "" : '<p class="settings-note">Seul l\'hôte peut modifier les réglages.</p>'}`;
     if (host) panel.querySelectorAll("[data-key]").forEach((b) => {
       b.onclick = () => api.action("settings", { settings: { [b.dataset.key]: Number(b.dataset.v) } });

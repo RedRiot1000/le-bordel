@@ -101,7 +101,7 @@
           `<button class="cat-chip ${s.themes === v ? "on" : ""}" data-themes="${v}" ${host ? "" : "disabled"}>${label}</button>`).join("")}
       </div></div>
       <div class="setting-block"><label>Nombre de thèmes</label>${chips("rounds", [[5, "5"], [8, "8"], [12, "12"]])}</div>
-      <div class="setting-block"><label>Temps pour répondre</label>${chips("answerTime", [[20, "20 s"], [30, "30 s"], [45, "45 s"]])}</div>
+      <div class="setting-block"><label>Temps pour répondre</label>${chips("answerTime", [[45, "45 s"], [60, "60 s"], [90, "90 s"]])}</div>
       ${host ? "" : '<p class="settings-note">Seul l\'hôte peut modifier les réglages.</p>'}`;
     if (host) panel.querySelectorAll("[data-key]").forEach((b) => {
       b.onclick = () => api.action("settings", { settings: { [b.dataset.key]: Number(b.dataset.v) } });
@@ -296,7 +296,7 @@
     const sec = $("pp-sec");
     if (sec) { sec.textContent = Math.ceil(left / 1000) + " s"; sec.classList.toggle("urgent", st.phase === "answer" && left <= 5000); }
     const bar = $("pp-bar");
-    const total = st.phase === "answer" ? st.settings.answerTime : st.phase === "propose" ? 30 + 20 * (st.perPlayer || 1) : 20;
+    const total = st.phase === "answer" ? st.settings.answerTime : st.phase === "propose" ? 60 + 40 * (st.perPlayer || 1) : 20;
     if (bar) bar.style.width = Math.min(100, (100 * left) / (total * 1000)) + "%";
   }
 })();

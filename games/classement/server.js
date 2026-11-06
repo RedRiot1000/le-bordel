@@ -21,7 +21,7 @@ export const meta = {
   pausable: true,      // jeu de réflexion : l'hôte (ou la moitié des joueurs) peut mettre en pause
 };
 
-const PICK_MS = 15000;        // le juge choisit le thème
+const PICK_MS = 30000;        // le juge choisit le thème
 const REVEAL_MS = 14000;      // révélation d'une manche
 const FINISH_DELAY = 15000;   // playlist : temps pour lire le classement
 export const N = 5;           // nombre de choses à classer
@@ -43,7 +43,7 @@ export function endsOf(scale) {
 }
 
 function defaultSettings() {
-  return { laps: 1, rankTime: 45 };
+  return { laps: 1, rankTime: 90 };
 }
 
 // ===================================================================
@@ -254,7 +254,7 @@ export function createGame(ctx) {
       if (!ctx.isHost(pid) || g.phase !== "setup" || !settings) return;
       const s = { ...g.settings, ...settings };
       if (![1, 2].includes(s.laps)) s.laps = 1;
-      if (![30, 45, 60].includes(s.rankTime)) s.rankTime = 45;
+      if (![60, 90, 120].includes(s.rankTime)) s.rankTime = 90;
       g.settings = s;
       ctx.saveSettings({ ...s });
       ctx.update();

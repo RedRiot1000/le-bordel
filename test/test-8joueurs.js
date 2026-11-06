@@ -58,12 +58,11 @@ const GAMES = {
   sol: () => game.heroes?.length === 8,
   territoire: () => game.heroes?.length === 8,
   neige: () => game.heroes?.length === 8 && game.teamsMode,
-  lampe: () => game.heroes?.length === 8 && game.heroes.filter((h) => h.ghost).length === 1,
   colline: () => game.heroes?.length === 8,
   parkour: () => game.runners?.length === 8 && game.lanes?.length === 8,
   course: () => game.cars?.length === 8 && game.phase === "pick",
   tour: () => game.runners?.length === 8,
-  tueur: () => game.heroes?.length === 8 && game.heroes.filter((h) => h.killer).length === 1 && game.rounds === 8,
+  casse: () => game.heroes?.length === 8 && game.vans?.length === 8,
 };
 
 async function run() {

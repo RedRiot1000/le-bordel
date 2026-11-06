@@ -93,8 +93,8 @@
       `<button class="cat-chip ${s[key] === v ? "on" : ""}" data-key="${key}" data-v="${v}" ${host ? "" : "disabled"}>${label}</button>`).join("")}</div>`;
     panel.innerHTML = `
       <div class="setting-block"><label>Questions par joueur</label>${chips("perPlayer", [[1, "1"], [2, "2"], [3, "3"]])}</div>
-      <div class="setting-block"><label>Temps pour écrire</label>${chips("writeTime", [[30, "30 s"], [45, "45 s"], [60, "60 s"]])}</div>
-      <div class="setting-block"><label>Temps pour voter (par question)</label>${chips("voteTime", [[10, "10 s"], [15, "15 s"], [20, "20 s"]])}</div>
+      <div class="setting-block"><label>Temps pour écrire</label>${chips("writeTime", [[60, "60 s"], [90, "90 s"], [120, "2 min"]])}</div>
+      <div class="setting-block"><label>Temps pour voter (par question)</label>${chips("voteTime", [[20, "20 s"], [30, "30 s"], [40, "40 s"]])}</div>
       ${host ? "" : '<p class="settings-note">Seul l\'hôte peut modifier les réglages.</p>'}`;
     if (host) panel.querySelectorAll("[data-key]").forEach((b) => {
       b.onclick = () => api.action("settings", { settings: { [b.dataset.key]: Number(b.dataset.v) } });

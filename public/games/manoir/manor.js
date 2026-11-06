@@ -196,7 +196,7 @@
     furniture.push(...placed);
   }
 
-  M.build = function (seed, nPlayers) {
+  M.build = function (seed, nPlayers, opts = {}) {
     const rnd = seeded(seed);
     const { CW, CH, T } = M;
     const out = { walls: [], doors: [], windows: true };
@@ -204,7 +204,8 @@
     // Le jardin : devant (en bas) + sur UN côté (gauche ou droite). Derrière et de l'autre côté : rien.
     const sideLeft = rnd() < 0.5;
     const SD = 460, FD = 520;   // largeur du jardin de côté, profondeur du jardin de devant
-    const gx = 8 + Math.ceil(nPlayers * 0.9), gy = nPlayers >= 5 ? 7 : 6;
+    // opts.small : un manoir plus petit, où l'on se croise tout le temps.
+    const gx = opts.small ? 7 + Math.ceil(nPlayers * 0.4) : 8 + Math.ceil(nPlayers * 0.9), gy = opts.small ? 5 : nPlayers >= 5 ? 7 : 6;
     const MWp = gx * CW + T, MHp = gy * CH + T;
     const MX = sideLeft ? SD : 0, MY = 0;
     const cr = 2 + Math.floor(rnd() * (gy - 4));                  // la rangée du long couloir
@@ -410,7 +411,7 @@
     m.rects.forEach((r, i) => (r.i = i));
     m.nav = navGrid(m);
     // Pas d'escalier utilisable (la cave serait inaccessible) : on tire un autre manoir.
-    if (!m.portals.some((p) => p.kind === "stairs")) return M.build((seed + 7919) >>> 0, nPlayers);
+    if (!m.portals.some((p) => p.kind === "stairs")) return M.build((seed + 7919) >>> 0, nPlayers, opts);
     return m;
   };
 

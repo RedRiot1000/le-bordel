@@ -336,6 +336,25 @@
       ],
       example: "La lave est proche : tu prends le puits, tu rebondis de mur en mur en évitant les piques et tu gagnes un étage d'un coup. Bob prend le zigzag, plus sûr mais plus long, et la lave le rattrape. Tu es le dernier en vie : <b>10 points</b>.",
     },
+    casse: {
+      goal: "Avoir le plus gros butin à la fin de la manche : pille le manoir et ramène tout à ta camionnette.",
+      steps: [
+        "Tout le monde cambriole <b>le même manoir</b>, chacun pour soi. Chaque joueur a <b>sa camionnette</b> dans le jardin.",
+        "Tu ramasses un objet en <b>passant dessus</b>, et tu le déposes en arrivant à ta camionnette. Un seul objet à la fois : <b>plus il vaut cher, plus tu es lent</b>.",
+        "🥄 Argenterie 100 $ · 🏺 Vase 300 $ · 🖼️ Tableau 600 $ · 💎 Coffre-fort 1 500 $.",
+        "<kbd>Espace</kbd> : <b>pousser</b>. Celui que tu touches <b>lâche son objet</b>, et n'importe qui peut le ramasser.",
+        "👮 Les <b>gardiens</b> patrouillent : s'ils t'attrapent, tu lâches ton objet et tu es sonné 2 s. Ils courent moins vite que toi les mains vides, mais plus vite qu'avec un tableau.",
+        "💎 Un <b>coffre-fort</b> apparaît régulièrement, annoncé à tout le monde. 🚨 Les <b>30 dernières secondes</b>, l'alarme sonne et tout ce que tu déposes vaut <b>double</b>.",
+      ],
+      controls: [
+        "<kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> ou <kbd>ZQSD</kbd> : marcher",
+        "<kbd>Espace</kbd> : pousser · Pour les escaliers et passages secrets : marcher dans le mur",
+      ],
+      points: [
+        "Classement à l'argent de la manche : <b>10, 7, 5, 3, 2, 1</b> points.",
+      ],
+      example: "Le coffre apparaît dans la bibliothèque : tout le monde y fonce. Bob l'attrape et se traîne vers sa camionnette. Tu le rattrapes, tu le pousses, il lâche le coffre, tu le prends… et l'alarme sonne : <b>3 000 $</b> d'un coup !",
+    },
     colline: {
       goal: "Rester dans la zone dorée le plus longtemps possible, seul (ou seule ton équipe), en virant les autres à coups de batte.",
       steps: [
@@ -354,49 +373,6 @@
         "À la fin de la manche, elles sont ramenées sur <b>10 points</b> : le meilleur prend 10, les autres en proportion (une manche en équipes vaut autant qu'une manche en chacun pour soi).",
       ],
       example: "La zone va sauter près du pilier : tu cours avant les autres, tu es seul dedans, 1, 2, 3 s… Bob arrive, contesté ! Tu vises et PAF, coup de batte : il glisse hors de la zone. Tu reprends le compte jusqu'au prochain saut.",
-    },
-    tueur: {
-      goal: "Humain : rapporter les fusibles au tableau électrique pour ouvrir le portail, puis s'échapper. Tueur : tuer tout le monde avant.",
-      steps: [
-        "Il y a <b>autant de manches que de joueurs</b> : chacun est le <b>tueur</b> 🔪 une fois. Les autres sont des humains avec une lampe torche. Le manoir (celui de Lampe torche) est dans le noir, avec son jardin, sa cave et ses passages secrets.",
-        "Humains : trouvez les <b>fusibles</b> ⚡ (ils brillent un peu dans le noir, 3 ou 4 cachés dans le manoir, le jardin ou la cave) et rapportez-les un par un au <b>tableau électrique</b>. Quand tout est branché, le <b>portail du jardin s'ouvre</b> : passez-le pour vous échapper !",
-        "Le tueur tue en <b>2 coups de couteau</b> (clic). Au 1er, tu es <b>blessé</b> : un coup d'adrénaline (tu cours plus vite 2 s), puis tu ralentis et tu laisses du <b>sang</b> que le tueur voit. Au 2e, tu es mort.",
-        "Le tueur ne voit que dans son <b>cône de regard</b> (pas à travers les murs)… mais il voit les <b>lampes allumées</b> de partout et il <b>entend</b> : porte claquée, planche qui craque, pétard. Éteins ta lampe pour te faufiler !",
-        "<b>Espace</b> : claquer une porte (le tueur met 2 s à la défoncer), te <b>cacher</b> dans une armoire, un lit, un buffet (le tueur peut <b>fouiller</b> : s'il tombe sur toi, c'est un coup), allumer un lustre.",
-        "<b>Objets</b> au sol (un à la fois, clic droit ou <kbd>E</kbd>) : 🪤 piège à loup (le tueur reste coincé 3 s), 🧨 pétard (il explose plus loin et attire le tueur), 🩹 trousse (soigne la blessure).",
-        "La manche s'arrête quand tout le monde est mort ou échappé, ou à la fin du temps (3 min par défaut) : ceux encore dedans sont pris.",
-      ],
-      controls: [
-        "<kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> / flèches : bouger · 🖱️ viser",
-        "<b>Clic</b> : lampe on/off (humain) · coup de couteau (tueur)",
-        "<b>Clic droit</b> ou <kbd>E</kbd> : utiliser son objet · <kbd>Espace</kbd> : porte / cachette / lustre",
-      ],
-      points: [
-        "Humain : <b>+1</b> par fusible que tu branches, <b>+4</b> si tu t'échappes.",
-        "Tueur : <b>+1</b> par blessure, <b>+1</b> par victime.",
-      ],
-      example: "Tu portes le dernier fusible, lampe éteinte. Une planche craque sous tes pieds… le tueur arrive ! Tu claques la porte de la bibliothèque, tu poses ton piège derrière toi. BAM, la porte cède, CLAC, il est coincé. Tu branches le fusible : alarme, le portail s'ouvre, tu traverses le jardin en courant. 1 + 4 = <b>5 points</b>.",
-    },
-    lampe: {
-      goal: "Humain : survivre dans le manoir hanté jusqu'à la fin du chrono. Fantôme : toucher les humains… qui deviennent fantômes à leur tour !",
-      steps: [
-        "Un <b>manoir</b> tiré au hasard, plongé dans le <b>noir</b> : hall d'entrée, salle de bal, long couloir, chambres, cuisine, placards… Autour, un <b>jardin</b> sous la lune (haies, fontaine, cimetière). Des <b>escaliers</b> descendent à la <b>cave</b>, et des <b>passages secrets</b> (des bibliothèques contre un mur) relient deux pièces : marche dedans pour ressortir à l'autre bout.",
-        "Un joueur tiré au sort est le <b>fantôme</b> 👻, il se réveille 3 s après le départ. Invisible dans le noir, il voit dans un grand <b>cône de regard</b> (vise avec la souris) mais <b>pas à travers les murs</b>. Il voit aussi de partout les <b>lampes allumées</b>, ce qui est sous la lune ou sous un lustre, et les planches qui craquent.",
-        "Les humains voient autour d'eux et dans le <b>cône de leur lampe</b>. Un fantôme éclairé devient <b>visible et ralenti</b> ; éclairé <b>1,5 s</b> d'affilée (l'anneau jaune se remplit), il est <b>étourdi</b> 2,5 s. Sous la lune, on le devine à peine.",
-        "<b>Espace</b> près d'une <b>porte</b> : tu la claques (elle arrête aussi la lumière et le regard). Un fantôme met <b>2 s</b> à la défoncer. Près d'un <b>interrupteur</b> : le lustre éclaire la pièce 20 s (un fantôme dedans est visible et ralenti), puis il grésille et s'éteint. Ailleurs : tu <b>pousses</b>.",
-        "<b>Pièges</b> : les planches un peu plus sombres <b>craquent</b> (les fantômes te repèrent 2 s), les <b>toiles d'araignée</b> te ralentissent. Et de temps en temps, un <b>éclair</b> illumine tout le manoir… sauf la cave !",
-        "<b>Contagion</b> : chaque humain touché devient fantôme. La <b>batterie</b> se vide en 25 s : <b>clic</b> pour éteindre et te cacher, ramasse des <b>piles</b> 🔋. Quand un fantôme est tout près, l'écran tremble et rougit.",
-      ],
-      controls: [
-        "<kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> / flèches : bouger",
-        "🖱️ Souris : viser (la lampe, ou le regard du fantôme) · <b>clic</b> : lampe on / off",
-        "<kbd>Espace</kbd> : porte / interrupteur / pousser",
-      ],
-      points: [
-        "Humain : <b>+1</b> toutes les 15 s passées humain, <b>+3</b> si tu l'es encore à la fin.",
-        "Fantôme : <b>+2</b> par humain que tu touches.",
-      ],
-      example: "Tu fouilles la bibliothèque, lampe éteinte. L'écran se met à trembler : tu files dans le couloir et tu claques la porte derrière toi. BAM, BAM… elle cède ! Tu allumes le lustre de la salle de bal : le drap blanc apparaît, ralenti. Tu le gardes dans ta lampe, étourdi ! Tu fonces dans la bibliothèque du fond… passage secret, tu ressors à l'autre bout du manoir. Tu tiens jusqu'au bout : <b>9 points</b>.",
     },
     neige: {
       goal: "Toucher les autres avec tes boules de neige sans te faire toucher. Dernier debout (ou dernière équipe) gagne la manche.",

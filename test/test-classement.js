@@ -41,8 +41,8 @@ async function run() {
   const picked = await emit("pickGame", { gameId: "classement" });
   await wait(200);
   check(picked.ok && game?.phase === "setup", "« Classement » se lance à 3 joueurs");
-  check(game.settings.laps === 1 && game.settings.rankTime === 45, "Par défaut : chacun juge 1 fois, 45 s");
-  await act("settings", { settings: { rankTime: 30 } });
+  check(game.settings.laps === 1 && game.settings.rankTime === 90, "Par défaut : chacun juge 1 fois, 90 s");
+  await act("settings", { settings: { rankTime: 60 } });
   await act("start");
   await wait(200);
   check(game.phase === "pick" && game.rounds === 3 && game.choices.length === 3, "3 manches (1 juge chacune), 3 thèmes proposés");

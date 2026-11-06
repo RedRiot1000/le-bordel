@@ -41,10 +41,10 @@ async function run() {
   const picked = await emit("pickGame", { gameId: "pensepareil" });
   await wait(200);
   check(picked.ok && game?.phase === "setup", "« Pense pareil » se lance");
-  check(game.settings.rounds === 8 && game.settings.answerTime === 30 && game.settings.themes === "joueurs", "Par défaut : 8 thèmes, 30 s, thèmes écrits par les joueurs");
+  check(game.settings.rounds === 8 && game.settings.answerTime === 60 && game.settings.themes === "joueurs", "Par défaut : 8 thèmes, 60 s, thèmes écrits par les joueurs");
 
   // --- Mode « joueurs » : chacun écrit ses thèmes ---
-  await act("settings", { settings: { rounds: 5, answerTime: 20 } });
+  await act("settings", { settings: { rounds: 5, answerTime: 45 } });
   await act("start");
   await wait(200);
   check(game.phase === "propose" && game.perPlayer === 2, "Chacun écrit ses thèmes (5 thèmes / 3 joueurs = 2 chacun)");
@@ -52,13 +52,13 @@ async function run() {
   const dice = await act("random");
   check(dice.ok && PROMPTS.some((p) => p.text === dice.text), "🎲 propose un thème de la banque : " + dice.text);
   await act("propose", { texts: ["Un truc qui   flotte", "Un sport de ouf"] });
-  await waitFor(() => game.phase === "answer", 15000);
+  await waitFor(() => game.phase === "answer", 110000);
   const mineThemes = [];
   for (let r = 1; r <= 5; r++) {
-    await waitFor(() => game.phase === "answer" && game.round === r, 30000);
+    await waitFor(() => game.phase === "answer" && game.round === r, 55000);
     if (game.promptBy === me) mineThemes.push(game.prompt);
     await act("answer", { text: "Truc" });
-    await waitFor(() => game.phase === "reveal" && game.round === r, 30000);
+    await waitFor(() => game.phase === "reveal" && game.round === r, 55000);
     await act("next");
   }
   check(mineThemes.includes("Un truc qui flotte") && mineThemes.includes("Un sport de ouf"), "Mes 2 thèmes ont été joués, avec mon nom (« Thème de… »)");
@@ -75,7 +75,7 @@ async function run() {
   await act("answer", { text: "Zzz réponse unique" });
   check(game.groups === undefined && !JSON.stringify(game).includes("Zzz"), "Les réponses restent secrètes avant la révélation");
 
-  await waitFor(() => game.phase === "reveal", 25000);
+  await waitFor(() => game.phase === "reveal", 55000);
   check(game.phase === "reveal" && game.groups.length >= 1, `Révélation : ${game.groups.map((g) => g.label + " ×" + g.ids.length).join(", ")}`);
   const okGains = game.groups.every((g) => g.ids.every((id) => game.gains[id] === g.ids.length - 1));
   check(okGains, "1 point par autre joueur avec la même réponse");
@@ -98,7 +98,7 @@ async function run() {
 
   // On laisse les bots finir la partie (je ne réponds plus).
   for (let r = 2; r <= 5; r++) {
-    await waitFor(() => game.phase === "reveal" && game.round === r, 25000);
+    await waitFor(() => game.phase === "reveal" && game.round === r, 55000);
     await act("next");
   }
   await waitFor(() => game.phase === "over", 5000);
@@ -112,4 +112,4 @@ async function run() {
 }
 
 run().catch((e) => { console.error(e); process.exit(1); });
-setTimeout(() => { console.log("⏰ Trop long"); process.exit(1); }, 200000);
+setTimeout(() => { console.log("⏰ Trop long"); process.exit(1); }, 560000);
