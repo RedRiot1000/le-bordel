@@ -29,18 +29,28 @@ console.log("— Tour et perso —");
   const a = P.tower(1234), b = P.tower(1234);
   a.ensure(9000); b.ensure(9000);
   check(JSON.stringify(a.plats) === JSON.stringify(b.plats) && JSON.stringify(a.spikes) === JSON.stringify(b.spikes) && JSON.stringify(a.solids) === JSON.stringify(b.solids), "Même seed = même labyrinthe");
-  check(a.secs.every((q) => q.routes.filter((r) => r.kind === "puits").length === 1 && q.routes.filter((r) => r.kind === "zigzag").length === 2), "À chaque étage : 1 puits + 2 zigzags");
+  check(a.secs.every((q) => q.routes.length >= 2 && q.routes.length <= 3), "À chaque étage : 2 ou 3 routes");
+  {
+    const shape = (c, q, i) => { const r0 = c.rows.slice(0); const start = q.y0 / P.TILE, end = (q.y0 + q.h) / P.TILE; return r0.slice(start, end).map((r) => r.join("")).join("|"); };
+    const c = P.tower(4242); c.ensure(60000);
+    const shapes = new Set(c.secs.map((q, i) => shape(c, q, i)));
+    check(shapes.size === c.secs.length, `Tous les étages sont différents (${shapes.size}/${c.secs.length})`);
+    check(new Set(c.secs.map((q) => q.h)).size >= 4, "Des étages de hauteurs différentes");
+    const turns = new Set(c.secs.flatMap((q) => q.routes.filter((r) => r.kind === "zigzag").map((r) => r.way.length)));
+    check(turns.size >= 2, `Des zigzags plus ou moins longs (${[...turns].join(", ")} étapes)`);
+    check(c.spikes.every((k) => k.h <= 22), "Les piques sont seuls (jamais une rangée)");
+  }
   const walls = a.rows.reduce((n, r) => n + r.reduce((x, y) => x + y, 0), 0) / (a.rows.length * P.COLS);
   check(walls > 0.25, `Des murs partout (${Math.round(walls * 100)} % de la tour)`);
   check(a.solids.some((q) => q.low) && a.plats.some((p) => p.kind === "crumble") && a.spikes.some((k) => k.faces), "Plafonds bas, rebords qui s'effritent, piques sur les murs");
-  check(a.plats.length - 1 <= a.secs.length * 3, `Très peu de rebords : ${a.plats.length - 1} pour ${a.secs.length} étages (un par route)`);
+  check(a.plats.length - 1 <= a.secs.length * 3 + 1, `Très peu de rebords : ${a.plats.length - 1} pour ${a.secs.length} étages (un par route)`);
   check(a.solids.filter((q) => q.low).length >= a.secs.length * 3, `Beaucoup de passages accroupis (${a.solids.filter((q) => q.low).length} pour ${a.secs.length} étages)`);
   // Un bot termine tous les zigzags (sans lave).
   {
     const lava = P.lavaAt; P.lavaAt = () => -1e9;
     let ok = 0, all = 0;
     for (const seed of [11, 22, 33]) {
-      const c = P.tower(seed); c.ensure(6 * P.FH);
+      const c = P.tower(seed); c.ensure(9000);
       for (let n = 0; n < 6; n++) for (const route of c.secs[n].routes.filter((q) => q.kind === "zigzag")) {
         all++;
         for (let t = 0; t < 6; t++) {
@@ -48,7 +58,7 @@ console.log("— Tour et perso —");
           const r = P.newRunner(route.way[0].x); r.y = c.secs[n].y0; r.on = n ? -1 : 0;
           const ai = P.newBot(0, 0.1); ai.route = route; ai.forced = true; ai.sec = n;
           let res = null, done = false;
-          for (let i = 0; i < 750 && !res && !done; i++) { res = P.step(r, P.bot(r, ai, c), c); done = r.y >= c.secs[n].y0 + P.FH - 1; }
+          for (let i = 0; i < 750 && !done; i++) { res = P.step(r, P.bot(r, ai, c), c); done = r.y >= c.secs[n].y0 + c.secs[n].h - 1; }
           if (done) { ok++; break; }
         }
       }
@@ -97,7 +107,15 @@ console.log("— Tour et perso —");
   check(stand.x < 400 && duck.x > 510, "Plafond bas : debout on bute, accroupi on passe");
   // Piques.
   const c6 = box((c) => { const s = { x: 400, y: 0, w: 60, h: 16 }; c.spikes.push(s); for (let b = -1; b < 2; b++) c.slot(b).k.push(s); });
-  check(run(P.newRunner(300), c6, K.RIGHT, 60) === "pique", "Toucher les piques = éliminé");
+  {
+    const r6 = P.newRunner(300);
+    check(run(r6, c6, K.RIGHT, 60) === "pique" && r6.alive && r6.stun === P.STUN, "Toucher un pique : sonné, pas éliminé");
+    const x = r6.x; let moved = 0;
+    for (let i = 0; i < 58; i++) { P.step(r6, K.LEFT | K.JUMP, c6); moved = Math.max(moved, Math.abs(r6.x - x), r6.y); }
+    check(moved < 1 && r6.stun > 0, "Sonné : plus aucune commande pendant 2 s");
+    for (let i = 0; i < 12; i++) P.step(r6, K.LEFT, c6);
+    check(r6.stun === 0 && r6.x < x - 10, "Après 2 s, on repart");
+  }
   // Lave.
   const r7 = P.newRunner(300);
   check(run(r7, c0, 0, 900) === "lave", `Sans bouger, la lave t'attrape (à ${Math.round(r7.t)} s)`);

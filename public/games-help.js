@@ -25,7 +25,7 @@
         "<b>Tour d'indices</b> : chacun son tour, tu donnes <b>un mot</b> en rapport avec ton mot secret. Pas trop précis (sinon l'imposteur devine), pas trop vague (sinon on te soupçonne).",
         "Après les tours d'indices : <b>vote</b>. Clique sur la carte de celui que tu soupçonnes. Le plus voté est éliminé et son rôle est dévoilé.",
         "Si Mr White est éliminé, il a une dernière chance : <b>deviner le mot des civils</b>. S'il trouve, il gagne tout seul !",
-        "On recommence (indices → vote) jusqu'à ce qu'un camp gagne : les civils quand tous les imposteurs sont dehors, les imposteurs quand ils sont aussi nombreux que les civils.",
+        "On recommence, avec cette fois <b>un seul mot chacun</b> avant de revoter, jusqu'à ce qu'un camp gagne : les civils quand tous les imposteurs sont dehors, les imposteurs quand ils sont aussi nombreux que les civils.",
       ],
       points: [
         "Civils gagnants : <b>+2</b> chacun.",
@@ -324,7 +324,7 @@
         "La <b>lave</b> monte du bas, de plus en plus vite. Si elle te touche, tu es éliminé. L'écran rougit quand elle approche.",
         "À chaque étage, choisis ta route : le <b>puits</b> (tout droit, au saut mural, avec des piques sur les murs) ou le <b>zigzag</b> (sauts muraux et couloirs à passer accroupi, plus long mais plus sûr). Les routes se rejoignent à l'étage du dessus, il n'y a pas de cul-de-sac.",
         "<b>Saut mural</b> : contre un mur, saute pour rebondir de l'autre côté (pas deux fois de suite du même côté). Les rebords <b>orange s'effritent</b> juste après ton passage.",
-        "<b>Accroupis-toi</b> pour passer sous les plafonds bas (bande jaune et noire). Les <b>piques</b> rouges t'éliminent.",
+        "<b>Accroupis-toi</b> pour passer sous les plafonds bas (bande jaune et noire). Un <b>pique</b> rouge ne t'élimine pas, mais il te <b>sonne 2 s</b> : plus de commandes, et tu retombes si tu es en l'air.",
       ],
       controls: [
         "<kbd>←</kbd><kbd>→</kbd> / <kbd>Q</kbd><kbd>D</kbd> : courir",

@@ -44,6 +44,27 @@ async function run() {
   await wait(200);
   check(a.hub.players.length === 3, "3 joueurs dans le salon");
   check(new Set(a.hub.players.map((p) => p.color)).size === 3, "chacun a une couleur différente");
+  // Choix de la couleur.
+  {
+    const colors = a.hub.colors, bobColor = a.hub.players.find((p) => p.id === b.id).color;
+    check(colors.length >= 10, `${colors.length} couleurs au choix`);
+    const free = colors.find((col) => !a.hub.players.some((p) => p.color === col));
+    await a.emit("pickColor", { color: free });
+    await wait(100);
+    check(a.hub.players.find((p) => p.id === a.id).color === free, "Je choisis ma couleur");
+    const refused = await a.emit("pickColor", { color: bobColor });
+    check(!!refused.error, "Impossible de prendre la couleur d'un autre joueur : " + refused.error);
+    check(!!(await a.emit("pickColor", { color: "#123456" })).error, "Couleur inconnue refusée");
+    await a.emit("addBot");
+    await wait(100);
+    const bot = a.hub.players.find((p) => p.bot), old = bot.color, mine = free;
+    const ok = await a.emit("pickColor", { color: old });
+    await wait(100);
+    const after = a.hub.players.find((p) => p.id === bot.id);
+    check(ok.ok && a.hub.players.find((p) => p.id === a.id).color === old && after.color === mine, "Priorité sur les bots : le bot prend mon ancienne couleur");
+    a.send("kickPlayer", { playerId: bot.id });
+    await wait(100);
+  }
 
   const notHost = await b.emit("pickGame", { gameId: "imposter" });
   await wait(100);

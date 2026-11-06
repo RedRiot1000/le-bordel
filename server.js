@@ -38,7 +38,7 @@ app.get("/health", (_, res) => res.json({ ok: true, version: VERSION }));
 // ===================================================================
 const MAX_PLAYERS = 8;
 const POINTS = [10, 7, 5, 3, 2, 1];          // points de soirée par place
-const COLORS = ["#7c5cff", "#ff5c9d", "#38e8c8", "#ffb547", "#4ade80", "#2e9dff", "#ff4d4d", "#e5e7eb"];
+const COLORS = ["#7c5cff", "#ff5c9d", "#38e8c8", "#ffb547", "#4ade80", "#2e9dff", "#ff4d4d", "#e5e7eb", "#ffe14d", "#ff7a1a", "#a3e635", "#c026d3"];
 const HOST_GRACE_MS = 15_000;                // délai avant de passer l'hôte à un autre
 const ROOM_EMPTY_MS = 10 * 60_000;           // salon vide supprimé après 10 min
 const BOT_NAMES = ["Bernard", "Ginette", "Michel", "Josiane", "Gérard", "Huguette", "Roger", "Monique"];
@@ -99,6 +99,7 @@ function publicHub(room) {
     phase: room.phase,              // "lobby" | "next" | "game" | "podium"
     gameId: room.gameId,
     lastResult: room.lastResult,
+    colors: COLORS,
     lobbyMode: room.lobbyMode,      // "single" (un jeu) | "playlist"
     draft: room.draft,              // la playlist en préparation dans le salon
     playlist: room.playlist && { num: room.playlist.index + 1, total: room.playlist.order.length },
@@ -616,6 +617,20 @@ io.on("connection", (socket) => {
     room.playlist.index++;
     if (room.playlist.index >= room.playlist.order.length) endPlaylist(room);
     else startNext(room);
+  });
+
+  // --- Un joueur choisit sa couleur (dans le salon). Priorité sur les bots ; pas celle d'un autre joueur. ---
+  socket.on("pickColor", ({ color } = {}, callback) => {
+    const room = roomOf();
+    const me = room && findPlayer(room, socket.data.playerId);
+    if (!me || room.phase === "game") return callback?.({ error: "Pas pendant une partie." });
+    if (!COLORS.includes(color)) return callback?.({ error: "Couleur inconnue." });
+    const other = room.players.find((p) => p.color === color && p.id !== me.id);
+    if (other && !other.bot) return callback?.({ error: `${other.pseudo} a déjà cette couleur.` });
+    if (other) other.color = me.color;     // le bot prend mon ancienne couleur
+    me.color = color;
+    callback?.({ ok: true });
+    sendHub(room);
   });
 
   // --- L'hôte ajoute un bot (pour tester seul ou compléter une partie) ---

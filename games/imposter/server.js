@@ -464,8 +464,8 @@ export function createGame(ctx) {
     if (impN === 0) return endRound("civils");
     if (impN >= civN) return endRound("impostors");
 
-    // On continue : nouveau cycle d'indices.
-    r.clueRoundsTarget = g.settings.clueRounds;
+    // On continue : un seul tour d'indices (un mot chacun) avant le vote suivant.
+    r.clueRoundsTarget = 1;
     r.clueRoundNum = 1;
     r.turnIndex = 0;
     r.votes = {};

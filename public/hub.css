@@ -195,3 +195,12 @@
 .pause-note { font-size: 14px; }
 /* La barre du haut reste cliquable pendant la pause (Reprendre, Arrêter le jeu, Quitter). */
 .hub-bar { position: relative; z-index: 950; }
+
+/* Choix de la couleur dans le salon */
+.color-pick { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.color-pick-label { font-weight: 700; font-size: 14px; color: var(--muted); }
+.color-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.color-swatch { width: 34px; height: 34px; border-radius: 50%; border: 3px solid transparent; background: var(--sw); cursor: pointer; padding: 0; transition: transform 0.1s; }
+.color-swatch:hover:not(:disabled) { transform: scale(1.12); }
+.color-swatch.on { border-color: #fff; box-shadow: 0 0 0 3px var(--accent); }
+.color-swatch.taken { opacity: 0.3; cursor: not-allowed; background: linear-gradient(45deg, var(--sw) 45%, #000 45% 55%, var(--sw) 55%); }

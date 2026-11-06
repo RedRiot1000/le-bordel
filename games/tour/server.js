@@ -118,6 +118,7 @@ export function createGame(ctx) {
     s.ticks++;
     const was = s.r.alive;
     const res = P.step(s.r, k, g.tower);
+    if (res === "pique") { addFx(s, res); return; }   // sonné 2 s, pas éliminé
     if (was && res) {
       s.cause = res; s.deadAt = now();
       g.deaths.push(id);

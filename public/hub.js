@@ -15,6 +15,8 @@ const store = {
   set playerId(v) { localStorage.setItem("bordel_pid", v); },
   get code() { return localStorage.getItem("bordel_code") || ""; },
   set code(v) { localStorage.setItem("bordel_code", v); },
+  get color() { return localStorage.getItem("bordel_color") || ""; },
+  set color(v) { localStorage.setItem("bordel_color", v); },
   get pseudo() { return localStorage.getItem("bordel_pseudo") || ""; },
   set pseudo(v) { localStorage.setItem("bordel_pseudo", v); },
 };
@@ -249,6 +251,7 @@ $("btn-copy").addEventListener("click", async () => {
   }
 });
 
+let colorTriedIn = null;
 function renderLobby() {
   $("room-code").textContent = hub.code;
   $("player-count").textContent = `${hub.players.length}/8`;
@@ -272,6 +275,26 @@ function renderLobby() {
       if (p?.bot || confirm(`Expulser ${p?.pseudo} du salon ?`)) socket.emit("kickPlayer", { playerId: b.dataset.id });
     };
   });
+
+  // --- Ma couleur : les couleurs des autres joueurs sont barrées, celles des bots restent libres ---
+  const mine = playerOf(store.playerId);
+  const sw = $("color-pick");
+  sw.innerHTML = (hub.colors || []).map((c) => {
+    const owner = hub.players.find((p) => p.color === c);
+    const taken = owner && owner.id !== store.playerId && !owner.bot;
+    return `<button class="color-swatch ${mine?.color === c ? "on" : ""} ${taken ? "taken" : ""}" style="--sw:${c}" data-c="${c}" ${taken ? "disabled" : ""}
+      title="${taken ? escapeHtml(owner.pseudo) + " a cette couleur" : "Choisir cette couleur"}" aria-label="Couleur ${c}"></button>`;
+  }).join("");
+  sw.querySelectorAll("[data-c]").forEach((b) => {
+    b.onclick = () => socket.emit("pickColor", { color: b.dataset.c }, (res) => {
+      if (res?.error) toast(res.error); else store.color = b.dataset.c;
+    });
+  });
+  // La couleur choisie la dernière fois revient toute seule en arrivant dans un salon.
+  if (mine && store.color && store.color !== mine.color && colorTriedIn !== hub.code) {
+    colorTriedIn = hub.code;
+    socket.emit("pickColor", { color: store.color });
+  }
 
   // --- Bouton "Ajouter un bot" (hôte) ---
   const n = hub.players.length;

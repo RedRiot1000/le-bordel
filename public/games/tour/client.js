@@ -57,7 +57,7 @@
             <li>🏃 <kbd>←</kbd><kbd>→</kbd> ou <kbd>Q</kbd><kbd>D</kbd> : courir · <kbd>Espace</kbd> / <kbd>↑</kbd> / <kbd>Z</kbd> : sauter (maintenir = plus haut).</li>
             <li>🧗 <b>Saut mural</b> : contre un mur, saute pour rebondir vers l'autre côté (pas deux fois de suite sur le même côté).</li>
             <li>⬇️ <kbd>↓</kbd> / <kbd>S</kbd> : s'accroupir (passer sous les plafonds bas) · en l'air : retomber plus vite.</li>
-            <li>🟠 Certains rebords d'arrivée sont <b>orange</b> : ils s'effritent. Les <b>piques</b> rouges éliminent.</li>
+            <li>🟠 Certains rebords d'arrivée sont <b>orange</b> : ils s'effritent. Un <b>pique</b> rouge te <b>sonne 2 s</b> (tu retombes si tu es en l'air).</li>
             <li>🏆 Le <b>dernier en vie</b> gagne la manche (10, 7, 5, 3, 2, 1 points).</li>
           </ul>
         </div>
@@ -229,7 +229,7 @@
     $("to-round").textContent = `Manche ${st.round}/${st.settings.rounds}`;
     const mine = runnerOf(me());
     const n = st.runners.filter((r) => r.alive).length;
-    const txt = !mine ? "👀 Tu regardes" : !mine.alive ? (mine.cause === "pique" ? "💥 Piques ! Tu regardes la suite." : "🔥 Dans la lave ! Tu regardes la suite.") : n === 1 && st.runners.length > 1 ? "🏆 Dernier en vie !" : "🧗 Grimpe !";
+    const txt = !mine ? "👀 Tu regardes" : !mine.alive ? "🔥 Dans la lave ! Tu regardes la suite." : mine.stun > 0 ? "💫 Sonné par un pique !" : n === 1 && st.runners.length > 1 ? "🏆 Dernier en vie !" : "🧗 Grimpe !";
     if ($("to-me").textContent !== txt) $("to-me").textContent = txt;
     $("to-alive").textContent = `🧗 ${n} en vie`;
   }
@@ -245,7 +245,7 @@
     if (ov.dataset.key === key) return;
     ov.dataset.key = key;
     const banner = `🏆 ${esc(pseudoOf(lr.order[0]))} est le dernier en vie !`;
-    const cause = (id) => (lr.cause[id] === "pique" ? " · piques" : lr.cause[id] === "lave" ? " · lave" : lr.cause[id] === "parti" ? " · parti" : " · survivant");
+    const cause = (id) => (lr.cause[id] === "lave" ? " · lave" : lr.cause[id] === "parti" ? " · parti" : " · survivant");
     const rows = lr.order.filter((id) => playerOf(id)).map((id, i) => `<li><span class="s10-medal">${["🥇", "🥈", "🥉"][i] || i + 1 + "."}</span>${api.avatar(playerOf(id))}<b>${esc(pseudoOf(id))}</b>
       <span class="muted">${lr.height[id]} m${cause(id)}</span><span class="gain">+${lr.gains[id] || 0}</span></li>`).join("");
     const total = st.phase === "over" ? `<h3 class="ch-total">🏆 Classement</h3><ol class="s10-rank">${[...st.players].sort((a, b) => b.score - a.score)
@@ -399,6 +399,7 @@
       }
       if (r.y > top + 80 || r.y < bottom - 80) continue;
       drawRunner(c, r, Y(r.y), colorOf(r0b.id), isMe);
+      if (r.stun > 0) { c.fillStyle = "#ffd23f"; c.font = "bold 16px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; for (let q = 0; q < 3; q++) { const a = ts / 200 + q * 2.1; c.fillText("★", r.x + Math.cos(a) * 20, Y(r.y) - 52 + Math.sin(a) * 6); } }
       const lab = pseudoOf(r0b.id), hy = Y(r.y) - P.height(r) - 14;
       c.font = "bold 12px Segoe UI, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
       const lw = c.measureText(lab).width + 10;

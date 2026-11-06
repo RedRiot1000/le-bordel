@@ -739,11 +739,11 @@ Choix : labyrinthe vertical, routes rapide/risquée ou lente/sûre, caméra zoom
 - **Moteur partagé** (`public/games/tour/tower.js`, globalThis.Tower) : le labyrinthe (seed, étage par étage), le pas du perso (1/30 s) et le bot, identiques sur le serveur et le navigateur.
 - **Perso** : course 340 px/s, accroupi 190 ; saut 760 px/s (129 px, 170 px en maintenant) ; ↓ en l'air = chute rapide ; temps de grâce au bord (0,08 s), saut mémorisé (0,1 s).
 - **Saut mural** : contre un mur on glisse, sauter rebondit de l'autre côté ; pas deux fois de suite le même côté.
-- **Labyrinthe** (resserré à la demande de Scotty : plus de saut mural, plus de passages accroupis, presque plus de rebords verts) : cases de 40 px, 28 de large. Un étage = 24 cases (960 px, soit 96 m au compteur) : un hall bas (120 px, 2-3 plafonds bas), puis un bloc de murs où sont creusées 3 routes qui arrivent au hall du dessus. Un seul rebord par route, à l'arrivée :
-  - **puits** (rapide, risqué) : 120 px de large, tout droit au saut mural, 2-3 piques sur les murs, jamais près du bas ni du sommet ;
-  - **2 zigzags** (lents, sûrs) : monter au saut mural (cheminée de 120 px), ramper dans un couloir de 80 px sous un long plafond bas, remonter de l'autre côté, recommencer. Pas de piques. Arrivée parfois orange (s'effrite en 0,6 s, revient 1,5 s plus tard).
-  - Pas de cul-de-sac. Pas de passages entre les routes : ils perçaient les murs qui servent à rebondir.
-  - Entrée de chaque couloir plus haute (on y arrive en plein vol), et 2 cases de sol avant le plafond bas (on ne s'accroupit pas en l'air).
+- **Labyrinthe** (tracé au hasard, Scotty trouvait que c'était toujours le même plan) : cases de 40 px, 28 de large. Chaque étage tire sa hauteur (21 à 29 cases), son nombre de routes (2 ou 3), leur ordre et leur largeur. Un hall bas (120 px, plafonds bas), puis un bloc de murs où sont creusées les routes. Un seul rebord par route, à l'arrivée (orange parfois sur les zigzags : il s'effrite).
+  - **puits** (rapide, risqué) : 120 px de large, tout droit au saut mural, quelques piques seuls sur les murs ;
+  - **zigzag** (lent, sûr) : une suite tirée au hasard de montées au saut mural (cheminées de 120 px) et de couloirs de 80 px, dans un sens ou dans l'autre, avec un plafond bas à passer accroupi (ou rarement un pique au sol) ;
+  - entrée de chaque couloir plus haute (on y arrive en plein vol), 2 cases de sol avant un plafond bas (on ne s'accroupit pas en l'air). Pas de cul-de-sac.
+  - **Piques** : toujours un seul à la fois. Ils n'éliminent pas : sonné 2 s (plus de commandes, on retombe si on est en l'air), puis 1 s de protection. Seule la lave élimine.
 - **Vérifié** : une recherche exhaustive des touches trouve une solution pour chaque montée de chaque route (puits et zigzags).
 - **Lave** : hauteur = -400 + 26 t + t². Saut mural : 800 px/s. L'écran rougit sous 34 m.
 - **Fin** : 2,5 s après qu'il ne reste qu'un joueur ; points 10, 7, 5, 3, 2, 1 (survivant, puis ordre inverse des éliminations). Au plus 4 min.
@@ -765,6 +765,14 @@ Lampe torche et La Nuit du Tueur ont été retirés (trop lents, rôles déséqu
 ### Temps de réflexion doublés
 
 Demande de Scotty : Classement, Pense pareil, 2 vérités 1 mensonge, Sur 10 et Qui de nous ? laissent environ 2 fois plus de temps (écrire, classer, voter, choisir le thème).
+
+### Choix de la couleur
+
+Dans le salon, chaque joueur choisit sa couleur parmi 12. Elle sert dans tous les jeux (sauf quand un jeu impose celle d'une équipe ou d'un rôle). Une couleur prise par un bot reste disponible : le bot récupère l'ancienne couleur du joueur. La couleur d'un autre joueur est barrée. Elle est mémorisée dans le navigateur pour les salons suivants.
+
+### Imposter : un seul mot après un vote
+
+Le 1er tour garde le nombre de tours d'indices réglé. Dès que la manche continue après un vote (élimination d'un civil, ou égalité), chacun ne donne plus qu'un mot avant de revoter.
 
 ## 8. Feuille de route
 
