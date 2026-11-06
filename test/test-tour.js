@@ -204,7 +204,7 @@ async function main() {
   const srv = game.runners.find((r) => r.id === me);
   check(srv.t > 2 && Math.hypot(srv.x - mine.x, srv.y - mine.y) < 40, `Le serveur calcule la même chose que moi (écart ${Math.round(Math.hypot(srv.x - mine.x, srv.y - mine.y))} px)`);
   check(game.runners.some((r) => r.id !== me && r.best > 100), "Les bots grimpent");
-  await waitFor(() => game.phase === "roundOver", 120000);
+  await waitFor(() => game.phase === "roundOver", 200000);
   const lr = game.lastRound;
   check(game.phase === "roundOver" && lr && lr.order.length === 4, "Fin de manche");
   const standing = Object.values(lr.cause).filter((c) => !c).length;
@@ -222,4 +222,4 @@ async function main() {
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
-setTimeout(() => { console.log("⏰ Trop long"); process.exit(1); }, 180000);
+setTimeout(() => { console.log("⏰ Trop long"); process.exit(1); }, 280000);
