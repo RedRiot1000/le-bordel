@@ -62,7 +62,7 @@ const GAMES = {
   parkour: () => game.runners?.length === 8 && game.lanes?.length === 8,
   course: () => game.cars?.length === 8 && game.phase === "pick",
   tour: () => game.runners?.length === 8,
-  casse: () => game.heroes?.length === 8 && game.vans?.length === 8,
+  casse: () => game.heroes?.length === 8 && !!game.van,
 };
 
 async function run() {

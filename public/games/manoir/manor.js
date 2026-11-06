@@ -203,7 +203,7 @@
     // ---------------- Le manoir ----------------
     // Le jardin : devant (en bas) + sur UN côté (gauche ou droite). Derrière et de l'autre côté : rien.
     const sideLeft = rnd() < 0.5;
-    const SD = 460, FD = 520;   // largeur du jardin de côté, profondeur du jardin de devant
+    const SD = opts.small ? 300 : 460, FD = opts.small ? 380 : 520;   // largeur du jardin de côté, profondeur du jardin de devant
     // opts.small : un manoir plus petit, où l'on se croise tout le temps.
     const gx = opts.small ? 7 + Math.ceil(nPlayers * 0.4) : 8 + Math.ceil(nPlayers * 0.9), gy = opts.small ? 5 : nPlayers >= 5 ? 7 : 6;
     const MWp = gx * CW + T, MHp = gy * CH + T;
@@ -221,6 +221,11 @@
     const gSide = sideLeft ? 3 : 1;
     const exits = [{ side: 2, cell: hallX + 1 }, { side: gSide, cell: 1 + Math.floor(rnd() * (gy - 2)) }];
     if (rnd() < 0.5) { const c2 = Math.floor(rnd() * gy); if (c2 !== exits[1].cell) exits.push({ side: gSide, cell: c2 }); }
+    // Petit manoir (Cambrioleurs) : des sorties tout du long, pour qu'on ne puisse pas attendre les autres à une seule porte.
+    if (opts.small) {
+      for (const cell of [1, Math.floor(gx * 0.25), Math.floor(gx * 0.75), gx - 2]) if (!exits.some((e) => e.side === 2 && e.cell === cell)) exits.push({ side: 2, cell });
+      for (const cell of [1, gy - 2]) if (!exits.some((e) => e.side === gSide && e.cell === cell)) exits.push({ side: gSide, cell });
+    }
     const winRaw = buildWalls(gx, gy, P, MX, MY, rnd, exits, out);
     const rooms = P.rooms;
     const manorRect = { x: MX, y: MY, w: MWp, h: MHp };
@@ -403,8 +408,13 @@
       if (p) { webs.push({ id: k, x: p.x - 28, y: p.y - 28, w: 56, h: 56 }); used.push(webs[webs.length - 1]); }
     }
 
+    // Petit manoir : dehors, un parking vide ; pas de lustres, d'interrupteurs ni de pièges.
+    if (opts.small) {
+      garden.length = 0; deco.length = 0; switches.length = 0; creaks.length = 0; webs.length = 0;
+      for (const r of allRooms) delete r.lamp;
+    }
     const m = {
-      seed, w: W, h: H, gx, gy, walls, doors, rooms: allRooms, furniture, garden, windows, portals, switches, creaks, webs,
+      parking: !!opts.small, seed, w: W, h: H, gx, gy, walls, doors, rooms: allRooms, furniture, garden, windows, portals, switches, creaks, webs,
       manorRect, caveRect, gardenRect, gardenParts: [front, sideR], deco,
     };
     m.rects = walls.concat(furniture, garden);   // ce qui bloque toujours (les portes fermées s'ajoutent)

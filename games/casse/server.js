@@ -1,9 +1,10 @@
 // ===================================================================
 //  CAMBRIOLEURS — Moteur du jeu (module du hub Le Bordel)
 //  Tout le monde cambriole le même manoir, chacun pour soi : on ramasse un
-//  objet, on le ramène à sa camionnette. Plus il vaut cher, plus on est lent.
-//  Pousser quelqu'un lui fait lâcher son objet. Des gardiens patrouillent,
-//  un coffre-fort apparaît régulièrement, et l'alarme finale double le butin.
+//  objet, on le ramène au van, sur le parking. Plus il vaut cher, plus on est lent.
+//  Dans le manoir, pousser quelqu'un lui fait lâcher son objet (dehors : on ne pousse pas).
+//  Les gardiens reprennent l'objet de ceux qu'ils attrapent et le rangent ailleurs.
+//  Un coffre-fort apparaît régulièrement, et l'alarme finale double le butin.
 //  Le SERVEUR fait foi : même physique que le navigateur (pieton/engine.js).
 // ===================================================================
 
@@ -23,7 +24,7 @@ export const meta = {
   family: "Action",
   minPlayers: 2,
   maxPlayers: 8,
-  description: "Pillez le manoir, ramenez le butin à votre camionnette et faites lâcher celui des autres !",
+  description: "Pillez le manoir, ramenez le butin au van et faites lâcher celui des autres !",
 };
 
 const TICK_MS = 1000 / 30;
@@ -33,10 +34,10 @@ const FINISH_DELAY = 15000;
 export const DURATION_MS = 150000;    // une manche : 2 min 30
 export const ALARM_MS = 30000;        // les 30 dernières secondes : le butin vaut double
 const CHEST_EVERY = 40000;            // un coffre-fort toutes les 40 s
-const VAN_R = 74;                     // on dépose en arrivant à sa camionnette
+const VAN_R = 92;                     // on dépose en arrivant au van
 const PICK_R = 34;                    // on ramasse en marchant dessus
 const GRAB_CD = 1200;                 // pas de reprise juste après avoir lâché
-const CAUGHT_MS = 2000;               // sonné par un gardien
+const CAUGHT_MS = 1000;               // sonné par un gardien
 const SAFE_MS = 3500;                 // ... puis tranquille un moment
 const SIGHT = 240;                    // portée du regard d'un gardien
 const TP_CD = 900;
@@ -71,10 +72,10 @@ export function createGame(ctx) {
     scores: {},
     round: 0,
     manor: null, blk: null,
-    heroes: {},           // id -> { h, carry, money, van, frozenUntil, safeUntil, grabAt, tpUntil, bot, seq, lastInputAt, budget, ai }
-    vans: [],             // { id, x, y }
+    heroes: {},           // id -> { h, carry, money, frozenUntil, safeUntil, tpUntil, bot, seq, lastInputAt, budget, ai }
+    van: null,            // { x, y } : le van de tout le monde
     loot: [], lootId: 0,  // { id, x, y, kind, by, at }
-    guards: [],           // { h, ai, chase, restUntil }
+    guards: [],           // { h, ai, chase, carry, restUntil }
     chestRoom: null, nextChest: 0, nextLoot: 0,
     feed: [],
     playAt: 0, timeUpAt: 0, phaseEnd: 0,
@@ -87,7 +88,8 @@ export function createGame(ctx) {
   const players = () => ctx.players();
   const pseudo = (id) => players().find((p) => p.id === id)?.pseudo || "?";
   const alarm = (t = now()) => g.phase === "play" && g.timeUpAt - t <= ALARM_MS;
-  const envOf = (s) => ({ walls: true, w: g.manor.w, h: g.manor.h, rects: g.manor.rects, push: true, noDash: true, speedMul: C.speedOf(s.carry) });
+  const inside = (h) => M.zoneOf(g.manor, h.x, h.y) !== "jardin";     // dans le manoir ou la cave (pas sur le parking)
+  const envOf = (s) => ({ walls: true, w: g.manor.w, h: g.manor.h, rects: g.manor.rects, push: inside(s.h), noDash: true, speedMul: C.speedOf(s.carry) });
   const guardEnv = () => ({ walls: true, w: g.manor.w, h: g.manor.h, rects: g.manor.rects, noDash: true, speedMul: C.GUARD_SPEED });
 
   function publicState() {
@@ -103,9 +105,9 @@ export function createGame(ctx) {
         id, seq: s.seq, carry: s.carry, money: s.money, frozen: t < s.frozenUntil, safe: t < s.safeUntil,
         x: s.h.x, y: s.h.y, vx: s.h.vx, vy: s.h.vy, face: s.h.face, walk: s.h.walk, stun: s.h.stun, dash: s.h.dash, dashT: 0, pushT: s.h.pushT, heavy: 0,
       })),
-      vans: g.vans,
+      van: g.van,
       loot: g.loot.map(({ id, x, y, kind }) => ({ id, x, y, kind })),
-      guards: g.guards.map((q) => ({ x: q.h.x, y: q.h.y, vx: q.h.vx, vy: q.h.vy, face: q.h.face, walk: q.h.walk, chase: !!q.chase })),
+      guards: g.guards.map((q) => ({ x: q.h.x, y: q.h.y, vx: q.h.vx, vy: q.h.vy, face: q.h.face, walk: q.h.walk, chase: !!q.chase, carry: q.carry })),
       chestRoom: g.chestRoom,
       alarm: alarm(t),
       phaseLeft: Math.max(0, g.phaseEnd - t),
@@ -144,19 +146,17 @@ export function createGame(ctx) {
     g.manor = M.build(Math.floor(Math.random() * 1e9), list.length, { small: true });
     g.manor.nPlayers = list.length;
     const m = g.manor, nav = m.nav;
-    // Les camionnettes : dans le jardin de devant, côte à côte.
+    // Un seul van, au milieu du parking ; tout le monde démarre autour.
     const R = m.manorRect, front = m.gardenParts[0];
-    g.vans = list.map((p, i) => {
-      const x = R.x + (R.w * (i + 0.5)) / list.length;
-      const c = M.centerOf(nav, M.nearestFree(nav, M.cellOf(nav, x, front.y + 150)));
-      return { id: p.id, x: c.x, y: c.y };
-    });
+    const c0 = M.centerOf(nav, M.nearestFree(nav, M.cellOf(nav, R.x + R.w / 2, front.y + front.h / 2)));
+    g.van = { x: c0.x, y: c0.y };
     g.heroes = {};
     list.forEach((p, i) => {
       g.scores[p.id] = g.scores[p.id] || 0;
-      const v = g.vans[i];
+      const a = (i / list.length) * Math.PI * 2;
+      const c = M.centerOf(nav, M.nearestFree(nav, M.cellOf(nav, g.van.x + Math.cos(a) * 130, g.van.y + Math.sin(a) * 90)));
       g.heroes[p.id] = {
-        h: H.newHero(v.x, v.y, -Math.PI / 2), carry: null, money: 0, van: v, frozenUntil: 0, safeUntil: 0, tpUntil: 0,
+        h: H.newHero(c.x, c.y, -Math.PI / 2), carry: null, money: 0, frozenUntil: 0, safeUntil: 0, tpUntil: 0,
         bot: !!p.bot, seq: 0, lastInputAt: 0, budget: 6, budgetAt: 0, prevK: 0, ai: { think: 0, greed: rand(0.6, 1.3) },
       };
     });
@@ -164,10 +164,10 @@ export function createGame(ctx) {
     for (let k = 0; k < list.length * 3 + 6; k++) addLoot(randomKind());
     // Les gardiens : 2 à 4, loin des camionnettes.
     g.guards = [];
-    const rooms = shuffle(lootRooms());
+    const rooms = shuffle(lootRooms().filter((r) => !r.cave));
     for (let k = 0, n = 2 + Math.floor(list.length / 3); k < n; k++) {
       const p = spotIn(rooms[k % rooms.length]);
-      g.guards.push({ h: H.newHero(p.x, p.y, 0), ai: { field: null, goal: null }, chase: null, restUntil: 0 });
+      g.guards.push({ h: H.newHero(p.x, p.y, 0), ai: { field: null, goal: null }, chase: null, carry: null, restUntil: 0 });
     }
     g.chestRoom = null;
     g.feed = []; g.fx = [];
@@ -229,7 +229,8 @@ export function createGame(ctx) {
       H.drive(s.h, move, null, dt, env);
       if (s.h.pushed) {
         s.h.pushed = false;
-        const others = Object.entries(g.heroes).filter(([oid]) => oid !== id);
+        // (dehors, personne ne se fait pousser)
+        const others = Object.entries(g.heroes).filter(([oid, o]) => oid !== id && inside(o.h));
         for (const hh of H.applyPush(s.h, others.map(([, o]) => o.h))) {
           const [oid, o] = others.find(([, q]) => q.h === hh);
           addFx((s.h.x + hh.x) / 2, (s.h.y + hh.y) / 2, "push");
@@ -255,7 +256,7 @@ export function createGame(ctx) {
         if (l.kind === "coffre") { say(`💎 ${pseudo(id)} a le coffre-fort !`); g.chestRoom = null; }
         break;
       }
-    } else if (dist(s.van, s.h) < VAN_R) {
+    } else if (dist(g.van, s.h) < VAN_R) {
       const v = C.LOOT[s.carry].value * (alarm(t) ? 2 : 1);
       s.money += v;
       addFx(s.h.x, s.h.y - 30, "cash", v);
@@ -278,47 +279,80 @@ export function createGame(ctx) {
   }
 
   // =================================================================
-  //  LES GARDIENS : ils patrouillent de pièce en pièce, et courent après
-  //  celui qu'ils voient (d'abord ceux qui portent quelque chose).
+  //  LES GARDIENS : ils se promènent dans le manoir. Ils n'en veulent qu'à
+  //  ceux qui portent un objet : ils le leur reprennent (1 s de sonné) et
+  //  vont le poser dans une autre pièce, au hasard.
   // =================================================================
   const fieldTo = (p) => M.field(g.manor.nav, [M.nearestFree(g.manor.nav, M.cellOf(g.manor.nav, p.x, p.y))]);
+  const manorRooms = () => lootRooms().filter((r) => !r.cave);
+  function goTo(q, room, t) {
+    q.ai.room = room;
+    q.ai.goal = spotIn(room);
+    q.ai.field = fieldTo(q.ai.goal);
+    q.ai.until = t + 15000;
+    q.ai.stuck = 0;
+  }
   function stepGuard(q) {
     const t = now(), h = q.h, nav = g.manor.nav;
     const env = guardEnv(), dt = H.TICK / H.SUB;
     let k = 0;
     if (t >= q.restUntil) {
-      // Qui voit-il ?
-      let target = null, best = 1e9;
-      for (const [id, s] of Object.entries(g.heroes)) {
-        if (t < s.safeUntil || t < s.frozenUntil) continue;
-        const d = dist(s.h, h) - (s.carry ? 120 : 0);
-        if (dist(s.h, h) < SIGHT && d < best && M.los(g.manor.walls, h.x, h.y, s.h.x, s.h.y)) { best = d; target = id; }
-      }
-      q.chase = target;
-      if (target) {
-        const s = g.heroes[target];
-        if (dist(s.h, h) < H.R * 2 + 8) {
-          // Attrapé !
-          say(`👮 ${pseudo(target)} se fait attraper par un gardien !`);
-          drop(target, s);
-          s.frozenUntil = t + CAUGHT_MS; s.safeUntil = t + CAUGHT_MS + SAFE_MS;
-          addFx(s.h.x, s.h.y, "caught");
-          q.restUntil = t + 1500; q.chase = null;
+      if (q.carry) {
+        // Il range l'objet.
+        if (!q.ai.goal) goTo(q, pick(manorRooms()), t);
+        if (dist(q.ai.goal, h) < 34 || t > q.ai.until) {
+          g.loot.push({ id: ++g.lootId, x: q.ai.goal.x, y: q.ai.goal.y, kind: q.carry, by: null, at: 0 });
+          if (q.carry === "coffre") { g.chestRoom = ROOM_NAMES[q.ai.room?.kind] || "le manoir"; say(`👮 Le coffre-fort est rangé dans ${g.chestRoom} !`); }
+          q.carry = null; q.ai.goal = null; q.restUntil = t + 700;
+        } else k = keyToward(h, M.lookAhead(nav, q.ai.field, h.x, h.y, 2));
+      } else {
+        // Qui porte un objet, dans le manoir, et à sa vue ?
+        let target = null, best = 1e9;
+        for (const [id, s] of Object.entries(g.heroes)) {
+          if (!s.carry || t < s.safeUntil || M.zoneOf(g.manor, s.h.x, s.h.y) !== "manoir") continue;
+          const d = dist(s.h, h);
+          if (d < SIGHT && d < best && M.los(g.manor.walls, h.x, h.y, s.h.x, s.h.y)) { best = d; target = id; }
+        }
+        q.chase = target;
+        if (target) {
+          const s = g.heroes[target];
+          if (best < H.R * 2 + 8) {
+            // Attrapé : il reprend l'objet.
+            say(`👮 Un gardien reprend ${C.LOOT[s.carry].name.toLowerCase()} à ${pseudo(target)} !`);
+            q.carry = s.carry; s.carry = null;
+            s.frozenUntil = t + CAUGHT_MS; s.safeUntil = t + CAUGHT_MS + SAFE_MS;
+            addFx(s.h.x, s.h.y, "caught");
+            q.chase = null; q.ai.goal = null;
+            // Une autre pièce que celle où on est.
+            const here = M.roomAt(g.manor, h.x, h.y);
+            goTo(q, pick(manorRooms().filter((r) => r !== here)), t);
+          } else {
+            if (t >= (q.ai.chaseAt || 0)) { q.ai.chaseAt = t + 350; q.ai.field = fieldTo(s.h); q.ai.goal = null; }
+            k = keyToward(h, M.lookAhead(nav, q.ai.field, h.x, h.y, 2));
+          }
         } else {
-          q.ai.chaseAt = q.ai.chaseAt || 0;
-          if (t >= q.ai.chaseAt) { q.ai.chaseAt = t + 350; q.ai.field = fieldTo(s.h); q.ai.goal = null; }
+          if (!q.ai.goal || dist(q.ai.goal, h) < 40 || t > (q.ai.until || 0)) goTo(q, pick(manorRooms()), t);
           k = keyToward(h, M.lookAhead(nav, q.ai.field, h.x, h.y, 2));
         }
-      } else {
-        if (!q.ai.goal || dist(q.ai.goal, h) < 40 || t > (q.ai.until || 0)) {
-          q.ai.goal = spotIn(pick(lootRooms().filter((r) => !r.cave)));
-          q.ai.field = fieldTo(q.ai.goal);
-          q.ai.until = t + 14000;
-        }
-        k = keyToward(h, M.lookAhead(nav, q.ai.field, h.x, h.y, 2));
       }
+      // Coincé (un passage secret sur son chemin…) : il change d'idée.
+      q.ai.stuck = k && Math.hypot(h.vx, h.vy) < 25 ? (q.ai.stuck || 0) + H.TICK : 0;
+      if (q.ai.stuck > 1 && !q.chase) goTo(q, q.carry && q.ai.room ? q.ai.room : pick(manorRooms()), t);
     }
     for (let sub = 0; sub < H.SUB; sub++) { H.drive(h, k, null, dt, env); H.collideWalls(h, env); }
+    // Les passages secrets lui servent aussi (pas les escaliers : il reste dans le manoir).
+    if (t >= (q.tpUntil || 0)) {
+      for (const p of g.manor.portals) {
+        if (p.kind !== "secret") continue;
+        for (const [a, b] of [[p.a, p.b], [p.b, p.a]]) {
+          if (Math.hypot(h.x - a.x, h.y - a.y) > M.PAD + 6) continue;
+          h.x = b.ex; h.y = b.ey; h.vx = 0; h.vy = 0;
+          q.tpUntil = t + 2500;
+          addFx(b.ex, b.ey, "tp");
+          return;
+        }
+      }
+    }
   }
 
   // =================================================================
@@ -333,12 +367,12 @@ export function createGame(ctx) {
       ai.had = !!s.carry;
       ai.lootId = null;
       let goal = null;
-      if (s.carry) goal = s.van;
+      if (s.carry) goal = g.van;
       else {
         let best = -1e9;
         for (const l of g.loot) {
           if (l.by === id && t - l.at < GRAB_CD) continue;
-          const sc = C.LOOT[l.kind].value * ai.greed - dist(l, h) * 0.9 - dist(l, s.van) * 0.25 + rand(0, 90);
+          const sc = C.LOOT[l.kind].value * ai.greed - dist(l, h) * 0.9 - dist(l, g.van) * 0.25 + rand(0, 90);
           if (sc > best) { best = sc; goal = l; ai.lootId = l.id; }
         }
       }
@@ -346,9 +380,9 @@ export function createGame(ctx) {
     }
     let k = ai.field ? keyToward(h, M.lookAhead(nav, ai.field, h.x, h.y, 2)) : 0;
     // Quelqu'un qui porte un objet juste à côté : on lui fonce dessus et on pousse.
-    if (!s.carry) {
+    if (!s.carry && inside(h)) {
       for (const [oid, o] of Object.entries(g.heroes)) {
-        if (oid === id || !o.carry || dist(o.h, h) > 110) continue;
+        if (oid === id || !o.carry || dist(o.h, h) > 110 || !inside(o.h)) continue;
         k = keyToward(h, o.h);
         if (dist(o.h, h) < H.R * 2 + 20 && h.dash <= 0 && !(s.prevK & K.DASH)) k |= K.DASH;
         break;
@@ -382,7 +416,7 @@ export function createGame(ctx) {
       // Le coffre-fort, annoncé à tout le monde.
       if (t >= g.nextChest) {
         g.nextChest = t + CHEST_EVERY;
-        if (!g.loot.some((l) => l.kind === "coffre") && !Object.values(g.heroes).some((s) => s.carry === "coffre")) {
+        if (!g.loot.some((l) => l.kind === "coffre") && !Object.values(g.heroes).some((s) => s.carry === "coffre") && !g.guards.some((q) => q.carry === "coffre")) {
           const r = pick(lootRooms().filter((q) => !q.cave));
           addLoot("coffre", r);
           g.chestRoom = ROOM_NAMES[r.kind] || "le manoir";

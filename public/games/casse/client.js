@@ -2,7 +2,7 @@
 //  CAMBRIOLEURS — Client (s'affiche dans le hub Le Bordel)
 //  - Le manoir est refait ici à partir de sa seed (manor.js).
 //  - MON bonhomme est calculé ici tout de suite (prédiction), puis recalé.
-//  - Tout est éclairé : pas de noir. Caméra qui suit, mini-carte, classement.
+//  - Tout est éclairé : pas de noir. Caméra qui suit, classement, flèche vers le van.
 // ===================================================================
 
 (() => {
@@ -18,7 +18,7 @@
   let phaseEndLocal = 0, finishEndLocal = 0, timeEndLocal = 0;
   let rafId = null, lastTs = 0;
   let canvas = null, g2d = null;
-  let manor = null, manorKey = null, bg = null, mini = null;
+  let manor = null, manorKey = null, bg = null;
 
   let pred = null, prevPred = null;
   let pending = [];
@@ -46,7 +46,7 @@
       <div class="logo imp-logo">
         <span class="logo-icon">💰</span>
         <h1>CAMBRIOLEURS</h1>
-        <p class="tagline">Un manoir à piller, une camionnette chacun. Le plus riche gagne.</p>
+        <p class="tagline">Un manoir à piller, un van sur le parking. Le plus riche gagne.</p>
       </div>
       <div class="pt-setup-grid">
         <div class="card"><h2>⚙️ Réglages</h2><div id="ca-settings" class="settings"></div></div>
@@ -54,10 +54,11 @@
           <h2>🎮 Règles & commandes</h2>
           <ul class="pt-help">
             <li>🏃 <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> ou <kbd>ZQSD</kbd> : marcher. On ramasse un objet en passant dessus.</li>
-            <li>🚐 Ramène-le à <b>ta camionnette</b> pour encaisser. Un seul objet à la fois : <b>plus il vaut cher, plus tu es lent</b>.</li>
+            <li>🚐 Ramène-le au <b>van</b>, sur le parking, pour encaisser (plusieurs sorties y mènent). Un seul objet à la fois : <b>plus il vaut cher, plus tu es lent</b>.</li>
             <li>🥄 100 $ · 🏺 300 $ · 🖼️ 600 $ · 💎 coffre-fort 1 500 $ (annoncé à tout le monde).</li>
-            <li>👊 <kbd>Espace</kbd> : <b>pousser</b>. Celui que tu touches <b>lâche son objet</b>.</li>
-            <li>👮 Les <b>gardiens</b> t'attrapent : tu lâches tout et tu es sonné 2 s.</li>
+            <li>👊 <kbd>Espace</kbd> : <b>pousser</b>, seulement dans le manoir. Celui que tu touches <b>lâche son objet</b>. Sur le parking, tu es à l'abri.</li>
+            <li>👮 Les <b>gardiens</b> ne s'occupent que de ceux qui portent un objet : ils te le reprennent, tu es sonné 1 s, et ils vont le ranger dans une autre pièce.</li>
+            <li>🌀 Les <b>passages secrets</b> (portails de couleur) t'emmènent à l'autre bout du manoir, 🪜 les <b>escaliers</b> vont à la cave : marche vers le mur pour y entrer.</li>
             <li>🚨 Les 30 dernières secondes : l'<b>alarme</b> sonne, tout ce que tu déposes vaut <b>double</b> !</li>
           </ul>
         </div>
@@ -138,7 +139,7 @@
       window.removeEventListener("keyup", onKey);
       document.querySelector(".app").classList.remove("pt-wide");
       root.innerHTML = "";
-      bg = manor = mini = null;
+      bg = manor = null;
     },
   };
 
@@ -153,14 +154,6 @@
     c.filter = "brightness(1.75) saturate(1.2)";
     c.drawImage(night, 0, 0);
     c.filter = "none";
-    // Mini-carte.
-    const s = 300 / manor.w;
-    mini = document.createElement("canvas");
-    mini.width = 300; mini.height = Math.ceil(manor.h * s); mini.s = s;
-    const m = mini.getContext("2d");
-    m.fillStyle = "#3f7a3a"; m.fillRect(0, 0, mini.width, mini.height);
-    m.fillStyle = "#c9c2b0"; for (const r of manor.rooms) m.fillRect(r.x * s, r.y * s, r.w * s, r.h * s);
-    m.fillStyle = "#3a3355"; for (const w of manor.walls) if (!w.fence) m.fillRect(w.x * s, w.y * s, Math.max(1, w.w * s), Math.max(1, w.h * s));
   }
 
   // ===================================================================
@@ -180,7 +173,7 @@
   // ===================================================================
   //  PRÉDICTION DE MON BONHOMME
   // ===================================================================
-  const envFor = (sc) => ({ walls: true, w: manor.w, h: manor.h, rects: manor.rects, push: true, noDash: true, speedMul: C.speedOf(sc.carry) });
+  const envFor = (sc) => ({ walls: true, w: manor.w, h: manor.h, rects: manor.rects, push: M.zoneOf(manor, sc.x, sc.y) !== "jardin", noDash: true, speedMul: C.speedOf(sc.carry) });
   const moveBits = (k, sc) => (sc.frozen ? 0 : k & (K.UP | K.DOWN | K.LEFT | K.RIGHT | K.DASH));
   function ownView() {
     if (!prevPred) return pred;
@@ -295,7 +288,7 @@
   function renderHud() {
     $("ca-round").textContent = `Manche ${st.round}/${st.settings.rounds}`;
     const mine = heroOf(me());
-    const txt = !mine ? "👀 Tu regardes" : mine.frozen ? "👮 Attrapé !" : mine.carry ? `${C.LOOT[mine.carry].emoji} Ramène-le à ta camionnette !` : "🏃 Trouve du butin !";
+    const txt = !mine ? "👀 Tu regardes" : mine.frozen ? "👮 Attrapé !" : mine.carry ? `${C.LOOT[mine.carry].emoji} Ramène-le au van !` : "🏃 Trouve du butin !";
     if ($("ca-me").textContent !== txt) $("ca-me").textContent = txt;
   }
 
@@ -364,22 +357,67 @@
     draw(ts, dt);
   }
 
-  function van(c, v, color, isMe, ts) {
+  function van(c, v, ts) {
     c.save();
     c.translate(v.x, v.y);
     // La zone de dépôt.
-    c.strokeStyle = color; c.lineWidth = isMe ? 5 : 3; c.setLineDash([12, 10]);
-    c.lineDashOffset = isMe ? -ts / 40 : 0;
-    c.globalAlpha = isMe ? 1 : 0.55;
-    c.beginPath(); c.arc(0, 0, 74, 0, Math.PI * 2); c.stroke();
-    c.setLineDash([]); c.globalAlpha = 1;
-    c.fillStyle = "rgba(0,0,0,0.3)"; c.fillRect(-42, -18, 90, 46);
-    c.fillStyle = "#f2f2f2"; c.fillRect(-46, -24, 92, 46);
-    c.fillStyle = color; c.fillRect(-46, -6, 92, 12);
-    c.fillStyle = "#26303d"; c.fillRect(24, -20, 18, 38);
-    c.strokeStyle = "#1b1830"; c.lineWidth = 3; c.strokeRect(-46, -24, 92, 46);
-    c.fillStyle = "#111"; for (const [x, y] of [[-30, -28], [24, -28], [-30, 22], [24, 22]]) c.fillRect(x, y, 16, 6);
+    c.strokeStyle = "#ffd23f"; c.lineWidth = 5; c.setLineDash([14, 10]); c.lineDashOffset = -ts / 40;
+    c.beginPath(); c.arc(0, 0, 92, 0, Math.PI * 2); c.stroke();
+    c.setLineDash([]);
+    c.fillStyle = "rgba(0,0,0,0.35)"; c.fillRect(-54, -22, 114, 58);
+    c.fillStyle = "#111"; for (const [x, y] of [[-40, -34], [30, -34], [-40, 28], [30, 28]]) c.fillRect(x, y, 20, 7);
+    c.fillStyle = "#f2f2f2"; c.fillRect(-58, -29, 116, 58);
+    c.fillStyle = "#2b2d34"; c.fillRect(-58, -7, 116, 14);
+    c.fillStyle = "#26303d"; c.fillRect(30, -24, 22, 48);
+    c.strokeStyle = "#1b1830"; c.lineWidth = 3; c.strokeRect(-58, -29, 116, 58);
+    c.font = "bold 22px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#ffd23f"; c.fillText("💰", -14, 0);
     c.restore();
+  }
+
+  // Les passages : un portail animé qui saute aux yeux. Les 2 bouts d'un même passage ont la même couleur.
+  const PORTAL_COL = ["#c44dff", "#ff4dc4", "#3bd6ff", "#7dff5c", "#ffb020"];
+  function drawPortals(c, ts, mv) {
+    manor.portals.forEach((p, i) => {
+      const stairs = p.kind === "stairs";
+      const col = stairs ? "#ffd23f" : PORTAL_COL[i % PORTAL_COL.length];
+      for (const e of [p.a, p.b]) {
+        const nx = (e.ex - e.x) / 46, ny = (e.ey - e.y) / 46;     // sens : du mur vers la pièce
+        const pulse = 0.5 + 0.5 * Math.sin(ts / 220 + i);
+        // Halo + anneaux qui tournent.
+        c.save();
+        c.translate(e.x, e.y);
+        const gr = c.createRadialGradient(0, 0, 4, 0, 0, 52);
+        gr.addColorStop(0, col); gr.addColorStop(1, "rgba(0,0,0,0)");
+        c.globalAlpha = 0.45 + 0.3 * pulse; c.fillStyle = gr; c.beginPath(); c.arc(0, 0, 52, 0, Math.PI * 2); c.fill();
+        c.globalAlpha = 1;
+        c.rotate(ts / 500);
+        c.strokeStyle = col; c.lineWidth = 5; c.setLineDash([16, 10]);
+        c.beginPath(); c.arc(0, 0, 30, 0, Math.PI * 2); c.stroke();
+        c.rotate(-ts / 250);
+        c.strokeStyle = "#fff"; c.lineWidth = 3; c.setLineDash([8, 12]);
+        c.beginPath(); c.arc(0, 0, 21, 0, Math.PI * 2); c.stroke();
+        c.setLineDash([]);
+        c.restore();
+        c.font = "24px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#000";
+        c.fillText(stairs ? "🪜" : "🌀", e.x, e.y + 1);
+        // Une flèche qui montre où pousser : vers le mur.
+        const bob = 5 * Math.sin(ts / 160), ax = e.x + nx * (58 + bob), ay = e.y + ny * (58 + bob), ang = Math.atan2(-ny, -nx);
+        c.save(); c.translate(ax, ay); c.rotate(ang);
+        c.fillStyle = col; c.strokeStyle = "#111"; c.lineWidth = 3;
+        c.beginPath(); c.moveTo(16, 0); c.lineTo(-8, -13); c.lineTo(-3, 0); c.lineTo(-8, 13); c.closePath(); c.fill(); c.stroke();
+        c.restore();
+        // De près : ce que c'est, et quoi faire.
+        if (mv && Math.hypot(mv.x - e.x, mv.y - e.y) < 190) {
+          const t1 = stairs ? (e === p.a ? "🪜 ESCALIER vers la cave" : "🪜 ESCALIER vers le manoir") : "🌀 PASSAGE SECRET", t2 = "Marche vers le mur pour y entrer";
+          c.font = "900 16px Segoe UI, sans-serif";
+          const w = Math.max(c.measureText(t1).width, 220) + 22, ly = e.y + ny * 104;
+          c.fillStyle = "rgba(10,10,20,0.85)"; c.beginPath(); c.roundRect(e.x - w / 2, ly - 25, w, 50, 9); c.fill();
+          c.strokeStyle = col; c.lineWidth = 2; c.stroke();
+          c.fillStyle = col; c.fillText(t1, e.x, ly - 10);
+          c.font = "bold 13px Segoe UI, sans-serif"; c.fillStyle = "#fff"; c.fillText(t2, e.x, ly + 11);
+        }
+      }
+    });
   }
 
   function drawLoot(c, l, ts) {
@@ -413,8 +451,8 @@
     c.scale(Z, Z);
     c.translate(-camX, -camY);
     c.drawImage(bg, 0, 0);
-    window.ManoirArt.dynamic(c, manor, manor.doors.map(() => true), new Map(), manor.webs.map(() => false));
-    for (const v of st.vans || []) van(c, v, colorOf(v.id), v.id === me(), ts);
+    drawPortals(c, ts, mv);
+    if (st.van) van(c, st.van, ts);
     for (const l of st.loot || []) drawLoot(c, l, ts);
     // Les gardiens : uniforme bleu nuit, casquette, lampe rouge quand ils courent après quelqu'un.
     for (const q of st.guards || []) {
@@ -424,6 +462,11 @@
         c.font = "bold 24px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
         c.lineWidth = 4; c.strokeStyle = "#000"; c.fillStyle = "#ff3b3b";
         c.strokeText("!", q.x, q.y - 32); c.fillText("!", q.x, q.y - 32);
+      }
+      if (q.carry) {
+        c.fillStyle = "rgba(255,255,255,0.9)"; c.beginPath(); c.arc(q.x, q.y - 34, 16, 0, Math.PI * 2); c.fill();
+        c.font = "20px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#000";
+        c.fillText(C.LOOT[q.carry].emoji, q.x, q.y - 33);
       }
     }
     // Les joueurs.
@@ -502,27 +545,8 @@
       c.fillStyle = "#fff"; c.textBaseline = "middle"; c.fillText(f.text, 25, y + 15);
     });
     c.textBaseline = "top";
-    // Mini-carte (en haut à droite).
-    if (mini) {
-      const x0 = W - mini.width - 14, y0 = 14, s = mini.s;
-      c.globalAlpha = 0.92; c.drawImage(mini, x0, y0); c.globalAlpha = 1;
-      c.strokeStyle = "rgba(255,255,255,0.7)"; c.lineWidth = 2; c.strokeRect(x0, y0, mini.width, mini.height);
-      for (const l of st.loot || []) {
-        if (l.kind === "argenterie") continue;
-        c.fillStyle = l.kind === "coffre" ? "#3bd6ff" : "#ffd23f";
-        const r = l.kind === "coffre" ? 6 : 3;
-        c.beginPath(); c.arc(x0 + l.x * s, y0 + l.y * s, r, 0, Math.PI * 2); c.fill();
-      }
-      for (const q of st.guards || []) { c.fillStyle = "#ff3b3b"; c.fillRect(x0 + q.x * s - 3, y0 + q.y * s - 3, 6, 6); }
-      for (const v of st.vans || []) if (v.id === me()) { c.fillStyle = "#fff"; c.fillRect(x0 + v.x * s - 5, y0 + v.y * s - 4, 10, 8); }
-      for (const h of st.heroes) {
-        const v = h.id === me() && mv ? mv : h;
-        c.fillStyle = colorOf(h.id); c.strokeStyle = h.id === me() ? "#fff" : "#000"; c.lineWidth = h.id === me() ? 2.5 : 1;
-        c.beginPath(); c.arc(x0 + v.x * s, y0 + v.y * s, h.id === me() ? 6 : 4, 0, Math.PI * 2); c.fill(); c.stroke();
-      }
-    }
-    // Quand je porte quelque chose : une grosse flèche vers ma camionnette.
-    const myVan = (st.vans || []).find((v) => v.id === me());
+    // Quand je porte quelque chose : une grosse flèche vers le van.
+    const myVan = st.van;
     if (mv?.carry && myVan && st.phase === "play") {
       const sx = (mv.x - camX) * Z, sy = (mv.y - camY) * Z;
       const a = Math.atan2(myVan.y - mv.y, myVan.x - mv.x), d = Math.hypot(myVan.y - mv.y, myVan.x - mv.x);

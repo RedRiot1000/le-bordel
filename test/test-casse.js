@@ -26,6 +26,16 @@ console.log("— Manoir et butin —");
   let ok = true;
   for (let s = 1; s <= 25; s++) for (const n of [2, 5, 8]) { const m = M.build(s * 991, n, { small: true }); if (!m.portals.length || m.rooms.length < 6) ok = false; }
   check(ok, "75 petits manoirs valides (pièces, passages)");
+  {
+    let okP = true, minExits = 99;
+    for (let s = 1; s <= 25; s++) for (const n of [2, 5, 8]) {
+      const m = M.build(s * 7, n, { small: true });
+      if (m.garden.length || m.deco.length || m.switches.length || m.webs.length || m.rooms.some((r) => r.lamp !== undefined)) okP = false;
+      minExits = Math.min(minExits, m.doors.filter((d) => d.ext).length);
+    }
+    check(okP, "Dehors un parking vide, pas de lustres ni d'interrupteurs");
+    check(minExits >= 4, `Plusieurs sorties vers le parking (au moins ${minExits})`);
+  }
   const v = (k) => C.LOOT[k];
   check(v("argenterie").value < v("vase").value && v("vase").value < v("tableau").value && v("tableau").value < v("coffre").value, "Plus ça vaut cher…");
   check(C.speedOf(null) > v("argenterie").speed && v("argenterie").speed > v("vase").speed && v("vase").speed > v("tableau").speed && v("tableau").speed > v("coffre").speed, "… plus on est lent");
@@ -55,9 +65,9 @@ async function run() {
   check(picked.ok && game?.phase === "setup", "« Cambrioleurs » se lance");
   await act("start");
   await wait(250);
-  check(game.phase === "countdown" && game.heroes.length === 4 && game.vans.length === 4 && game.loot.length > 10 && game.guards.length >= 2, `4 joueurs, 4 camionnettes, ${game.loot.length} objets, ${game.guards.length} gardiens`);
-  const myVan = game.vans.find((v) => v.id === me), mine0 = game.heroes.find((h) => h.id === me);
-  check(Math.hypot(myVan.x - mine0.x, myVan.y - mine0.y) < 5, "Départ à sa camionnette");
+  check(game.phase === "countdown" && game.heroes.length === 4 && !!game.van && game.loot.length > 10 && game.guards.length >= 2, `4 joueurs, un seul van, ${game.loot.length} objets, ${game.guards.length} gardiens`);
+  const mine0 = game.heroes.find((h) => h.id === me);
+  check(Math.hypot(game.van.x - mine0.x, game.van.y - mine0.y) < 220, "Départ autour du van");
   await waitFor(() => game.phase === "play", 5000);
   // Je marche : le serveur me suit.
   let seq = 0;

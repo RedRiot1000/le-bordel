@@ -311,6 +311,26 @@
   }
 
 
+  // Le parking : bitume, trottoir le long du manoir, places marquées, flèches.
+  function parkingArt(c, manor, rnd) {
+    const MR = manor.manorRect;
+    for (const G of manor.gardenParts) {
+      c.fillStyle = "#34353c"; c.fillRect(G.x, G.y, G.w, G.h);
+      for (let k = 0; k < (G.w * G.h) / 260; k++) { c.fillStyle = k % 2 ? "rgba(0,0,0,0.14)" : "rgba(255,255,255,0.05)"; c.fillRect(G.x + rnd() * G.w, G.y + rnd() * G.h, 2, 2); }
+    }
+    // Places de parking, sur 2 rangées devant le manoir.
+    const front = manor.gardenParts[0];
+    c.fillStyle = "rgba(240,240,240,0.75)";
+    for (const y of [front.y + 60, front.y + front.h - 120]) for (let x = front.x + 40; x < front.x + front.w - 40; x += 90) c.fillRect(x, y, 5, 80);
+    // Sur le côté aussi.
+    const side = manor.gardenParts[1];
+    for (const x of [side.x + 40, side.x + side.w - 120]) for (let y = 60; y < MR.h; y += 90) c.fillRect(x, y, 80, 5);
+    // Trottoir le long du manoir.
+    c.fillStyle = "#7a766c";
+    c.fillRect(MR.x, MR.y + MR.h, MR.w, 22);
+    if (side.x < MR.x) c.fillRect(MR.x - 22, MR.y, 22, MR.h + 22); else c.fillRect(MR.x + MR.w, MR.y, 22, MR.h + 22);
+  }
+
   function paint(manor, seed) {
     const rnd = M.seeded(seed ^ 0x77aa);
     const bg = document.createElement("canvas");
@@ -319,15 +339,18 @@
     c.fillStyle = "#020203"; c.fillRect(0, 0, manor.w, manor.h);
     // Le jardin (devant + un côté) : herbe, un chemin de gravier le long du manoir, puis le décor.
     const MR = manor.manorRect;
-    for (const G of manor.gardenParts) {
+    if (manor.parking) parkingArt(c, manor, rnd);
+    else for (const G of manor.gardenParts) {
       c.fillStyle = "#26402a"; c.fillRect(G.x, G.y, G.w, G.h);
       for (let k = 0; k < (G.w * G.h) / 300; k++) { c.fillStyle = k % 2 ? "rgba(0,0,0,0.12)" : "rgba(120,160,100,0.08)"; c.fillRect(G.x + rnd() * G.w, G.y + rnd() * G.h, 2, 3); }
     }
     c.fillStyle = "#6e6a5e";
     const sideG = manor.gardenParts[1];
-    c.fillRect(MR.x, MR.y + MR.h, MR.w, 30);
-    if (sideG.x < MR.x) c.fillRect(MR.x - 30, MR.y, 30, MR.h + 30); else c.fillRect(MR.x + MR.w, MR.y, 30, MR.h + 30);
-    for (const d of manor.doors.filter((d) => d.ext && d.vert)) c.fillRect(d.x < MR.x + 5 ? MR.x - 70 : MR.x + MR.w, d.y + 8, 70, d.h - 16);
+    if (!manor.parking) {
+      c.fillRect(MR.x, MR.y + MR.h, MR.w, 30);
+      if (sideG.x < MR.x) c.fillRect(MR.x - 30, MR.y, 30, MR.h + 30); else c.fillRect(MR.x + MR.w, MR.y, 30, MR.h + 30);
+      for (const d of manor.doors.filter((d) => d.ext && d.vert)) c.fillRect(d.x < MR.x + 5 ? MR.x - 70 : MR.x + MR.w, d.y + 8, 70, d.h - 16);
+    }
     for (const d of manor.deco) gardenDeco(c, d, rnd);
     // Les pièces (manoir + cave).
     for (const r of manor.rooms) {

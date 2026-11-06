@@ -753,14 +753,15 @@ Choix : labyrinthe vertical, routes rapide/risquée ou lente/sûre, caméra zoom
 ## 7 tervicies. Cambrioleurs 💰 — validé (« Go »)
 
 Lampe torche et La Nuit du Tueur ont été retirés (trop lents, rôles déséquilibrés ; le code reste dans l'historique Git). Le manoir est gardé (`public/games/manoir/`) pour ce jeu, où tout le monde joue à égalité.
-- **Principe** : chacun pour soi dans le même manoir, une camionnette par joueur dans le jardin de devant. Manche de 2 min 30, classement à l'argent (10, 7, 5, 3, 2, 1).
-- **Manoir** : `M.build(seed, n, { small: true })`, plus petit, tout éclairé (le décor de nuit est peint plus clair), portes ouvertes, escaliers et passages secrets gardés.
+- **Principe** : chacun pour soi dans le même manoir, un seul van pour tous au milieu du parking (l'argent déposé va à celui qui dépose). Manche de 2 min 30, classement à l'argent (10, 7, 5, 3, 2, 1).
+- **Manoir** : `M.build(seed, n, { small: true })`, plus petit, tout éclairé (le décor de nuit est peint plus clair). Dehors, un parking vide. 5 à 7 sorties (devant et sur le côté) : personne ne peut attendre les autres à une seule porte. Pas de portes, de lustres, d'interrupteurs, de toiles ; escaliers et passages secrets gardés.
 - **Butin** (`public/games/casse/loot.js`) : un seul objet à la fois, ramassé en passant dessus, déposé en arrivant à sa camionnette. Argenterie 100 $ (vitesse ×1,05), vase 300 $ (×0,9), tableau 600 $ (×0,72), coffre 1 500 $ (×0,5) ; mains vides ×1,15. Nouveaux objets toutes les 2,5 s.
-- **Pousser** (Espace) : fait lâcher l'objet, n'importe qui peut le ramasser (1,2 s de délai pour celui qui l'a lâché).
-- **Gardiens** : 2 à 4, vitesse ×0,82, voient à 240 px (pas à travers les murs), préfèrent ceux qui portent. Attrapé = objet lâché, sonné 2 s, puis 3,5 s de tranquillité.
+- **Pousser** (Espace) : seulement à l'intérieur (ni le pousseur ni la cible sur le parking). Fait lâcher l'objet, n'importe qui peut le ramasser (1,2 s de délai pour celui qui l'a lâché).
+- **Gardiens** : 2 à 4, vitesse ×0,82, se promènent dans le manoir (pas la cave, pas le parking), voient à 240 px (pas à travers les murs). Ils ignorent ceux qui n'ont rien. Attrapé = ils reprennent l'objet, sonné 1 s, puis 3,5 s de tranquillité ; le gardien va poser l'objet dans une autre pièce au hasard (un coffre rangé est annoncé).
 - **Coffre-fort** : un par 40 s, annoncé avec sa pièce. **Alarme** : les 30 dernières secondes, le butin déposé vaut double.
-- **Écran** : caméra qui suit, classement en direct, mini-carte (gros objets, gardiens, ma camionnette), flèche vers ma camionnette quand je porte, annonces en bas à gauche.
-- **Bots** : meilleur objet selon valeur et distance, retour à la camionnette, poussent ceux qui portent à côté d'eux.
+- **Écran** : caméra qui suit, classement en direct, flèche vers le van quand je porte, annonces en bas à gauche. Pas de mini-carte.
+- **Passages** : portail animé bien visible, même couleur aux 2 bouts d'un passage secret, jaune pour les escaliers ; flèche vers le mur, et de près une étiquette qui dit ce que c'est et quoi faire.
+- **Bots** : meilleur objet selon valeur et distance, retour au van, poussent ceux qui portent à côté d'eux (à l'intérieur).
 
 ### Temps de réflexion doublés
 
