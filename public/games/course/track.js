@@ -120,6 +120,7 @@
     };
     const rnd = seeded(seed ^ 0x51ed);
     placeObstacles(t, rnd);
+    placeNarrows(t, seeded(seed ^ 0x7a11));
     // (à l'intérieur d'un virage serré, la ligne décalée se croiserait : on retire les points trop près de la piste)
     const RD = T.WIDTH / 2 + T.RAIL;
     t.rails = [-1, 1].map((side) => t.pts.map((p, i) => { const n = normal(t, i); return { x: p.x + n.x * RD * side, y: p.y + n.y * RD * side }; })
@@ -167,6 +168,53 @@
       }
     }
   }
+  // Sur certains circuits, une portion de piste passe à 2 voies ou à 1 seule, puis revient à 3.
+  // t.hw[i] = demi-largeur de la piste au point i. Sur les côtés de la portion : de l'herbe.
+  function placeNarrows(t, rnd) {
+    const FULL = T.WIDTH / 2, TAPER = 9;       // 9 points (~215 px) pour se resserrer
+    t.hw = new Array(t.N).fill(FULL);
+    t.narrows = [];
+    if (rnd() > 0.65) return;
+    const count = 1 + Math.floor(rnd() * 3);
+    for (let k = 0, tries = 0; k < count && tries < 40; tries++) {
+      const lanes = rnd() < 0.65 ? 2 : 1;
+      const len = 20 + Math.floor(rnd() * 22);                  // 480 à 1000 px à largeur réduite
+      const i0 = Math.floor(rnd() * t.N), total = len + 2 * TAPER;
+      if (i0 * T.STEP < 900 || (i0 + total) * T.STEP > t.len - 700) continue;     // jamais près du départ
+      if (t.narrows.some((n) => i0 < n.i0 + n.total + 45 && n.i0 < i0 + total + 45)) continue;
+      let bend = false;                                         // jamais dans un virage serré
+      for (let q = -6; q < total + 6; q++) if (Math.abs(t.curv[i0 + q]) > 1 / 330) bend = true;
+      if (bend) continue;
+      const hw = (T.WIDTH / T.LANES) * lanes / 2;
+      for (let q = 0; q < total; q++) {
+        const f = q < TAPER ? q / TAPER : q >= total - TAPER ? (total - 1 - q) / TAPER : 1;
+        const e = f * f * (3 - 2 * f);                          // un resserrement en douceur
+        t.hw[i0 + q] = Math.min(t.hw[i0 + q], FULL + (hw - FULL) * e);
+      }
+      t.narrows.push({ i0, total, lanes, hw });
+      k++;
+    }
+    // Rien sur la piste ni dans l'herbe de ces portions : ni paille, ni plots à la corde…
+    const inside = (s) => t.narrows.some((n) => s > (n.i0 - 8) * T.STEP && s < (n.i0 + n.total + 8) * T.STEP);
+    t.obstacles = t.obstacles.filter((o) => !(o.kind === "paille" && inside(o.s)));
+    t.cones = t.cones.filter((c) => { const j = nearestPoint(t, c.x, c.y); return !inside(j * T.STEP); });
+    // … mais des plots qui annoncent le rétrécissement, le long du bord.
+    for (const n of t.narrows) for (const [a, b] of [[n.i0, n.i0 + TAPER], [n.i0 + n.total - TAPER, n.i0 + n.total]]) {
+      for (let i = a; i < b; i += 3) for (const side of [-1, 1]) {
+        const nn = normal(t, i), d = (t.hw[i] + 6) * side;
+        t.cones.push({ x: Math.round(t.pts[i].x + nn.x * d), y: Math.round(t.pts[i].y + nn.y * d) });
+      }
+    }
+    t.cones.forEach((c, i) => (c.id = i));
+  }
+  function nearestPoint(t, x, y) {
+    let best = 0, bd = Infinity;
+    for (let i = 0; i < t.N; i++) { const d = Math.hypot(t.pts[i].x - x, t.pts[i].y - y); if (d < bd) { bd = d; best = i; } }
+    return best;
+  }
+  // La demi-largeur de la piste au point i.
+  T.halfAt = (t, i) => t.hw[((i % t.N) + t.N) % t.N];
+
   function tooCloseToTrack(t, x, y, d) {
     for (let i = 0; i < t.N; i += 2) if (Math.hypot(t.pts[i].x - x, t.pts[i].y - y) < d) return true;
     return false;
@@ -227,7 +275,7 @@
   T.offAt = function (t, x, y) {
     const l = T.locate(t, x, y);
     if (!l) return 1;
-    const e = l.dist - T.WIDTH / 2 - 11;               // (le vibreur est encore de la piste)
+    const e = l.dist - t.hw[l.i] - 11;                 // (le vibreur est encore de la piste)
     return e <= 0 ? 0 : Math.min(1, e / 8);
   };
 

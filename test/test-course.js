@@ -44,6 +44,20 @@ console.log("— Circuit —");
   { let fails = 0; for (let k = 0; k < 300; k++) { try { T.build((k * 2654435761) >>> 0); } catch { fails++; } } check(fails === 0, `300 circuits générés sans échec (${fails})`); }
   { let hp = 0; for (let k = 0; k < 40; k++) { const c = T.build((k * 2654435761) >>> 0); if (c.curv.some((v) => Math.abs(v) > 1 / 165)) hp++; }
     check(hp >= 12, `Des circuits avec de vraies épingles (${hp}/40)`); }
+  {
+    let withN = 0, one = 0, two = 0, ok = true;
+    for (let k = 0; k < 60; k++) {
+      const c = T.build((k * 2654435761) >>> 0);
+      if (c.narrows.length) withN++;
+      for (const n of c.narrows) { if (n.lanes === 1) one++; else two++; const mid = n.i0 + Math.floor(n.total / 2); if (Math.abs(c.hw[mid] - n.hw) > 0.01) ok = false; if (c.hw[n.i0 + n.total + 2] !== T.WIDTH / 2) ok = false; }
+      if (c.obstacles.some((o) => o.kind === "paille" && c.narrows.some((n) => o.s > n.i0 * T.STEP && o.s < (n.i0 + n.total) * T.STEP))) ok = false;
+    }
+    check(withN >= 20 && withN < 60 && one > 0 && two > 0, `Portions étroites sur certains circuits (${withN}/60 ; ${two} à 2 voies, ${one} à 1 voie)`);
+    check(ok, "Elles reviennent à 3 voies, sans paille dedans");
+    const n0 = (() => { for (let k = 0; k < 60; k++) { const q = T.build((k * 2654435761) >>> 0); if (q.narrows.length) return q; } })();
+    const n = n0.narrows[0], i = n.i0 + Math.floor(n.total / 2), p = n0.pts[i], nn = T.normal(n0, i);
+    check(T.offAt(n0, p.x, p.y) === 0 && T.offAt(n0, p.x + nn.x * (n.hw + 30), p.y + nn.y * (n.hw + 30)) === 1, "Sur les côtés d'une portion étroite : de l'herbe");
+  }
   check(T.LANES === 3 && T.WIDTH >= 220, `Piste à 3 voies (${T.WIDTH} px)`);
   check(minTurn >= 120, `Aucun virage impossible (rayon mini ${Math.round(minTurn)} px)`);
   check(sep >= T.WIDTH * 1.6, `La piste ne se touche jamais (écart mini ${Math.round(sep)} px)`);

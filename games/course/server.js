@@ -230,7 +230,7 @@ export function createGame(ctx) {
       const cur = ((s.prog % L) + L) % L;
       const d = wrap(l.s - cur, L);
       if (Math.abs(d) < 400) s.prog += d;                 // (pas de saut : couper par l'herbe ne compte pas)
-      if (l.dist < W / 2 - 12 && s.prog > s.safe) s.safe = s.prog;
+      if (l.dist < T.halfAt(g.track, l.i) - 12 && s.prog > s.safe) s.safe = s.prog;
     }
     const offNow = !l || l.dist > W / 2 + T.RAIL + 30;     // (l'herbe avant la barrière, c'est encore le circuit)
     s.off = offNow ? s.off + P.TICK : 0;
@@ -345,6 +345,9 @@ export function createGame(ctx) {
     }
     const la = 70 + speed * 0.4;
     const p = T.at(tr, s.prog + la), n = T.normal(tr, p.i);
+    // (dans une portion étroite, il reste sur le bitume)
+    const room = Math.max(0, Math.min(T.halfAt(tr, p.i), T.halfAt(tr, Math.floor((((s.prog % L) + L) % L) / T.STEP))) - 24);
+    lat = Math.max(-room, Math.min(room, lat));
     const tx = p.x + n.x * lat, ty = p.y + n.y * lat;
     const diff = angDiff(Math.atan2(ty - c.y, tx - c.x), c.a);
     // Vitesse permise : selon le virage le plus serré qui arrive.

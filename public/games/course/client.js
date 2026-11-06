@@ -19,7 +19,7 @@
   let phaseEndLocal = 0, finishEndLocal = 0, elimEndLocal = 0, endEndLocal = 0;
   let rafId = null, lastTs = 0;
   let canvas = null, g2d = null;
-  let track = null, trackSeed = null, ENV = null, path = null, mini = null, rails = [], lanes = [];
+  let track = null, trackSeed = null, ENV = null, path = null, mini = null, rails = [], lanes = [], narrows = [];
 
   let pred = null, prevPred = null;
   let pending = [];
@@ -160,8 +160,42 @@
     track.pts.forEach((p, i) => (i ? path.lineTo(p.x, p.y) : path.moveTo(p.x, p.y)));
     path.closePath();
     for (const k in coneSeen) delete coneSeen[k];
+    // Les portions étroites : de l'herbe sur les côtés, avec un vibreur.
+    narrows = track.narrows.map((nw) => {
+      const sides = [-1, 1].map((side) => {
+        const grass = new Path2D(), edge = new Path2D();
+        const P = (i, d) => { const j = i % track.N, q = track.pts[j], n = T.normal(track, j); return [q.x + n.x * d * side, q.y + n.y * d * side]; };
+        for (let i = nw.i0 - 1; i <= nw.i0 + nw.total; i++) { const hw = track.hw[i % track.N], [x, y] = P(i, hw), [ex, ey] = P(i, hw + 6); i === nw.i0 - 1 ? grass.moveTo(x, y) : grass.lineTo(x, y); i === nw.i0 - 1 ? edge.moveTo(ex, ey) : edge.lineTo(ex, ey); }
+        for (let i = nw.i0 + nw.total; i >= nw.i0 - 1; i--) { const [x, y] = P(i, T.WIDTH / 2 + 13); grass.lineTo(x, y); }
+        grass.closePath();
+        return { grass, edge };
+      });
+      return sides;
+    });
     // Les 2 lignes qui séparent les 3 voies.
-    lanes = [-1, 1].map((side) => { const p = new Path2D(); track.pts.forEach((q, i) => { const n = T.normal(track, i), d = side * T.WIDTH / 6; i ? p.lineTo(q.x + n.x * d, q.y + n.y * d) : p.moveTo(q.x + n.x * d, q.y + n.y * d); }); p.closePath(); return p; });
+    lanes = [-1, 1].map((side) => {
+      const p = new Path2D();
+      let pen = false;                                          // (elles s'arrêtent là où la piste se resserre)
+      for (let i = 0; i <= track.N; i++) {
+        const j = i % track.N, q = track.pts[j], n = T.normal(track, j), d = side * T.WIDTH / 6;
+        if (track.hw[j] < T.WIDTH / 2 - 0.5) { pen = false; continue; }
+        pen ? p.lineTo(q.x + n.x * d, q.y + n.y * d) : p.moveTo(q.x + n.x * d, q.y + n.y * d);
+        pen = true;
+      }
+      return p;
+    });
+    // À 2 voies : une seule ligne, au milieu. À 1 voie : aucune.
+    for (const nw of track.narrows) {
+      if (nw.lanes !== 2) continue;
+      const p = new Path2D();
+      let pen = false;
+      for (let i = nw.i0; i < nw.i0 + nw.total; i++) {
+        if (track.hw[i] > nw.hw + 1) continue;
+        pen ? p.lineTo(track.pts[i].x, track.pts[i].y) : p.moveTo(track.pts[i].x, track.pts[i].y);
+        pen = true;
+      }
+      lanes.push(p);
+    }
     rails = track.rails.map((line) => { const p = new Path2D(); line.forEach((q, i) => (i ? p.lineTo(q.x, q.y) : p.moveTo(q.x, q.y))); p.closePath(); return p; });
     // Mini-carte (dessinée une fois).
     mini = document.createElement("canvas");
@@ -518,6 +552,14 @@
     c.strokeStyle = "#4a4b55"; c.lineWidth = T.WIDTH - 10; c.stroke(path);
     c.setLineDash([34, 46]); c.strokeStyle = "rgba(255,255,255,0.42)"; c.lineWidth = 4; for (const l of lanes) c.stroke(l); c.setLineDash([]);
 
+    // Les portions étroites : l'herbe mange la piste, avec un vibreur.
+    for (const sides of narrows) for (const { grass, edge } of sides) {
+      c.fillStyle = "#44953c"; c.fill(grass);
+      c.lineCap = "butt";
+      c.strokeStyle = "#d8302a"; c.lineWidth = 14; c.stroke(edge);
+      c.setLineDash([28, 28]); c.strokeStyle = "#f4f4f4"; c.stroke(edge); c.setLineDash([]);
+      c.lineCap = "round";
+    }
     // Barrières de sécurité (rail métallique sur poteaux, des 2 côtés).
     for (const r of rails) {
       c.strokeStyle = "rgba(0,0,0,0.35)"; c.lineWidth = 12; c.save(); c.translate(3, 4); c.stroke(r); c.restore();
