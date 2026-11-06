@@ -257,15 +257,12 @@ export function createGame(ctx) {
     s.prevK = k;
   }
 
-  // Le gardien pose la prison à ses pieds : une place est dégagée, ceux qui s'y trouvent sont mis dehors.
+  // Le gardien pose la prison à ses pieds : un cercle, le décor ne change pas.
   function placePrison(id, s) {
     const { c, r } = Q.prisonSpot(s.h.x, s.h.y);
     Q.prisonAt(g.map, c, r);
     g.prison = { c, r };
-    const P = g.map.prison;
-    // Les caisses recouvertes disparaissent.
-    g.boxes = g.boxes.filter((b) => dist(b, { x: P.cx, y: P.cy }) > Q.JAIL_R + 50);
-    addFx({ kind: "place", x: Math.round(P.cx), y: Math.round(P.cy) });
+    addFx({ kind: "place", x: Math.round(g.map.prison.cx), y: Math.round(g.map.prison.cy) });
     say(`🔒 ${pseudo(id)} a posé la prison !`);
   }
 

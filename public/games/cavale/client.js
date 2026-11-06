@@ -132,7 +132,7 @@
       $("cv-play").classList.remove("hidden");
       if (st.seed !== mapSeed) { mapSeed = st.seed; map = Q.build(st.seed); paintWorld(); }
       // Le gardien vient de poser la prison : on l'ajoute au quartier.
-      if (st.prison && !map.prison) { Q.prisonAt(map, st.prison.c, st.prison.r); paintPrison(); }
+      if (st.prison && !map.prison) Q.prisonAt(map, st.prison.c, st.prison.r);
       handleFx();
       reconcile();
       lastSnapRecv = performance.now();
@@ -512,12 +512,6 @@
   function paintMini() {
     miniImg = document.createElement("canvas"); miniImg.width = 232; miniImg.height = Math.round(232 * Q.H / Q.W);
     miniImg.getContext("2d").drawImage(worldImg, 0, 0, miniImg.width, miniImg.height);
-  }
-  // Quand le gardien pose la prison, ce qu'il y avait là est dégagé (le cercle, lui, est dessiné à chaque image).
-  function paintPrison() {
-    const T = Q.T, c = worldImg.getContext("2d");
-    for (const [q, r] of map.prison.tiles) { c.fillStyle = (q + r) % 2 ? "#e6dcc4" : "#ded3b9"; c.fillRect(q * T, r * T, T + 0.5, T + 0.5); }
-    paintMini();
   }
   // Une voiture garée, vue de dessus.
   function drawCar(c, o) {
