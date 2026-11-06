@@ -80,10 +80,9 @@
         <div class="card">
           <h2>📜 Règles</h2>
           <ul class="pt-help">
-            <li>⚖️ À chaque manche, un <b>juge</b> choisit un thème (ex. « Un fast-food »).</li>
-            <li>📋 5 choses s'affichent. Le juge les <b>classe selon ses goûts</b>, du 1er au 5e.</li>
-            <li>🔮 Les autres essaient de <b>deviner son classement</b>, en même temps.</li>
-            <li>🏆 <b>2 pts</b> par chose à la bonne place, <b>1 pt</b> à une place près. Le juge gagne la <b>moyenne</b> des autres (sois sincère !).</li>
+            <li>⚖️ Un joueur, le <b>juge</b>, classe 5 choses selon ses goûts.</li>
+            <li>🔮 Les autres <b>devinent son classement</b>.</li>
+            <li>🏆 Plus tu es proche, plus tu marques.</li>
           </ul>
         </div>
       </div>

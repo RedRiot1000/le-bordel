@@ -73,11 +73,9 @@
         <div class="card">
           <h2>📜 Règles</h2>
           <ul class="pt-help">
-            <li>✍️ Au début, <b>chacun écrit ses thèmes</b> (🎲 pour en piocher un), ou on prend la banque de thèmes (réglage).</li>
             <li>💭 Un thème s'affiche, par exemple <b>« Un truc rouge »</b>.</li>
-            <li>✍️ Chacun écrit <b>une seule réponse</b>, en secret.</li>
-            <li>🤝 Tu marques <b>1 point par joueur</b> qui a écrit la même chose que toi. Seul dans ton coin = 0.</li>
-            <li>🔗 « Le chat », « chats » et « Chat » comptent pareil. L'hôte peut aussi <b>fusionner</b> deux réponses après débat.</li>
+            <li>✍️ Chacun écrit <b>une réponse</b>, en secret.</li>
+            <li>🤝 <b>+1 point</b> par joueur qui a écrit comme toi.</li>
           </ul>
         </div>
       </div>

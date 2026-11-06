@@ -70,10 +70,9 @@
         <div class="card">
           <h2>📜 Règles</h2>
           <ul class="pt-help">
-            <li>✍️ Chacun écrit une question du genre <b>« Qui finirait en prison en premier ? »</b> (🎲 si tu sèches).</li>
-            <li>🗳️ Les questions passent une par une, <b>anonymes</b> : vote pour un joueur (même toi).</li>
-            <li>🥁 À la fin, <b>tout est dévoilé</b> : qui a voté pour qui, qui a écrit quoi.</li>
-            <li>🏆 Le plus désigné gagne un <b>titre</b>. Toi, tu marques <b>+1</b> si tu as voté comme la majorité.</li>
+            <li>✍️ Chacun écrit une question, comme <b>« Qui finirait en prison en premier ? »</b></li>
+            <li>🗳️ Vote pour le joueur qui correspond le mieux.</li>
+            <li>🏆 <b>+1</b> si tu votes comme la majorité.</li>
           </ul>
         </div>
       </div>

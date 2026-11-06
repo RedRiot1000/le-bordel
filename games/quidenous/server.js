@@ -15,7 +15,7 @@ export const meta = {
   family: "Quiz",
   minPlayers: 3,
   maxPlayers: 8,
-  description: "« Qui finirait en prison en premier ? » Votez… et assumez.",
+  description: "« Qui finirait en prison ? » Votez pour un joueur.",
   pausable: true,      // jeu de réflexion : l'hôte (ou la moitié des joueurs) peut mettre en pause
 };
 

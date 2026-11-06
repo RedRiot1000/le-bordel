@@ -36,13 +36,17 @@ console.log("— Tour et perso —");
     check(["multi", "goulet", "puits", "sauts", "double"].every((k) => kinds.has(k)), `Tous les types d'étages existent (${[...kinds].join(", ")})`);
     check(c.secs.every((q, i) => !i || q.type !== c.secs[i - 1].type), "Jamais deux fois de suite le même type d'étage");
     check(c.secs.filter((q) => q.routes.length === 1).length >= c.secs.length * 0.4, "Souvent un seul passage");
-    check(c.secs.filter((q) => q.type === "double").every((q) => q.routes[0].way.some((w) => w.dbl) && q.routes[0].way.at(-1).y - q.routes[0].way.at(-2).y === 6 * P.TILE), "Salle du double saut : 6 cases sous la sortie (un saut simple ne suffit pas)");
+    check(c.secs.filter((q) => q.type === "double").every((q) => q.routes[0].way.some((w) => w.dbl) && q.routes[0].way.at(-1).y - q.routes[0].way.at(-2).y >= 5 * P.TILE), "Salle du double saut : au moins 5 cases sous la sortie (un saut simple ne suffit pas)");
+    check(c.plats.every((p) => p.ground || c.secs.some((q) => p.y === q.y0 + q.h)), "Plus aucune plateforme fine : seulement les arrivées d'étage");
+    check(c.solids.some((s) => s.slick), "De la pierre polie (pas de saut mural)");
+    const ws = new Set(c.secs.flatMap((q) => q.caps.map((_, i) => c.plats.find((p) => p.y === q.y0 + q.h && p.x === q.caps[i])?.w)));
+    check(ws.size >= 3, `Des passages de largeurs différentes (${[...ws].sort((a, b) => a - b).join(", ")} px)`);
   }
   {
     const shape = (c, q, i) => { const r0 = c.rows.slice(0); const start = q.y0 / P.TILE, end = (q.y0 + q.h) / P.TILE; return r0.slice(start, end).map((r) => r.join("")).join("|"); };
     const c = P.tower(4242); c.ensure(60000);
     const shapes = new Set(c.secs.map((q, i) => shape(c, q, i)));
-    check(shapes.size === c.secs.length, `Tous les étages sont différents (${shapes.size}/${c.secs.length})`);
+    check(shapes.size >= c.secs.length * 0.95, `Les étages sont différents (${shapes.size}/${c.secs.length} ; deux puits seuls peuvent avoir la même forme, mais pas les mêmes piques)`);
     check(new Set(c.secs.map((q) => q.h)).size >= 4, "Des étages de hauteurs différentes");
     const turns = new Set(c.secs.flatMap((q) => q.routes.filter((r) => r.kind === "zigzag").map((r) => r.way.length)));
     check(turns.size >= 2, `Des zigzags plus ou moins longs (${[...turns].join(", ")} étapes)`);
@@ -51,8 +55,9 @@ console.log("— Tour et perso —");
   }
   const walls = a.rows.reduce((n, r) => n + r.reduce((x, y) => x + y, 0), 0) / (a.rows.length * P.COLS);
   check(walls > 0.25, `Des murs partout (${Math.round(walls * 100)} % de la tour)`);
-  check(a.solids.some((q) => q.low) && a.plats.some((p) => p.kind === "crumble") && a.spikes.some((k) => k.faces), "Plafonds bas, rebords qui s'effritent, piques sur les murs");
-  check(a.solids.filter((q) => q.low).length >= a.secs.length * 1.2, `Des passages accroupis (${a.solids.filter((q) => q.low).length} pour ${a.secs.length} étages)`);
+  check(a.solids.some((q) => q.low) && a.plats.some((p) => p.kind === "crumble") && a.spikes.some((k) => k.faces), "Plafonds bas, arrivées qui s'effritent, piques sur les murs");
+  check(P.sig(P.tower(99)) === P.sig(P.tower(99)) && P.sig(P.tower(99)) !== P.sig(P.tower(100)), "L'empreinte d'une tour sert à détecter une version différente");
+  check(a.solids.filter((q) => q.low).length >= a.secs.length * 0.5, `Des passages accroupis (${a.solids.filter((q) => q.low).length} pour ${a.secs.length} étages)`);
   // Un bot termine tous les zigzags (sans lave).
   {
     const lava = P.lavaAt; P.lavaAt = () => -1e9;
@@ -94,6 +99,14 @@ console.log("— Tour et perso —");
     }
     P.lavaAt = lava;
     check(all > 0 && ok === all, `Un bot sort de toutes les salles à corniches (${ok}/${all})`);
+  }
+  // Pierre polie : aucun saut mural.
+  {
+    const c = box((cc) => { const s = { x: 150, y: 0, w: 30, h: 3000, slick: true }; cc.solids.push(s); for (let b = -1; b < 17; b++) cc.slot(b).s.push(s); });
+    const r = P.newRunner(120); r.y = 300; r.air = true; r.vy = 0; r.dj = 0;
+    for (let i = 0; i < 3; i++) P.step(r, K.RIGHT, c);
+    P.step(r, K.RIGHT | K.JUMP, c);
+    check(r.wall === 0 && r.vy < 100, "Pierre polie : pas de saut mural");
   }
   // Double saut : plus haut qu'un saut, une seule fois, puis il revient au sol.
   {

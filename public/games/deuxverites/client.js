@@ -78,10 +78,9 @@
         <div class="card">
           <h2>📜 Règles</h2>
           <ul class="pt-help">
-            <li>🎲 Un <b>thème</b> est proposé (ex. « Mes vacances ») : garde-le, pioche-en un autre 🎲 ou <b>écris le tien</b> (réglage).</li>
-            <li>✍️ Chacun écrit <b>3 phrases sur lui</b> : 2 vraies, <b>1 fausse</b> (tu coches laquelle).</li>
-            <li>🔍 Un joueur à la fois : ses phrases s'affichent dans le désordre, les autres <b>votent pour le mensonge</b>. Il peut se défendre au micro !</li>
-            <li>🏆 <b>+1</b> si tu trouves le mensonge. L'auteur gagne <b>+1 par joueur piégé</b>.</li>
+            <li>✍️ Écris <b>3 phrases sur toi</b> : 2 vraies, 1 fausse.</li>
+            <li>🤥 Les autres votent pour le <b>mensonge</b>.</li>
+            <li>🏆 <b>+1</b> si tu le trouves, <b>+1</b> par joueur que tu pièges.</li>
           </ul>
         </div>
       </div>

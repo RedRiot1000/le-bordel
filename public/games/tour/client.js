@@ -54,8 +54,8 @@
           <h2>🎮 Règles & commandes</h2>
           <ul class="pt-help">
             <li>🌋 Tout le monde grimpe <b>le même temple</b>. La <b>lave</b> monte de plus en plus vite : si elle te touche, tu es éliminé.</li>
-            <li>🔀 Chaque étage change : plusieurs routes au choix (<b>puits</b> direct avec des piques, <b>zigzag</b> plus long, <b>corniches</b>), un <b>passage unique</b>, ou une salle où il faut le <b>double saut</b>. Pas de cul-de-sac.</li>
-            <li>🏃 <kbd>←</kbd><kbd>→</kbd> ou <kbd>Q</kbd><kbd>D</kbd> : courir · <kbd>Espace</kbd> / <kbd>↑</kbd> / <kbd>Z</kbd> : sauter (maintenir = plus haut). <b>Ressaute en l'air = double saut</b> (les chevrons dorés sous une corniche l'annoncent).</li>
+            <li>🔀 Chaque étage change : plusieurs routes au choix (<b>puits</b> direct avec des piques, <b>zigzag</b> plus long, <b>corniches</b>), un <b>passage unique</b>, ou une salle de <b>double saut</b> en pierre turquoise (pas de saut mural dessus). Pas de cul-de-sac.</li>
+            <li>🏃 <kbd>←</kbd><kbd>→</kbd> ou <kbd>Q</kbd><kbd>D</kbd> : courir · <kbd>Espace</kbd> / <kbd>↑</kbd> / <kbd>Z</kbd> : sauter (maintenir = plus haut). <b>Ressaute en l'air = double saut</b> (des chevrons dorés l'annoncent).</li>
             <li>🧗 <b>Saut mural</b> : contre un mur, saute pour rebondir vers l'autre côté (pas deux fois de suite sur le même côté).</li>
             <li>⬇️ <kbd>↓</kbd> / <kbd>S</kbd> : s'accroupir (passer sous les plafonds bas) · en l'air : retomber plus vite.</li>
             <li>🟠 Certains rebords d'arrivée sont <b>orange</b> : ils s'effritent. Un <b>pique</b> rouge te <b>sonne une demi-seconde</b> (tu retombes si tu es en l'air).</li>
@@ -123,7 +123,15 @@
       }
       $("to-setup").classList.add("hidden");
       $("to-play").classList.remove("hidden");
-      if (st.seed !== towerSeed) { towerSeed = st.seed; tower = P.tower(st.seed); }
+      if (st.seed !== towerSeed) {
+        towerSeed = st.seed; tower = P.tower(st.seed);
+        // Pas la même tour que le serveur (page d'avant une mise à jour) : on recharge, une fois.
+        if (st.sig !== undefined && P.sig(tower) !== st.sig) {
+          let again = false;
+          try { again = sessionStorage.getItem("tour-sig") === String(st.sig); sessionStorage.setItem("tour-sig", String(st.sig)); } catch {}
+          if (!again) { location.reload(); return; }
+        }
+      }
       Object.assign(tower.crumbles, st.crumbles || {});
       handleFx();
       reconcile();
@@ -333,10 +341,12 @@
     for (let row = r0; row <= r1; row++) for (let q = q0; q <= q1; q++) {
       if (!wall(row, q)) continue;
       const x = q * T, y = Y((row + 1) * T), h = hash(row, q);
-      c.fillStyle = h < 0.5 ? "#5f4b35" : "#6a543c";
+      const polished = wall(row, q) === 2;              // pierre polie : pas de saut mural
+      c.fillStyle = polished ? (h < 0.5 ? "#2f8f88" : "#35a096") : h < 0.5 ? "#5f4b35" : "#6a543c";
       c.fillRect(x, y, T + 0.5, T + 0.5);
       c.fillStyle = "rgba(25,14,4,0.24)"; c.fillRect(x, y + T / 2 - 1, T, 2); c.fillRect(x + (row % 2 ? T / 2 : T - 2), y, 2, T / 2); c.fillRect(x + (row % 2 ? 2 : T / 2), y + T / 2, 2, T / 2);
-      if (h > 0.9) glyph(c, x, y, T, Math.floor(h * 1000) % 3);
+      if (polished) { c.fillStyle = "rgba(255,255,255,0.22)"; c.beginPath(); c.moveTo(x + 6, y + T - 8); c.lineTo(x + T - 14, y + 6); c.lineTo(x + T - 6, y + 6); c.lineTo(x + 14, y + T - 8); c.closePath(); c.fill(); }
+      else if (h > 0.9) glyph(c, x, y, T, Math.floor(h * 1000) % 3);
     }
     // Le bord des murs : mousse sur le dessus, pierre claire ailleurs.
     for (let row = r0; row <= r1; row++) for (let q = q0; q <= q1; q++) {
@@ -358,8 +368,8 @@
       if (wall(row + 1, q) && h < 0.3) vine(c, x + 8 + h * 60, y, 26 + hash(row, q * 7) * 56, ts, h);
       if (wall(row - 1, q) && h > 0.78) fern(c, x + T / 2, y + T, h);
       const lw = q > 0 && wall(row, q - 1), rw = q < P.COLS - 1 && wall(row, q + 1);
-      if (lw !== rw && hash(row * 3, q + 11) < 0.1) torch(c, lw ? x + 3 : x + T - 3, y + T / 2, lw ? 1 : -1, ts, h);
-      else if (!lw && !rw && hash(row * 9 + 4, q * 2) < 0.018) torch(c, x + T / 2, y + T / 2, 0, ts, h);
+      if (lw !== rw && hash(row * 3, q + 11) < 0.014) torch(c, lw ? x + 3 : x + T - 3, y + T / 2, lw ? 1 : -1, ts, h);
+      else if (!lw && !rw && hash(row * 9 + 4, q * 2) < 0.002) torch(c, x + T / 2, y + T / 2, 0, ts, h);
     }
 
     const v = P.view(tower, bottom - 40, top + 40);
@@ -383,18 +393,23 @@
       }
       let sh = 0;
       if (p.kind === "crumble" && c0 !== undefined && t >= c0 && t < c0 + P.CRUMBLE) sh = (Math.random() - 0.5) * 6;
-      // Une dalle de pierre et sa mousse (orange et fissurée si elle s'effrite).
-      c.fillStyle = p.kind === "crumble" ? "#ff9a2e" : "#d9bd7c"; c.fillRect(px + sh, y, p.w, p.h);
-      c.fillStyle = p.kind === "crumble" ? "rgba(255,255,255,0.65)" : "#6fd64a"; c.fillRect(px + sh, y, p.w, 4);
-      if (p.kind !== "crumble") { c.fillStyle = "rgba(90,60,20,0.45)"; for (let q = 12; q < p.w - 6; q += 24) c.fillRect(px + q, y + 6, 10, 3); }
-      c.strokeStyle = "#2b1d0e"; c.lineWidth = 2; c.strokeRect(px + sh, y, p.w, p.h);
-      // Des chevrons dorés sous une corniche : il faut le double saut pour l'atteindre.
-      if (p.dbl) {
+      // Un gros linteau de pierre, encastré dans les murs (orange et fissuré s'il s'effrite).
+      const LH = 26;
+      c.fillStyle = p.kind === "crumble" ? "#ff9a2e" : "#6a543c"; c.fillRect(px + sh, y, p.w, LH);
+      c.fillStyle = p.kind === "crumble" ? "rgba(255,255,255,0.65)" : "#6fd64a"; c.fillRect(px + sh, y, p.w, 6);
+      c.fillStyle = "rgba(25,14,4,0.3)"; for (let q = 20; q < p.w; q += 40) c.fillRect(px + sh + q, y + 6, 2, LH - 6);
+      c.fillStyle = "#f0e0ae"; c.fillRect(px + sh, y + LH - 3, p.w, 3);
+      if (p.kind === "crumble") { c.strokeStyle = "rgba(90,40,0,0.7)"; c.lineWidth = 2; for (let q = 14; q < p.w; q += 30) { c.beginPath(); c.moveTo(px + sh + q, y + 1); c.lineTo(px + sh + q + 6, y + 10); c.lineTo(px + sh + q - 2, y + 24); c.stroke(); } }
+    }
+    // Des chevrons dorés : ici, il faut le double saut.
+    for (const sec of tower.secs) {
+      if (sec.y0 > top || sec.y0 + sec.h < bottom) continue;
+      for (const route of sec.routes) route.way.forEach((w, i) => {
+        if (!w.dbl) return;
+        const y = Y(route.way[i - 1].y + 90), bob = Math.sin(ts / 260) * 3;
         c.strokeStyle = "#ffd23f"; c.lineWidth = 5; c.lineCap = "round"; c.lineJoin = "round";
-        const mx = px + p.w / 2, bob = Math.sin(ts / 260) * 3;
-        for (const dy of [26, 44]) { c.beginPath(); c.moveTo(mx - 15, y + dy + 10 + bob); c.lineTo(mx, y + dy + bob); c.lineTo(mx + 15, y + dy + 10 + bob); c.stroke(); }
-      }
-      if (p.kind === "crumble") { c.strokeStyle = "rgba(90,40,0,0.7)"; c.lineWidth = 2; for (let q = 14; q < p.w; q += 30) { c.beginPath(); c.moveTo(px + sh + q, y + 1); c.lineTo(px + sh + q + 6, y + 6); c.lineTo(px + sh + q - 2, y + p.h - 1); c.stroke(); } }
+        for (const dy of [0, 18]) { c.beginPath(); c.moveTo(w.from - 15, y + dy + 10 + bob); c.lineTo(w.from, y + dy + bob); c.lineTo(w.from + 15, y + dy + 10 + bob); c.stroke(); }
+      });
     }
     // Piques : rouge et blanc, avec un contour.
     for (const s of v.spikes) {

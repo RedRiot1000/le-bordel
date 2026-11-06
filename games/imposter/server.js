@@ -15,7 +15,7 @@ export const meta = {
   family: "Bluff",
   minPlayers: 3,
   maxPlayers: 8,
-  description: "Un mot secret, un intrus. Démasquez-le !",
+  description: "Tout le monde a le même mot, sauf l'imposteur. Trouvez-le !",
   pausable: true,      // jeu de réflexion : l'hôte (ou la moitié des joueurs) peut mettre en pause
 };
 

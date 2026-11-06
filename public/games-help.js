@@ -19,13 +19,13 @@
 
   window.GAME_HELP = {
     imposter: {
-      goal: "Trouver qui n'a pas le même mot que les autres… ou, si c'est toi, ne pas te faire griller.",
+      goal: "Trouver qui n'a pas le même mot que toi. Si c'est toi, ne te fais pas griller !",
       steps: [
-        "Chacun reçoit un <b>mot secret</b>. Les <b>civils</b> ont tous le même mot. L'<b>Undercover</b> a un mot proche mais différent (selon les réglages, il ne sait même pas qu'il est l'imposteur !). <b>Mr White</b>, lui, n'a <b>aucun mot</b>.",
-        "<b>Tour d'indices</b> : chacun son tour, tu donnes <b>un mot</b> en rapport avec ton mot secret. Pas trop précis (sinon l'imposteur devine), pas trop vague (sinon on te soupçonne).",
-        "Après les tours d'indices : <b>vote</b>. Clique sur la carte de celui que tu soupçonnes. Le plus voté est éliminé et son rôle est dévoilé.",
-        "Si Mr White est éliminé, il a une dernière chance : <b>deviner le mot des civils</b>. S'il trouve, il gagne tout seul !",
-        "On recommence, avec cette fois <b>un seul mot chacun</b> avant de revoter, jusqu'à ce qu'un camp gagne : les civils quand tous les imposteurs sont dehors, les imposteurs quand ils sont aussi nombreux que les civils.",
+        "Chacun reçoit un <b>mot secret</b>. Presque tout le monde a le même. L'<b>imposteur</b> a un mot différent, ou aucun mot.",
+        "Chacun son tour, donne <b>un indice</b> sur ton mot, sans trop en dire.",
+        "<b>Votez</b> pour éliminer celui que vous soupçonnez.",
+        "Si Mr White (celui qui n'a aucun mot) est éliminé, il gagne s'il devine le mot.",
+        "Les civils gagnent quand tous les imposteurs sont dehors. Les imposteurs gagnent s'ils sont aussi nombreux que les civils.",
       ],
       points: [
         "Civils gagnants : <b>+2</b> chacun.",
@@ -86,12 +86,11 @@
     },
 
     quidenous: {
-      goal: "Voter pour le joueur qui colle le mieux à chaque question… et voter comme la majorité.",
+      goal: "Voter pour le joueur qui correspond le mieux à chaque question.",
       steps: [
-        "Chacun <b>écrit une question</b> qui commence par « Qui… ? » (bouton 🎲 si tu n'as pas d'idée).",
-        "Les questions passent une par une, <b>sans dire qui les a écrites</b>. Pour chacune, clique sur un joueur (tu peux voter pour toi).",
-        "À la fin, la <b>cérémonie</b> : pour chaque question, on voit qui a voté pour qui, qui a écrit la question, et qui gagne le <b>titre</b>.",
-        "Le palmarès final montre les titres gagnés par chacun.",
+        "Chacun écrit une question qui commence par « Qui… ? » (🎲 si tu n'as pas d'idée).",
+        "Les questions passent une par une, <b>sans le nom de l'auteur</b>. Clique sur un joueur.",
+        "À la fin, on voit qui a voté pour qui, et qui gagne chaque <b>titre</b>.",
       ],
       points: ["<b>+1</b> chaque fois que tu as voté pour le joueur le plus désigné (tu as voté comme la majorité)."],
       example: "Question : « <b>Qui finirait en prison en premier ?</b> ». Tu votes pour Bob. À la cérémonie : 3 votes pour Bob, 1 pour Alice. Bob gagne le titre « finirait en prison en premier » 😂 et toi tu prends <b>+1</b>. Et surprise : c'est Alice qui avait écrit la question !",
@@ -137,14 +136,13 @@
     },
 
     sur10: {
-      goal: "Deviner la note secrète des autres grâce à leur indice… et donner des indices faciles à deviner.",
+      goal: "Deviner la note des autres grâce à leur exemple.",
       steps: [
-        "On vote pour le <b>thème</b> de la manche parmi 3 (exemple : « Un jeu vidéo »).",
-        "Chacun choisit une <b>note secrète</b> de 0 à 10. Personne ne la voit.",
-        "Puis tu écris un <b>indice</b> : un truc du thème qui vaut <b>ta note</b>, selon <b>tes goûts à toi</b>.",
-        "Un joueur à la fois, son indice s'affiche. Les autres <b>devinent sa note</b> : clique un chiffre puis <b>Valider</b>. C'est le moment de débattre sur Discord !",
-        "<b>Révélation</b> : la vraie note s'affiche sur une réglette de 0 à 10, avec les réponses de chacun.",
-        "Certains thèmes ont leur propre échelle, écrite sous le thème (« Un animal : 0 = inoffensif · 10 = mortel »).",
+        "On vote pour un <b>thème</b>, comme « Un jeu vidéo ».",
+        "Choisis une <b>note de 0 à 10</b>, en secret.",
+        "Écris un exemple du thème qui vaut cette note <b>pour toi</b>.",
+        "Un joueur à la fois : son exemple s'affiche, les autres <b>devinent sa note</b>.",
+        "On révèle la vraie note.",
       ],
       points: [
         "Note exacte : <b>3 points</b> · à 1 près : <b>2</b> · à 2 près : <b>1</b>.",
@@ -153,13 +151,12 @@
       example: "Thème « <b>Un jeu vidéo</b> ». Tu choisis <b>10</b> et tu écris « <b>Rust</b> » parce que pour toi c'est le meilleur jeu du monde. Alice dit 9 (+2), Bob dit 3 (« Rust c'est nul ! » → 0 point). Comme Alice t'a trouvé à 1 près, tu prends <b>+1</b>.",
     },
     classement: {
-      goal: "Deviner comment ton pote classe 5 choses selon ses goûts… et être le plus prévisible quand c'est toi le juge.",
+      goal: "Deviner comment le juge classe 5 choses.",
       steps: [
-        "À chaque manche, un joueur est le <b>juge</b> ⚖️ (chacun son tour). Il choisit un <b>thème</b> parmi 3, comme « Un fast-food ».",
-        "<b>5 choses</b> du thème s'affichent (McDo, KFC, Five Guys…).",
-        "Le juge les <b>classe selon SES goûts</b>, du 1er au 5e. En même temps, les autres essaient de <b>deviner son classement</b>.",
-        "Pour classer : <b>glisse</b> chaque chose sur sa place (1er à 5e). Glisse une place sur une autre pour les <b>échanger</b>, ou sur la liste pour la retirer. Tu peux aussi juste cliquer les choses dans l'ordre. Puis <b>Valider</b> (tu peux encore changer et renvoyer).",
-        "<b>Révélation</b> : le classement du juge à côté de celui de chaque joueur. Vert = bonne place, jaune = à une place près.",
+        "Chacun son tour, un joueur est le <b>juge</b>. Il choisit un thème, comme « Un fast-food ».",
+        "5 choses s'affichent. Le juge les classe <b>selon ses goûts</b>.",
+        "En même temps, les autres <b>devinent son classement</b> : glisse les choses sur les places, ou clique-les dans l'ordre.",
+        "On compare : vert = bonne place, jaune = à une place près.",
       ],
       points: [
         "<b>2 points</b> par chose à la bonne place, <b>1 point</b> si elle est à une place près (10 points maximum).",
@@ -209,14 +206,12 @@
       example: "Tu fonces dans une grande avenue avec le nitro, deux Sportives au cul. Tu prends une ruelle étroite à droite… un van te bloque la sortie ! Tu recules, le cercle rouge commence à se remplir, tu repars en marche avant en frottant le mur : sauvé. À ⭐⭐⭐⭐⭐ Bob se fait coincer contre une rue barrée et devient flic… et c'est lui qui t'arrête à 10 s de la fin (+2 pour lui).",
     },
     pensepareil: {
-      goal: "Écrire la même réponse que les autres : ici, on ne gagne pas en étant original !",
+      goal: "Écrire la même réponse que les autres.",
       steps: [
-        "Au début (réglage par défaut), <b>chacun écrit ses propres thèmes</b> (🎲 pour en piocher un dans la banque de 360). Ils seront joués chacun leur tour, avec le nom de l'auteur. Ou l'hôte choisit la banque de thèmes.",
-        "Un <b>thème</b> s'affiche, par exemple « Un truc rouge » ou « Un animal de la ferme ».",
-        "Chacun écrit <b>une seule réponse</b>, en secret (30 s par défaut). Pense à ce que les AUTRES vont écrire !",
-        "<b>Révélation</b> : les réponses sont regroupées par paquets identiques, le plus gros en premier (en jaune).",
-        "« Le chat », « chats » et « Chat ! » comptent pareil (majuscules, accents, le/la/un et pluriels ne comptent pas).",
-        "Deux réponses veulent dire la même chose (« Chaton » et « Chat ») ? Débattez sur Discord : l'<b>hôte</b> clique sur l'une puis sur l'autre pour les <b>fusionner</b>.",
+        "Au début, chacun propose des thèmes (🎲 pour en piocher un).",
+        "Un <b>thème</b> s'affiche, par exemple « Un truc rouge ».",
+        "Chacun écrit <b>une réponse</b>, en secret. Pense à ce que les autres vont écrire !",
+        "On regroupe les réponses identiques. Deux réponses veulent dire la même chose ? L'<b>hôte</b> peut les regrouper.",
       ],
       points: [
         "<b>1 point par autre joueur</b> qui a la même réponse que toi.",
@@ -226,13 +221,12 @@
     },
 
     deuxverites: {
-      goal: "Démasquer les mensonges des autres… et piéger tout le monde avec le tien.",
+      goal: "Trouver les mensonges des autres, et piéger tout le monde avec le tien.",
       steps: [
-        "Un <b>thème</b> est proposé (« Mes vacances », « Ma pire honte », « Mon enfance »…). Par défaut, chacun peut le <b>garder</b>, en piocher un autre 🎲 ou <b>écrire le sien</b>. (Réglage : le même thème pour tous.)",
-        "Chacun écrit <b>3 phrases sur lui</b> : 2 vraies et <b>1 fausse</b>, et coche laquelle est le mensonge (elle s'encadre en rouge).",
-        "Ensuite, <b>un joueur à la fois</b> : ses 3 phrases s'affichent dans le désordre (A, B, C).",
-        "Les autres cliquent sur celle qu'ils pensent être le <b>mensonge</b> (on peut changer d'avis). L'auteur peut se défendre… ou embrouiller tout le monde au micro !",
-        "<b>Révélation</b> : le mensonge en rouge, les vérités en vert, et qui a voté quoi.",
+        "Un thème est proposé, comme « Mes vacances ». Tu peux le garder ou en changer.",
+        "Écris <b>3 phrases sur toi</b> : 2 vraies et <b>1 fausse</b>. Coche la fausse.",
+        "Un joueur à la fois : ses 3 phrases s'affichent, les autres cliquent sur le <b>mensonge</b>.",
+        "On révèle le mensonge et qui a voté quoi.",
       ],
       points: [
         "<b>+1</b> si tu trouves le mensonge.",

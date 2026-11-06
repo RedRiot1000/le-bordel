@@ -745,9 +745,12 @@ Choix : labyrinthe vertical, routes rapide/risquée ou lente/sûre, caméra zoom
 - **Types d'étages** (Scotty trouvait ça encore trop répétitif) : tirés dans un sac, jamais deux fois de suite le même.
   - **multi** : 2 ou 3 routes au choix (puits, zigzag, corniches) ;
   - **goulet** : un seul zigzag sur toute la largeur ; **puits** : un seul puits, n'importe où ;
-  - **sauts** : grande salle à corniches, sauts simples (3 ou 4 cases de haut, trou de 1 à 3 cases) ;
-  - **double** : salle à corniches espacées de 5 ou 6 cases, ou d'un trou de 8 cases, annoncées par des chevrons dorés. La dernière corniche est au milieu, 6 cases sous la sortie, loin des murs : impossible sans double saut.
-- **Décor** : temple aztèque dans la jungle. Fond clair de jungle et pyramides en parallaxe, pierre chaude avec motifs gravés et turquoise, mousse, lianes, fougères, torches animées. Pas d'effet sur le jeu.
+  - **sauts** : salle ouverte, des morceaux du temple dépassent des murs à gauche puis à droite (3 ou 4 cases de haut, sauts simples). Plus de plateformes fines, Scotty les trouvait moches ;
+  - **double** : même salle en pierre polie turquoise (pas de saut mural dessus), 5 ou 6 cases entre deux morceaux, annoncés par des chevrons dorés : impossible sans double saut.
+  - **Largeurs au hasard** : puits de 2 à 5 cases, cheminées de 2 à 4, couloirs de 2 à 4 de haut, salles de 12 à 26 cases, puits avec plus ou moins de piques.
+  - Les arrivées d'étage sont de gros linteaux de pierre.
+- **Décor** : temple aztèque dans la jungle. Fond clair de jungle et pyramides en parallaxe, pierre chaude avec motifs gravés et turquoise, mousse, lianes, fougères, torches rares. Pas d'effet sur le jeu.
+- **Version** : le serveur envoie l'empreinte de la tour (P.sig) ; si le navigateur a une autre tour (page d'avant une mise à jour), il se recharge une fois.
 - **Labyrinthe** (tracé au hasard, Scotty trouvait que c'était toujours le même plan) : cases de 40 px, 28 de large. Chaque étage tire sa hauteur (21 à 29 cases), son nombre de routes (2 ou 3), leur ordre et leur largeur. Un hall bas (120 px, plafonds bas), puis un bloc de murs où sont creusées les routes. Un seul rebord par route, à l'arrivée (orange parfois sur les zigzags : il s'effrite).
   - **puits** (rapide, risqué) : 120 px de large, tout droit au saut mural, quelques piques seuls sur les murs ;
   - **zigzag** (lent, sûr) : une suite tirée au hasard de montées au saut mural (cheminées de 120 px) et de couloirs de 80 px, dans un sens ou dans l'autre, avec un plafond bas à passer accroupi (ou rarement un pique au sol) ;
@@ -805,3 +808,7 @@ Le 1er tour garde le nombre de tours d'indices réglé. Dès que la manche conti
 - Quels mini-jeux garder / virer / ajouter dans la liste du §7 ?
 - Le barème du §6 te va ?
 - Avatars : simples formes de couleur, ou petits persos dessinés (pixel art) ?
+
+## Textes des jeux d'ambiance
+
+Scotty trouvait certaines descriptions trop complexes. Règle : la carte du jeu tient en une phrase, les règles du salon en 3 ou 4 lignes courtes, l'aide explique seulement le déroulé. Les détails des points restent dans la section Points de l'aide.

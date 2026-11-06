@@ -17,7 +17,7 @@ export const meta = {
   family: "Ambiance",
   minPlayers: 3,
   maxPlayers: 8,
-  description: "Ta note est secrète, ton indice la trahit. Les autres devinent.",
+  description: "Choisis une note et donne un exemple. Les autres devinent ta note.",
   pausable: true,      // jeu de réflexion : l'hôte (ou la moitié des joueurs) peut mettre en pause
 };
 

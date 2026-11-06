@@ -15,7 +15,7 @@ export const meta = {
   family: "Ambiance",
   minPlayers: 3,
   maxPlayers: 8,
-  description: "Un thème, une réponse : marque en pensant comme les autres !",
+  description: "Un thème : écris la même réponse que les autres !",
   pausable: true,      // jeu de réflexion : l'hôte (ou la moitié des joueurs) peut mettre en pause
 };
 

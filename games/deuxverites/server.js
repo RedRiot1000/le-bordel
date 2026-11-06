@@ -16,7 +16,7 @@ export const meta = {
   family: "Ambiance",
   minPlayers: 3,
   maxPlayers: 8,
-  description: "3 phrases sur toi, une est fausse. Tes potes te connaissent vraiment ?",
+  description: "Écris 2 vérités et 1 mensonge. Les autres cherchent le mensonge.",
   pausable: true,      // jeu de réflexion : l'hôte (ou la moitié des joueurs) peut mettre en pause
 };
 

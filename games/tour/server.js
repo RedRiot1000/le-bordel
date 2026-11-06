@@ -69,6 +69,7 @@ export function createGame(ctx) {
       round: g.round,
       players: players().map((p) => ({ ...p, score: g.scores[p.id] || 0 })),
       seed: g.seed,
+      sig: g.sig,
       runners: Object.entries(g.runners).map(([id, s]) => ({ id, seq: s.seq, cause: s.cause, ...P.copy(s.r) })),
       crumbles: g.tower ? g.tower.crumbles : {},
       time: g.phase === "play" ? (t - g.playAt) / 1000 : 0,
@@ -92,6 +93,7 @@ export function createGame(ctx) {
     g.round++;
     g.seed = (Math.random() * 2 ** 31) >>> 0;
     g.tower = P.tower(g.seed);
+    g.sig = P.sig(g.tower);
     g.runners = {};
     g.deaths = [];
     g.lastRound = null;
@@ -118,7 +120,7 @@ export function createGame(ctx) {
     s.ticks++;
     const was = s.r.alive;
     const res = P.step(s.r, k, g.tower);
-    if (res === "pique") { addFx(s, res); return; }   // sonné 2 s, pas éliminé
+    if (res === "pique") { addFx(s, res); return; }   // sonné 0,5 s, pas éliminé
     if (was && res) {
       s.cause = res; s.deadAt = now();
       g.deaths.push(id);

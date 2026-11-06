@@ -79,17 +79,17 @@
       <div class="logo imp-logo">
         <span class="logo-icon">🔟</span>
         <h1>SUR 10</h1>
-        <p class="tagline">Ta note est secrète. Ton indice la trahit.</p>
+        <p class="tagline">Donne un exemple, les autres devinent ta note.</p>
       </div>
       <div class="pt-setup-grid">
         <div class="card"><h2>⚙️ Réglages</h2><div id="s10-settings" class="settings"></div></div>
         <div class="card">
           <h2>📜 Règles</h2>
           <ul class="pt-help">
-            <li>🗳️ On vote pour le <b>thème</b> parmi 3 (ex. « Un jeu vidéo »).</li>
-            <li>🤫 Chacun choisit une <b>note secrète</b> de 0 à 10 et écrit un <b>indice</b> qui vaut cette note <i>pour lui</i>. 10 → « Rust » 😎</li>
-            <li>🔍 Un joueur à la fois : les autres <b>devinent sa note</b>. Débattez sur Discord !</li>
-            <li>🏆 Pile = <b>3 pts</b>, à 1 près = <b>2</b>, à 2 près = <b>1</b>. L'auteur gagne <b>+1</b> par joueur qui l'a trouvé à 1 près.</li>
+            <li>🤫 Choisis une <b>note de 0 à 10</b>, en secret.</li>
+            <li>💡 Écris un exemple qui vaut cette note pour toi. Thème « Un jeu vidéo », note 10 : « Rust ».</li>
+            <li>🔍 Les autres <b>devinent ta note</b>.</li>
+            <li>🏆 Plus tu es proche, plus tu marques.</li>
           </ul>
         </div>
       </div>
