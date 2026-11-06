@@ -741,15 +741,22 @@ Choix : labyrinthe vertical, routes rapide/risquée ou lente/sûre, caméra zoom
 - **Moteur partagé** (`public/games/tour/tower.js`, globalThis.Tower) : le labyrinthe (seed, étage par étage), le pas du perso (1/30 s) et le bot, identiques sur le serveur et le navigateur.
 - **Perso** : course 340 px/s, accroupi 190 ; saut 760 px/s (129 px, 170 px en maintenant) ; ↓ en l'air = chute rapide ; temps de grâce au bord (0,08 s), saut mémorisé (0,1 s).
 - **Saut mural** : contre un mur on glisse, sauter rebondit de l'autre côté ; pas deux fois de suite le même côté.
+- **Double saut** : ressauter en l'air (680 px/s, ~105 px de plus, 280 px en tout), une fois ; il revient au sol et après un saut mural.
+- **Types d'étages** (Scotty trouvait ça encore trop répétitif) : tirés dans un sac, jamais deux fois de suite le même.
+  - **multi** : 2 ou 3 routes au choix (puits, zigzag, corniches) ;
+  - **goulet** : un seul zigzag sur toute la largeur ; **puits** : un seul puits, n'importe où ;
+  - **sauts** : grande salle à corniches, sauts simples (3 ou 4 cases de haut, trou de 1 à 3 cases) ;
+  - **double** : salle à corniches espacées de 5 ou 6 cases, ou d'un trou de 8 cases, annoncées par des chevrons dorés. La dernière corniche est au milieu, 6 cases sous la sortie, loin des murs : impossible sans double saut.
+- **Décor** : temple aztèque dans la jungle. Fond clair de jungle et pyramides en parallaxe, pierre chaude avec motifs gravés et turquoise, mousse, lianes, fougères, torches animées. Pas d'effet sur le jeu.
 - **Labyrinthe** (tracé au hasard, Scotty trouvait que c'était toujours le même plan) : cases de 40 px, 28 de large. Chaque étage tire sa hauteur (21 à 29 cases), son nombre de routes (2 ou 3), leur ordre et leur largeur. Un hall bas (120 px, plafonds bas), puis un bloc de murs où sont creusées les routes. Un seul rebord par route, à l'arrivée (orange parfois sur les zigzags : il s'effrite).
   - **puits** (rapide, risqué) : 120 px de large, tout droit au saut mural, quelques piques seuls sur les murs ;
   - **zigzag** (lent, sûr) : une suite tirée au hasard de montées au saut mural (cheminées de 120 px) et de couloirs de 80 px, dans un sens ou dans l'autre, avec un plafond bas à passer accroupi (ou rarement un pique au sol) ;
   - entrée de chaque couloir plus haute (on y arrive en plein vol), 2 cases de sol avant un plafond bas (on ne s'accroupit pas en l'air). Pas de cul-de-sac.
-  - **Piques** : toujours un seul à la fois. Ils n'éliminent pas : sonné 2 s (plus de commandes, on retombe si on est en l'air), puis 1 s de protection. Seule la lave élimine.
+  - **Piques** : toujours un seul à la fois. Ils n'éliminent pas : sonné 0,5 s (plus de commandes, on retombe si on est en l'air), puis 1 s de protection. Dessinés avec une seule pointe. Seule la lave élimine.
 - **Vérifié** : une recherche exhaustive des touches trouve une solution pour chaque montée de chaque route (puits et zigzags).
 - **Lave** : hauteur = -400 + 26 t + t². Saut mural : 800 px/s. L'écran rougit sous 34 m.
 - **Fin** : 2,5 s après qu'il ne reste qu'un joueur ; points 10, 7, 5, 3, 2, 1 (survivant, puis ordre inverse des éliminations). Au plus 4 min.
-- **Écran** : caméra zoomée ×1,4 qui suit dans les 2 sens (spectateur : le plus haut en vie), couloirs clairs et murs sombres avec bord clair, hauteur en gros à gauche, distance à la lave, barre de position à droite.
+- **Écran** : caméra zoomée ×1,4 qui suit dans les 2 sens (spectateur : le plus haut en vie), couloirs clairs et murs de pierre avec bord clair, hauteur en gros à gauche, distance à la lave, barre de position à droite.
 - **Bots** : à chaque étage, ils choisissent une route selon leur goût du risque et la suivent point par point, avec des pauses.
 
 ## 7 tervicies. Cambrioleurs 💰 — validé (« Go »)

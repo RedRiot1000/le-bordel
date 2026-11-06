@@ -1,8 +1,8 @@
 // ===================================================================
 //  LA TOUR — Moteur du jeu (module du hub Le Bordel)
-//  Tout le monde grimpe le même labyrinthe vertical, la lave monte de plus en plus vite.
-//  À chaque étage : le puits (rapide, risqué) ou le zigzag (lent, sûr).
-//  Courir, sauter, s'accroupir, sauter sur les murs.
+//  Tout le monde grimpe le même temple aztèque, la lave monte de plus en plus vite.
+//  Chaque étage change : routes au choix, passage unique, sauts simples, double saut.
+//  Courir, sauter, double sauter, s'accroupir, sauter sur les murs.
 //  Le dernier en vie gagne la manche. On se traverse entre joueurs.
 //  Le SERVEUR fait foi : il avance chaque perso d'un pas à chaque touche
 //  reçue (comme le navigateur), jamais plus vite que le temps réel.
@@ -20,7 +20,7 @@ export const meta = {
   family: "Action",
   minPlayers: 2,
   maxPlayers: 8,
-  description: "Un labyrinthe vertical, la lave qui monte : puits risqué ou zigzag sûr ? Le dernier en vie gagne !",
+  description: "Un temple aztèque dans la jungle, la lave qui monte : sauts muraux, double saut, passages uniques. Le dernier en vie gagne !",
 };
 
 const TICK_MS = 1000 / 30;

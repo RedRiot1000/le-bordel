@@ -28,6 +28,7 @@
   const cam = { x: P.W / 2, y: 0 };
   let particles = [];
   const seenFx = new Set();
+  const lastDj = {};          // pour voir qui vient de faire un double saut
   let prevPhase = null, goFlash = 0, playAtLocal = 0;
 
   const $ = (id) => document.getElementById(id);
@@ -45,19 +46,19 @@
       <div class="logo imp-logo">
         <span class="logo-icon">🌋</span>
         <h1>LA TOUR</h1>
-        <p class="tagline">Un labyrinthe vertical. La lave monte. Le dernier en vie gagne.</p>
+        <p class="tagline">Un temple aztèque perdu dans la jungle. La lave monte. Le dernier en vie gagne.</p>
       </div>
       <div class="pt-setup-grid">
         <div class="card"><h2>⚙️ Réglages</h2><div id="to-settings" class="settings"></div></div>
         <div class="card">
           <h2>🎮 Règles & commandes</h2>
           <ul class="pt-help">
-            <li>🌋 Tout le monde grimpe <b>le même labyrinthe</b>. La <b>lave</b> monte de plus en plus vite : si elle te touche, tu es éliminé.</li>
-            <li>🔀 À chaque étage : le <b>puits</b> (direct, au saut mural, avec des piques) ou le <b>zigzag</b> (sauts muraux et couloirs à passer accroupi, plus long, plus sûr). Pas de cul-de-sac.</li>
-            <li>🏃 <kbd>←</kbd><kbd>→</kbd> ou <kbd>Q</kbd><kbd>D</kbd> : courir · <kbd>Espace</kbd> / <kbd>↑</kbd> / <kbd>Z</kbd> : sauter (maintenir = plus haut).</li>
+            <li>🌋 Tout le monde grimpe <b>le même temple</b>. La <b>lave</b> monte de plus en plus vite : si elle te touche, tu es éliminé.</li>
+            <li>🔀 Chaque étage change : plusieurs routes au choix (<b>puits</b> direct avec des piques, <b>zigzag</b> plus long, <b>corniches</b>), un <b>passage unique</b>, ou une salle où il faut le <b>double saut</b>. Pas de cul-de-sac.</li>
+            <li>🏃 <kbd>←</kbd><kbd>→</kbd> ou <kbd>Q</kbd><kbd>D</kbd> : courir · <kbd>Espace</kbd> / <kbd>↑</kbd> / <kbd>Z</kbd> : sauter (maintenir = plus haut). <b>Ressaute en l'air = double saut</b> (les chevrons dorés sous une corniche l'annoncent).</li>
             <li>🧗 <b>Saut mural</b> : contre un mur, saute pour rebondir vers l'autre côté (pas deux fois de suite sur le même côté).</li>
             <li>⬇️ <kbd>↓</kbd> / <kbd>S</kbd> : s'accroupir (passer sous les plafonds bas) · en l'air : retomber plus vite.</li>
-            <li>🟠 Certains rebords d'arrivée sont <b>orange</b> : ils s'effritent. Un <b>pique</b> rouge te <b>sonne 2 s</b> (tu retombes si tu es en l'air).</li>
+            <li>🟠 Certains rebords d'arrivée sont <b>orange</b> : ils s'effritent. Un <b>pique</b> rouge te <b>sonne une demi-seconde</b> (tu retombes si tu es en l'air).</li>
             <li>🏆 Le <b>dernier en vie</b> gagne la manche (10, 7, 5, 3, 2, 1 points).</li>
           </ul>
         </div>
@@ -80,7 +81,7 @@
         <canvas id="to-canvas" width="${W}" height="${HGT}"></canvas>
         <div id="to-overlay" class="pt-overlay hidden"></div>
       </div>
-      <p class="muted pt-keys">← → / Q D = courir · Espace / ↑ / Z = sauter (aussi contre les murs) · ↓ / S = s'accroupir</p>
+      <p class="muted pt-keys">← → / Q D = courir · Espace / ↑ / Z = sauter (aussi contre les murs), 2 fois = double saut · ↓ / S = s'accroupir</p>
     </div>`;
 
   // ===================================================================
@@ -92,7 +93,7 @@
       st = null; pred = prevPred = null; pending = []; particles = []; towerSeed = null;
       seenFx.clear(); pressed.clear();
       root.innerHTML = TEMPLATE;
-      api.setTheme("theme-sunset");
+      api.setTheme("theme-forest");
       document.querySelector(".app").classList.add("pt-wide");
       canvas = $("to-canvas");
       g2d = canvas.getContext("2d");
@@ -311,37 +312,54 @@
     const Y = (y) => -(y - cam.y);     // hauteur → écran (dans le repère zoomé)
     tower.ensure(top);
 
-    // Le fond des couloirs : clair (on doit bien voir où on va).
+    // Le fond : la jungle et ses pyramides, au loin (claire : on doit bien voir où on va).
     const lava = P.lavaAt(t);
-    const gr = c.createLinearGradient(0, 0, 0, HGT);
-    gr.addColorStop(0, "#8fa6e0"); gr.addColorStop(1, "#d9b3c9");
     c.setTransform(1, 0, 0, 1, 0, 0);
-    c.fillStyle = gr; c.fillRect(0, 0, W, HGT);
+    const bg = backdrop();
+    const off = ((cam.y * 0.18) % HGT + HGT) % HGT;
+    c.drawImage(bg, 0, off - HGT); c.drawImage(bg, 0, off);
     c.setTransform(Z, 0, 0, Z, W / 2 - cam.x * Z, HGT / 2);
 
-    // Les murs, case par case : pierres sombres, bord clair du côté des couloirs.
     const T = P.TILE;
     const r0 = Math.floor(bottom / T) - 1, r1 = Math.ceil(top / T) + 1, q0 = Math.max(0, Math.floor(left / T) - 1), q1 = Math.min(P.COLS - 1, Math.ceil(right / T) + 1);
+    const wall = (row, q) => P.tileAt(tower, row, q);
+    // Le mur du fond du temple : de grandes pierres claires, un peu transparentes.
     for (let row = r0; row <= r1; row++) for (let q = q0; q <= q1; q++) {
+      if (wall(row, q)) continue;
       const x = q * T, y = Y((row + 1) * T);
-      if (!P.tileAt(tower, row, q)) {
-        // Briques du fond, très légères (fixes).
-        if (hash(row, q) < 0.22) { c.fillStyle = "rgba(255,255,255,0.13)"; c.fillRect(x + 3, y + 3, T - 6, T / 2 - 4); }
-        continue;
-      }
-      c.fillStyle = hash(row, q) < 0.5 ? "#39325a" : "#413965";
-      c.fillRect(x, y, T + 0.5, T + 0.5);
-      c.fillStyle = "rgba(0,0,0,0.16)"; c.fillRect(x, y + T / 2 - 1, T, 2); c.fillRect(x + (row % 2 ? T / 2 : T - 2), y, 2, T / 2); c.fillRect(x + (row % 2 ? 2 : T / 2), y + T / 2, 2, T / 2);
+      if (hash(row, q) < 0.3) { c.fillStyle = "rgba(255,244,200,0.16)"; c.fillRect(x + 3, y + 3, T - 6, T / 2 - 4); }
     }
-    // Bord clair : on voit tout de suite la forme des couloirs.
-    c.fillStyle = "#e9e4ff";
+    // Les murs, case par case : pierre chaude, quelques motifs gravés et des incrustations de turquoise.
     for (let row = r0; row <= r1; row++) for (let q = q0; q <= q1; q++) {
-      if (!P.tileAt(tower, row, q)) continue;
+      if (!wall(row, q)) continue;
+      const x = q * T, y = Y((row + 1) * T), h = hash(row, q);
+      c.fillStyle = h < 0.5 ? "#5f4b35" : "#6a543c";
+      c.fillRect(x, y, T + 0.5, T + 0.5);
+      c.fillStyle = "rgba(25,14,4,0.24)"; c.fillRect(x, y + T / 2 - 1, T, 2); c.fillRect(x + (row % 2 ? T / 2 : T - 2), y, 2, T / 2); c.fillRect(x + (row % 2 ? 2 : T / 2), y + T / 2, 2, T / 2);
+      if (h > 0.9) glyph(c, x, y, T, Math.floor(h * 1000) % 3);
+    }
+    // Le bord des murs : mousse sur le dessus, pierre claire ailleurs.
+    for (let row = r0; row <= r1; row++) for (let q = q0; q <= q1; q++) {
+      if (!wall(row, q)) continue;
       const x = q * T, y = Y((row + 1) * T);
-      if (!P.tileAt(tower, row + 1, q)) c.fillRect(x, y, T, 5);        // dessus (le sol)
-      if (!P.tileAt(tower, row - 1, q)) c.fillRect(x, y + T - 3, T, 3);
-      if (q > 0 && !P.tileAt(tower, row, q - 1)) c.fillRect(x, y, 3, T);
-      if (q < P.COLS - 1 && !P.tileAt(tower, row, q + 1)) c.fillRect(x + T - 3, y, 3, T);
+      c.fillStyle = "#f0e0ae";
+      if (!wall(row - 1, q)) c.fillRect(x, y + T - 3, T, 3);
+      if (q > 0 && !wall(row, q - 1)) c.fillRect(x, y, 3, T);
+      if (q < P.COLS - 1 && !wall(row, q + 1)) c.fillRect(x + T - 3, y, 3, T);
+      if (!wall(row + 1, q)) {
+        c.fillStyle = "#6fd64a"; c.fillRect(x, y, T, 6);
+        c.fillStyle = "#3fa53a"; for (let k = 0; k < 4; k++) { const d = 3 + hash(row * 7 + k, q) * 6; c.fillRect(x + k * 10 + 1, y + 5, 8, d); }
+      }
+    }
+    // La jungle qui reprend le temple : lianes, fougères et torches (sans effet sur le jeu).
+    for (let row = r0; row <= r1; row++) for (let q = q0; q <= q1; q++) {
+      if (wall(row, q)) continue;
+      const x = q * T, y = Y((row + 1) * T), h = hash(row * 5 + 1, q * 3 + 2);
+      if (wall(row + 1, q) && h < 0.3) vine(c, x + 8 + h * 60, y, 26 + hash(row, q * 7) * 56, ts, h);
+      if (wall(row - 1, q) && h > 0.78) fern(c, x + T / 2, y + T, h);
+      const lw = q > 0 && wall(row, q - 1), rw = q < P.COLS - 1 && wall(row, q + 1);
+      if (lw !== rw && hash(row * 3, q + 11) < 0.1) torch(c, lw ? x + 3 : x + T - 3, y + T / 2, lw ? 1 : -1, ts, h);
+      else if (!lw && !rw && hash(row * 9 + 4, q * 2) < 0.018) torch(c, x + T / 2, y + T / 2, 0, ts, h);
     }
 
     const v = P.view(tower, bottom - 40, top + 40);
@@ -349,10 +367,10 @@
     for (const s of v.solids) {
       if (!s.low) continue;
       const y = Y(s.y + s.h);
-      c.fillStyle = "#413965"; c.fillRect(s.x, y, s.w, s.h);
+      c.fillStyle = "#6a543c"; c.fillRect(s.x, y, s.w, s.h);
       c.fillStyle = "#ffcf3a"; c.fillRect(s.x, y + s.h - 8, s.w, 8);
       c.fillStyle = "#1b1b1b"; for (let q = 0; q < s.w; q += 16) c.fillRect(s.x + q, y + s.h - 8, 8, 8);
-      c.strokeStyle = "#e9e4ff"; c.lineWidth = 3; c.strokeRect(s.x + 1.5, y + 1.5, s.w - 3, s.h - 3);
+      c.strokeStyle = "#f0e0ae"; c.lineWidth = 3; c.strokeRect(s.x + 1.5, y + 1.5, s.w - 3, s.h - 3);
     }
     // Rebords.
     for (const p of v.plats) {
@@ -365,23 +383,27 @@
       }
       let sh = 0;
       if (p.kind === "crumble" && c0 !== undefined && t >= c0 && t < c0 + P.CRUMBLE) sh = (Math.random() - 0.5) * 6;
-      c.fillStyle = p.kind === "crumble" ? "#ff9a2e" : "#58d06a"; c.fillRect(px + sh, y, p.w, p.h);
-      c.fillStyle = "rgba(255,255,255,0.65)"; c.fillRect(px + sh, y, p.w, 3);
-      c.strokeStyle = "#1b1830"; c.lineWidth = 2; c.strokeRect(px + sh, y, p.w, p.h);
+      // Une dalle de pierre et sa mousse (orange et fissurée si elle s'effrite).
+      c.fillStyle = p.kind === "crumble" ? "#ff9a2e" : "#d9bd7c"; c.fillRect(px + sh, y, p.w, p.h);
+      c.fillStyle = p.kind === "crumble" ? "rgba(255,255,255,0.65)" : "#6fd64a"; c.fillRect(px + sh, y, p.w, 4);
+      if (p.kind !== "crumble") { c.fillStyle = "rgba(90,60,20,0.45)"; for (let q = 12; q < p.w - 6; q += 24) c.fillRect(px + q, y + 6, 10, 3); }
+      c.strokeStyle = "#2b1d0e"; c.lineWidth = 2; c.strokeRect(px + sh, y, p.w, p.h);
+      // Des chevrons dorés sous une corniche : il faut le double saut pour l'atteindre.
+      if (p.dbl) {
+        c.strokeStyle = "#ffd23f"; c.lineWidth = 5; c.lineCap = "round"; c.lineJoin = "round";
+        const mx = px + p.w / 2, bob = Math.sin(ts / 260) * 3;
+        for (const dy of [26, 44]) { c.beginPath(); c.moveTo(mx - 15, y + dy + 10 + bob); c.lineTo(mx, y + dy + bob); c.lineTo(mx + 15, y + dy + 10 + bob); c.stroke(); }
+      }
       if (p.kind === "crumble") { c.strokeStyle = "rgba(90,40,0,0.7)"; c.lineWidth = 2; for (let q = 14; q < p.w; q += 30) { c.beginPath(); c.moveTo(px + sh + q, y + 1); c.lineTo(px + sh + q + 6, y + 6); c.lineTo(px + sh + q - 2, y + p.h - 1); c.stroke(); } }
     }
     // Piques : rouge et blanc, avec un contour.
     for (const s of v.spikes) {
       const vert = s.faces !== undefined;
-      c.fillStyle = "#ff2d2d"; c.strokeStyle = "#fff"; c.lineWidth = 2;
-      if (!vert) {
-        const n = Math.max(2, Math.round(s.w / 14)), w = s.w / n, base = Y(s.y);
-        for (let i = 0; i < n; i++) { c.beginPath(); c.moveTo(s.x + i * w, base); c.lineTo(s.x + i * w + w / 2, base - s.h - 6); c.lineTo(s.x + (i + 1) * w, base); c.closePath(); c.fill(); c.stroke(); }
-      } else {
-        const n = Math.max(2, Math.round(s.h / 14)), h = s.h / n, top0 = Y(s.y + s.h), dirX = s.faces;
-        const bx = dirX > 0 ? s.x : s.x + s.w;
-        for (let i = 0; i < n; i++) { c.beginPath(); c.moveTo(bx, top0 + i * h); c.lineTo(bx + dirX * (s.w + 6), top0 + i * h + h / 2); c.lineTo(bx, top0 + (i + 1) * h); c.closePath(); c.fill(); c.stroke(); }
-      }
+      c.fillStyle = "#ff2d2d"; c.strokeStyle = "#fff"; c.lineWidth = 2; c.lineJoin = "miter";
+      c.beginPath();
+      if (!vert) { const base = Y(s.y); c.moveTo(s.x, base); c.lineTo(s.x + s.w / 2, base - s.h - 8); c.lineTo(s.x + s.w, base); }
+      else { const top0 = Y(s.y + s.h), bx = s.faces > 0 ? s.x : s.x + s.w; c.moveTo(bx, top0); c.lineTo(bx + s.faces * (s.w + 8), top0 + s.h / 2); c.lineTo(bx, top0 + s.h); }
+      c.closePath(); c.fill(); c.stroke();
     }
 
     // Les persos (les autres lissés, le mien prédit).
@@ -397,6 +419,8 @@
         if (Math.hypot(r0b.x - sh.x, r0b.y - sh.y) > 200) { sh.x = r0b.x; sh.y = r0b.y; }
         r = { ...r0b, x: sh.x, y: sh.y };
       }
+      if (lastDj[r0b.id] === 1 && r.dj === 0 && r.air) for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; particles.push({ x: r.x, y: r.y + 4, vx: Math.cos(a) * 150, vy: Math.sin(a) * 50, life: 0.3, max: 0.3, col: i % 2 ? "#fff" : "#ffd23f" }); }
+      lastDj[r0b.id] = r.dj;
       if (r.y > top + 80 || r.y < bottom - 80) continue;
       drawRunner(c, r, Y(r.y), colorOf(r0b.id), isMe);
       if (r.stun > 0) { c.fillStyle = "#ffd23f"; c.font = "bold 16px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; for (let q = 0; q < 3; q++) { const a = ts / 200 + q * 2.1; c.fillText("★", r.x + Math.cos(a) * 20, Y(r.y) - 52 + Math.sin(a) * 6); } }
@@ -437,6 +461,70 @@
     }
 
     drawHud(c, ts, dt, lava, gapL, t);
+  }
+
+  // La jungle au loin : ciel clair, pyramides à degrés, feuillage. Dessinée une seule fois.
+  let bgCanvas = null;
+  function backdrop() {
+    if (bgCanvas) return bgCanvas;
+    bgCanvas = document.createElement("canvas"); bgCanvas.width = W; bgCanvas.height = HGT;
+    const b = bgCanvas.getContext("2d");
+    const gr = b.createLinearGradient(0, 0, 0, HGT);
+    gr.addColorStop(0, "#d6f2c9"); gr.addColorStop(0.5, "#a9e0ac"); gr.addColorStop(1, "#d6f2c9");
+    b.fillStyle = gr; b.fillRect(0, 0, W, HGT);
+    const pyramid = (cx, base, steps, sw, sh, col) => { b.fillStyle = col; for (let i = 0; i < steps; i++) { const w = sw * (steps - i) * 2; b.fillRect(cx - w / 2, base - (i + 1) * sh, w, sh + 1); } b.fillRect(cx - sw * 0.7, base - (steps + 1) * sh, sw * 1.4, sh + 1); };
+    pyramid(300, 330, 7, 26, 26, "#93d2a0"); pyramid(960, 730, 8, 28, 28, "#93d2a0"); pyramid(640, 520, 5, 20, 20, "#a0d9a8");
+    // Des touffes de feuillage, placées de façon fixe.
+    for (let i = 0; i < 90; i++) {
+      const x = hash(i, 1) * W, y = hash(i, 2) * HGT, r = 26 + hash(i, 3) * 54;
+      b.fillStyle = i % 3 ? "#86cc8f" : "#78c182";
+      for (const [dx, dy] of [[0, 0], [-r, r * 0.3], [r, r * 0.3]]) for (const k of [0, HGT, -HGT]) { b.beginPath(); b.arc(x + dx, y + dy + k, r * 0.8, 0, Math.PI * 2); b.fill(); }
+    }
+    return bgCanvas;
+  }
+  // Un motif gravé dans la pierre : grecque, soleil ou turquoise.
+  function glyph(c, x, y, T, kind) {
+    const m = x + T / 2, n = y + T / 2;
+    if (kind === 0) {
+      c.strokeStyle = "#caa25a"; c.lineWidth = 3; c.lineJoin = "miter"; c.lineCap = "butt";
+      c.beginPath(); c.moveTo(x + 7, y + T - 8); c.lineTo(x + 7, y + 9); c.lineTo(x + T - 8, y + 9); c.lineTo(x + T - 8, y + T - 8); c.lineTo(x + 16, y + T - 8); c.lineTo(x + 16, y + 18); c.lineTo(x + T - 17, y + 18); c.lineTo(x + T - 17, y + T - 17); c.stroke();
+    } else if (kind === 1) {
+      c.fillStyle = "#caa25a"; c.beginPath(); c.arc(m, n, 7, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = "#caa25a"; c.lineWidth = 3; c.lineCap = "butt";
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; c.beginPath(); c.moveTo(m + Math.cos(a) * 10, n + Math.sin(a) * 10); c.lineTo(m + Math.cos(a) * 15, n + Math.sin(a) * 15); c.stroke(); }
+    } else {
+      c.fillStyle = "#35c9b4"; c.strokeStyle = "#caa25a"; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(m, n - 12); c.lineTo(m + 12, n); c.lineTo(m, n + 12); c.lineTo(m - 12, n); c.closePath(); c.fill(); c.stroke();
+    }
+  }
+  function vine(c, x, y, len, ts, h) {
+    const sway = Math.sin(ts / 900 + h * 20) * 4;
+    c.strokeStyle = "#2f8f3a"; c.lineWidth = 3; c.lineCap = "round";
+    c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + sway, y + len / 2, x + sway * 1.6, y + len); c.stroke();
+    c.fillStyle = "#4cc04f";
+    for (let d = 12; d < len; d += 14) { const f = d / len, lx = x + sway * 1.6 * f * f, s = (d / 14) % 2 < 1 ? 1 : -1; c.beginPath(); c.ellipse(lx + s * 5, y + d, 6, 3, s * 0.6, 0, Math.PI * 2); c.fill(); }
+  }
+  function fern(c, x, y, h) {
+    c.strokeStyle = "#2f9a3e"; c.lineWidth = 3; c.lineCap = "round";
+    for (let i = -2; i <= 2; i++) { const l = 15 + ((h * 97 + i * 13) % 9); c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + i * 5, y - l, x + i * 9, y - l * 0.7); c.stroke(); }
+  }
+  // Une torche : side = 1 (mur à gauche), -1 (mur à droite), 0 (sur le mur du fond).
+  let glow = null;
+  function torch(c, x, y, side, ts, h) {
+    if (!glow) {
+      glow = document.createElement("canvas"); glow.width = glow.height = 128;
+      const b = glow.getContext("2d"), gr = b.createRadialGradient(64, 64, 2, 64, 64, 64);
+      gr.addColorStop(0, "rgba(255,200,90,0.6)"); gr.addColorStop(0.5, "rgba(255,160,50,0.16)"); gr.addColorStop(1, "rgba(255,150,40,0)");
+      b.fillStyle = gr; b.fillRect(0, 0, 128, 128);
+    }
+    const tx = x + side * 11, ty = y - 8, f = 1 + Math.sin(ts / 170 + h * 30) * 0.1;
+    c.drawImage(glow, tx - 56 * f, ty - 62 * f, 112 * f, 112 * f);
+    c.strokeStyle = "#3b2513"; c.lineWidth = 5; c.lineCap = "round";
+    c.beginPath(); c.moveTo(x, y + 12); c.lineTo(tx, ty + 4); c.stroke();
+    c.fillStyle = "#caa25a"; c.fillRect(tx - 5, ty, 10, 5);
+    const wob = Math.sin(ts / 120 + h * 40) * 2;
+    c.fillStyle = "#ff7a1f"; c.beginPath(); c.moveTo(tx - 7, ty + 1); c.quadraticCurveTo(tx - 8, ty - 11, tx + wob, ty - 21 * f); c.quadraticCurveTo(tx + 8, ty - 11, tx + 7, ty + 1); c.closePath(); c.fill();
+    c.fillStyle = "#ffe14d"; c.beginPath(); c.moveTo(tx - 3.5, ty + 1); c.quadraticCurveTo(tx - 4, ty - 6, tx + wob / 2, ty - 12 * f); c.quadraticCurveTo(tx + 4, ty - 6, tx + 3.5, ty + 1); c.closePath(); c.fill();
   }
 
   // Le perso : bâtons avec halo clair + contour noir (il ressort du décor).

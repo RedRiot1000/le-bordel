@@ -1,11 +1,13 @@
 // ===================================================================
 //  LA TOUR — La tour + la physique du perso (partagé serveur + navigateur)
 //  Un labyrinthe vertical sans fin tiré d'une seed (le même pour tout le monde).
-//  Chaque étage est tracé au hasard : sa hauteur, le nombre de routes, leur largeur,
-//  et le chemin de chaque route (montées au saut mural, couloirs à passer accroupi).
-//  - le PUITS : tout droit, au saut mural, avec des piques (rapide, risqué) ;
-//  - le ZIGZAG : plusieurs montées et couloirs, plus long (lent, sûr).
-//  Un pique ne tue pas : il sonne 2 s.
+//  Chaque étage tire son type (jamais deux fois de suite le même) :
+//  - plusieurs routes au choix, ou un PASSAGE UNIQUE (un seul zigzag ou un seul puits) ;
+//  - une salle de SAUTS (corniches, sauts simples) ;
+//  - une salle de DOUBLE SAUT (impossible d'en sortir sans lui).
+//  Le PUITS : tout droit, au saut mural, avec des piques (rapide, risqué).
+//  Le ZIGZAG : plusieurs montées et couloirs, plus long (lent, sûr).
+//  Un pique ne tue pas : il sonne 0,5 s.
 //  La lave monte depuis le bas.
 //  Le serveur et le navigateur font EXACTEMENT les mêmes calculs.
 //  y = hauteur (0 = le sol, vers le haut), x = de 0 à W.
@@ -19,7 +21,7 @@
   P.TILE = 40;               // une case du labyrinthe
   P.COLS = 28;               // largeur de la tour (en cases)
   P.W = P.TILE * P.COLS;
-  P.STUN = 2;                // un pique n'élimine pas : il sonne 2 s…
+  P.STUN = 0.5;              // un pique n'élimine pas : il sonne 0,5 s…
   P.SAFE = 1;                // … puis on ne peut pas être re-sonné pendant 1 s
   P.K = { LEFT: 1, RIGHT: 2, JUMP: 4, DOWN: 8 };
   P.PW = 26;                 // largeur du perso
@@ -29,6 +31,7 @@
   P.JUMP_V = 760, P.G = 2200, P.G_HOLD = 1300, P.HOLD = 0.18, P.G_DOWN = 3900;
   P.MAX_FALL = 1000;
   P.WALL_SLIDE = 120, P.WJ_V = 800, P.WJ_X = 380, P.WJ_LOCK = 0.14;
+  P.DJ_V = 680;              // le double saut (une fois en l'air ; revient au sol et après un saut mural)
   P.COYOTE = 0.08, P.BUFFER = 0.1;
   P.CRUMBLE = 0.6, P.CRUMBLE_BACK = 1.5;   // s'effrite 0,6 s après ; revient 1,5 s plus tard (pour ceux qui sont derrière)
   const BK = 200;            // hauteur d'une tranche de recherche
@@ -68,8 +71,18 @@
     const irand = (lo, hi) => lo + Math.floor(rnd() * (hi - lo + 1));
     const mix = (arr) => { const q = [...arr]; for (let i = q.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [q[i], q[j]] = [q[j], q[i]]; } return q; };
 
+    // Le type d'étage : tiré dans un sac, jamais deux fois de suite le même.
+    let bag = [], lastKind = "multi";
+    const nextKind = () => {
+      let i = bag.findIndex((k) => k !== lastKind);
+      if (i < 0) { bag = mix(["multi", "multi", "goulet", "puits", "sauts", "double"]); i = bag.findIndex((k) => k !== lastKind); }
+      lastKind = bag.splice(i, 1)[0];
+      return lastKind;
+    };
+
     function floor(n) {
       const y0 = c.top;
+      const type = n === 0 ? "multi" : nextKind();
       const R = irand(21, 29);                         // la hauteur de cet étage
       const HALL = 3, CH = 2;                          // hall ; hauteur d'un couloir
       const g = Array.from({ length: R }, (_, r) => new Uint8Array(C).fill(r < HALL ? 0 : 1));
@@ -83,20 +96,62 @@
       const low = (x, yr, w, h) => solid({ x, y: y0 + yr + 34, w, h, low: true });
       const routes = [];
 
-      // Le découpage en routes : largeurs et ordre au hasard. p = puits (3 cases), z = zigzag (10 cases ou plus).
-      const plan = mix(rnd() < 0.55 ? ["p", "z", "z"] : rnd() < 0.5 ? ["p", "z"] : rnd() < 0.5 ? ["z", "z"] : ["p", "p", "z"]);
-      const nz = plan.filter((k) => k === "z").length, np = plan.length - nz;
+      // Le découpage en routes : largeurs et ordre au hasard.
+      // p = puits (3 cases), z = zigzag, s = corniches à sauts simples, d = salle du double saut (10 cases ou plus).
+      const MULTI = [["p", "z", "z"], ["p", "z"], ["z", "z"], ["p", "p", "z"], ["p", "z", "s"], ["z", "s"], ["p", "s"]];
+      const plan = type === "goulet" ? ["z"] : type === "puits" ? ["p"] : type === "sauts" ? ["s"] : type === "double" ? ["d"] : mix(MULTI[Math.floor(rnd() * MULTI.length)]);
+      const np = plan.filter((k) => k === "p").length, nz = plan.length - np;
       let room = C - 2 - (plan.length - 1) - 3 * np;   // la place laissée aux zigzags
       const regions = [];
-      let at = 1, zLeft = nz;
+      let at = type === "puits" ? irand(3, C - 6) : 1, zLeft = nz;     // (un puits seul : n'importe où dans le hall)
       for (const kind of plan) {
         let w = 3;
-        if (kind === "z") { w = zLeft === 1 ? room : irand(10, room - 10 * (zLeft - 1)); room -= w; zLeft--; }
+        if (kind !== "p") { w = zLeft === 1 ? room : irand(10, room - 10 * (zLeft - 1)); room -= w; zLeft--; }
         regions.push([kind, at, at + w - 1]);
         at += w + 1;
       }
 
+      // Une salle ouverte avec des corniches. La sortie est un trou dans le plafond, au-dessus de la dernière corniche.
+      // Salle du double saut : 5 ou 6 cases entre deux corniches (un saut simple monte à 4,4 cases),
+      // ou un trou de 8 cases ; la dernière est au milieu, loin des murs : le double saut est obligatoire.
+      function chamber(kind, a0, b0) {
+        const dbl = kind === "d", lo = dbl ? 7 : a0 + 1, hi = dbl ? 21 : b0;
+        const maxRise = dbl ? 6 : 4, fin = R - maxRise;
+        carve(a0, b0, HALL, R - 2);
+        const way = [];
+        let cur = null, r = 0, side = rnd() < 0.5 ? -1 : 1;
+        while (r < fin) {
+          const last = fin - r <= maxRise;
+          const w = dbl ? irand(3, 4) : irand(3, 5);
+          let rise = last ? fin - r : dbl ? irand(5, 6) : irand(3, 4), col, far = false;
+          if (!cur) col = irand(lo, hi - w + 1);
+          else {
+            const right = cur.c + cur.w + 8, left = cur.c - 8 - w;
+            if (dbl && !last && rnd() < 0.5 && (right + w - 1 <= hi || left >= lo)) { far = true; rise = 1; col = right + w - 1 <= hi ? right : left; }
+            else {
+              const gap = irand(1, rise >= 4 ? 2 : 3);
+              col = side > 0 ? cur.c + cur.w + gap : cur.c - gap - w;
+              if (col < lo || col + w - 1 > hi) { side = -side; col = side > 0 ? cur.c + cur.w + gap : cur.c - gap - w; }
+              col = Math.max(lo, Math.min(hi - w + 1, col));
+            }
+            side = -side;
+          }
+          if (dbl && last) col = irand(12, 14);
+          r += rise;
+          const need = dbl && (far || rise >= 5);
+          addPlat({ x: col * T, y: y0 + r * T, w: w * T, kind: !dbl && !last && rnd() < 0.15 ? "crumble" : "fix", ledge: true, dbl: need });
+          if (!way.length) way.push({ x: (col + w / 2) * T, y: y0, tol: 30 });
+          way.push({ x: (col + w / 2) * T, y: y0 + r * T, hop: true, half: (w * T) / 2, tol: (w * T) / 2 - 6, dbl: need });
+          cur = { c: col, w };
+        }
+        carve(cur.c, cur.c + 2, R - 1, R - 1);
+        cap(cur.c, dbl);
+        way.push({ x: (cur.c + 1.5) * T, y: y0 + top, hop: true, half: 1.5 * T, tol: 40, dbl });
+        routes.push({ kind: dbl ? "double" : "sauts", way });
+      }
+
       for (const [kind, a0, b0] of regions) {
+        if (kind === "s" || kind === "d") { chamber(kind, a0, b0); continue; }
         if (kind === "p") {
           // Le puits : tout droit jusqu'à l'étage du dessus, quelques piques seuls sur les murs.
           carve(a0, b0, HALL, R - 1);
@@ -153,6 +208,8 @@
           const w = irand(2, 4), x = irand(2, C - 2 - w) * T;
           // (ni au-dessus d'une entrée de route, ni au-dessus d'une sortie de l'étage d'en dessous)
           const under = c.secs[n - 1].caps;
+          // (ni dans une salle ouverte : il flotterait)
+          if (regions.some(([kd, a, b]) => (kd === "s" || kd === "d") && x + w * T > a * T - 40 && x < (b + 1) * T + 40)) continue;
           if (routes.every((q) => q.way[0].x < x - 70 || q.way[0].x > x + w * T + 70) && under.every((cx) => x + w * T < cx - 40 || x > cx + 3 * T + 40) && !c.solids.some((o) => o.low && o.y === y0 + 34 && Math.abs(o.x - x) < 5 * T)) low(x, 0, w * T, hh);
         }
       }
@@ -168,7 +225,7 @@
         solid({ x: q * T, y: y0 + r * T, w: w * T, h: h * T });
       }
       for (let r = 0; r < R; r++) c.rows.push(g[r]);
-      c.secs.push({ y0, h: top, routes, caps });
+      c.secs.push({ y0, h: top, routes, caps, type });
       c.top = y0 + top;
     }
     c.ensure = (y) => { while (c.top < y + 2000) floor(c.secs.length); };
@@ -181,8 +238,8 @@
   // ===================================================================
   //  LE PERSO
   // ===================================================================
-  P.newRunner = (x) => ({ x, y: 0, vx: 0, vy: 0, t: 0, stun: 0, safe: 0, air: false, crouch: false, wall: 0, lastW: 0, hold: 0, coy: 0, buf: 0, lock: 0, on: 0, pk: 0, face: 1, alive: true, best: 0 });
-  P.copy = (r) => ({ x: r.x, y: r.y, vx: r.vx, vy: r.vy, t: r.t, stun: r.stun, safe: r.safe, air: r.air, crouch: r.crouch, wall: r.wall, lastW: r.lastW, hold: r.hold, coy: r.coy, buf: r.buf, lock: r.lock, on: r.on, pk: r.pk, face: r.face, alive: r.alive, best: r.best });
+  P.newRunner = (x) => ({ x, y: 0, vx: 0, vy: 0, t: 0, stun: 0, safe: 0, air: false, crouch: false, wall: 0, lastW: 0, hold: 0, coy: 0, buf: 0, lock: 0, on: 0, pk: 0, face: 1, alive: true, best: 0, dj: 1 });
+  P.copy = (r) => ({ x: r.x, y: r.y, vx: r.vx, vy: r.vy, t: r.t, stun: r.stun, safe: r.safe, air: r.air, crouch: r.crouch, wall: r.wall, lastW: r.lastW, hold: r.hold, coy: r.coy, buf: r.buf, lock: r.lock, on: r.on, pk: r.pk, face: r.face, alive: r.alive, best: r.best, dj: r.dj });
   P.height = (r) => (r.crouch ? P.H_LOW : P.H_STAND);
 
   const HW = P.PW / 2;
@@ -238,12 +295,14 @@
     }
     // Porté par une plateforme qui bouge.
     if (!r.air && r.on >= 0) { const p = c.plats[r.on]; if (p && p.amp) r.x += P.platX(p, r.t) - P.platX(p, t0); }
-    // Sauter (au sol, juste après avoir quitté le bord, ou contre un mur).
+    // Sauter (au sol, juste après avoir quitté le bord, contre un mur, ou double saut en l'air).
     if (r.buf > 0) {
       if ((!r.air || r.coy > 0) && !(r.crouch && blockedAbove(r, c))) {
         r.vy = P.JUMP_V; r.hold = P.HOLD; r.air = true; r.on = -1; r.coy = 0; r.buf = 0; r.crouch = false;
       } else if (r.air && r.wall && r.wall !== r.lastW) {
-        r.vy = P.WJ_V; r.vx = -r.wall * P.WJ_X; r.lock = P.WJ_LOCK; r.lastW = r.wall; r.hold = 0; r.buf = 0; r.face = -r.wall;
+        r.vy = P.WJ_V; r.vx = -r.wall * P.WJ_X; r.lock = P.WJ_LOCK; r.lastW = r.wall; r.hold = 0; r.buf = 0; r.face = -r.wall; r.dj = 1;
+      } else if (r.air && r.dj > 0) {
+        r.vy = P.DJ_V; r.dj = 0; r.hold = 0; r.buf = 0;
       }
     }
     // Gravité.
@@ -295,6 +354,7 @@
       if (!sup) { r.air = true; r.coy = P.COYOTE; r.on = -1; r.crouch = r.crouch && blockedAbove(r, c); }
       else if (sup.kind === "crumble") { const c0 = c.crumbles[sup.id]; if (c0 === undefined || r.t >= c0 + P.CRUMBLE + P.CRUMBLE_BACK) c.crumbles[sup.id] = r.t; }
     }
+    if (!r.air) r.dj = 1;
     r.wall = r.air ? (wallAt(r, c, -2) ? -1 : wallAt(r, c, 2) ? 1 : 0) : 0;
     r.pk = k;
     r.best = Math.max(r.best, r.y);
@@ -324,7 +384,7 @@
       ai.sec = si;
       if (!ai.forced) {
         const rs = c.secs[si].routes, pz = rs.filter((q) => q.kind === "puits"), zz = rs.filter((q) => q.kind !== "puits");
-        ai.route = rnd() < ai.bold && pz.length ? pz[0] : zz.sort((a, b) => Math.abs(a.way[0].x - r.x) - Math.abs(b.way[0].x - r.x))[0];
+        ai.route = (rnd() < ai.bold || !zz.length) && pz.length ? pz[0] : zz.sort((a, b) => Math.abs(a.way[0].x - r.x) - Math.abs(b.way[0].x - r.x))[0];
       }
     }
     const R = ai.route;
@@ -339,11 +399,25 @@
     const w = way[ai.i];
     const dirTo = (x) => (Math.abs(x - r.x) < 6 ? 0 : x > r.x ? K.RIGHT : K.LEFT);
     const noJump = r.pk & K.JUMP;
+    if (w.hop) {
+      // Une corniche : il prend son élan jusqu'au bord de la sienne, saute, et double saute au sommet si besoin.
+      const dk = dirTo(w.x);
+      if (r.air) {
+        ai.hold--;
+        if (r.dj > 0 && !noJump && r.y < w.y + 4 && r.vy < (w.dbl ? 140 : -60)) { ai.hold = 0; return dk | K.JUMP; }   // (aussi pour se rattraper)
+        return dk | (ai.hold > 0 && r.vy > 0 ? K.JUMP : 0);
+      }
+      const p = way[Math.max(0, ai.i - 1)], half = (p.half || 9999) - 8;
+      const tx = Math.max(p.x - half, Math.min(p.x + half, w.x));
+      if (Math.abs(r.x - tx) > 8) return tx > r.x ? K.RIGHT : K.LEFT;
+      ai.hold = 8;
+      return dk | (noJump ? 0 : K.JUMP);
+    }
     if (w.shaft) {
       // Le puits : on saute sur un mur, puis on rebondit de l'un à l'autre.
       if (!r.air) { ai.hold = 7; ai.floorY = r.y; return noJump ? 0 : K.JUMP; }
       // D'abord tout droit (pour bien entrer dans la cheminée), puis vers le mur.
-      if (!r.lastW && !r.wall && r.y < (ai.floorY ?? r.y) + 78) { ai.hold--; return ai.hold > 0 && r.vy > 0 ? K.JUMP : 0; }
+      if (!r.lastW && !r.wall && r.y < (ai.floorY ?? r.y) + 78) { ai.hold--; return dirTo(way[Math.max(0, ai.i - 1)].x) | (ai.hold > 0 && r.vy > 0 ? K.JUMP : 0); }
       // Au-dessus de l'arrivée : il se laisse retomber dessus.
       if (!w.exit && r.y > w.y + 2) return 0;
       // Assez haut : il sort dans le couloir.
