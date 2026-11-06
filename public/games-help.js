@@ -369,6 +369,28 @@
       ],
       example: "La zone va sauter près du pilier : tu cours avant les autres, tu es seul dedans, 1, 2, 3 s… Bob arrive, contesté ! Tu vises et PAF, coup de batte : il glisse hors de la zone. Tu reprends le compte jusqu'au prochain saut.",
     },
+    cavale: {
+      goal: "Flics : mettre tous les runners en prison. Runners : tenir 2 min et libérer les autres.",
+      steps: [
+        "Les rôles changent à chaque manche. Les runners partent 5 s avant les flics.",
+        "<b>Flic</b> : tire au taser. Le runner touché est sonné : touche-le pour l'envoyer en prison.",
+        "<b>Runner</b> : cours, cache-toi dans les maisons et les ruelles.",
+        "Reste 2 s sur un <b>bouton rouge</b>, à côté de la prison : tout le monde est libéré.",
+        "Un flic qui reste près de la prison ralentit : il ne peut pas la garder tout le temps.",
+        "Passe sur une <b>caisse jaune</b> pour prendre un gadget.",
+      ],
+      controls: [
+        "<kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> / flèches : bouger",
+        "🖱️ Flic : viser à la souris, <b>clic gauche</b> pour tirer",
+        "<kbd>Espace</kbd>, <kbd>E</kbd> ou clic droit : utiliser ton gadget",
+      ],
+      points: [
+        "Flic : <b>+2</b> par arrestation.",
+        "Runner : <b>+3</b> par libération, <b>+3</b> si tu es libre à la fin.",
+        "Équipe gagnante : <b>+2</b> chacun.",
+      ],
+      example: "Tu es runner. Bob et Alice sont en prison. Le flic court après toi : tu poses une peau de banane, il glisse. Tu files au bouton rouge, tu restes 2 s dessus : tout le monde est libre et tu prends +3 !",
+    },
     neige: {
       goal: "Toucher les autres avec tes boules de neige sans te faire toucher. Dernier debout (ou dernière équipe) gagne la manche.",
       steps: [

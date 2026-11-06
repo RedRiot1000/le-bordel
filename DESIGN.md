@@ -812,3 +812,18 @@ Le 1er tour garde le nombre de tours d'indices réglé. Dès que la manche conti
 ## Textes des jeux d'ambiance
 
 Scotty trouvait certaines descriptions trop complexes. Règle : la carte du jeu tient en une phrase, les règles du salon en 3 ou 4 lignes courtes, l'aide explique seulement le déroulé. Les détails des points restent dans la section Points de l'aide.
+
+## 7 quatervicies. Cavale 🚨 — validé (« Go »)
+
+Inspiré du mode Cops and Runners de Garry's Mod. Jeu à pied, vue de dessus, 3 à 8 joueurs, en équipes qui tournent.
+- **Équipes** : 1 flic jusqu'à 5 joueurs, 2 ensuite. Les rôles tournent à chaque manche, chacun joue flic à son tour. 4 manches de 2 min par défaut.
+- **Quartier** (`public/games/cavale/quartier.js`, globalThis.Quartier, partagé serveur + navigateur) : tiré d'une seed, en cases de 32 px, 80 × 54. Rues de 4 cases, ruelles, maisons à traverser, cours clôturées (on tire à travers), parcs, immeubles. Prison sur une place au milieu.
+- **Déroulé** : les runners partent 5 s avant les flics. Le taser (clic gauche, tir instantané, portée 340 px, recharge 5 s) sonne le runner 1,5 s ; le flic reste figé 0,4 s après un tir ; il doit toucher le runner sonné pour l'envoyer en prison. Un runner libre reste 2 s sur un des 2 boutons : tout le monde est libéré, protégé 2 s, boutons rechargés en 5 s.
+- **Fin** : les flics gagnent si tous les runners sont en prison, les runners s'ils tiennent 2 min.
+- **Anti-camping** : un flic qui reste 5 s près de la prison (330 px) ralentit de 45 %.
+- **Gadgets** : caisses jaunes (16, retour en 10 s), un seul à la fois, Espace / E / clic droit. Runners : sprint, fumigène (bloque les tirs et la vue), peau de banane. Flics : sprint, barrage (8 s), taser rapide (10 s, recharge 1,5 s).
+- **Points** : +2 par arrestation, +3 par libération, +3 si libre à la fin, +2 pour l'équipe gagnante.
+- **Écart avec la proposition** : 2 flics au plus (3 à 8 joueurs les rendaient trop forts), portée 340 au lieu de 380, stun 1,5 s au lieu de 2 s, recharge 5 s au lieu de 4 s et 0,4 s de recul, pour équilibrer d'après les simulations.
+- **Bots** : chemin par carte des distances. Le flic ne poursuit que ceux qu'il voit (520 px), sinon il va où il les a perdus ou fait sa ronde. Le runner fuit, ramasse des gadgets et va aux boutons non gardés.
+- **Écran** : caméra qui suit, chrono en haut, mini-carte en bas à droite (prison, boutons, coéquipiers), barres de taser et de gadget sous la mini-carte.
+
