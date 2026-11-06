@@ -252,7 +252,35 @@ $("btn-copy").addEventListener("click", async () => {
 });
 
 let colorTriedIn = null;
-const plOpen = new Set();   // les jeux dont les réglages sont dépliés
+let plGear = null;   // le jeu dont la fenêtre de réglages est ouverte
+
+// La fenêtre de réglages d'un jeu de la playlist (l'engrenage). Seul l'hôte peut changer quelque chose.
+function renderGear() {
+  $("pl-gear")?.remove();
+  const g = catalogue.games.find((x) => x.id === plGear);
+  if (!g || hub?.phase !== "lobby" || hub.lobbyMode !== "playlist") { plGear = null; return; }
+  const host = isHost(), conf = hub.draft.config?.[g.id] || {};
+  const box = document.createElement("div");
+  box.id = "pl-gear";
+  box.className = "gear-overlay";
+  box.innerHTML = `
+    <div class="gear-card card" role="dialog" aria-modal="true">
+      <h2>${g.emoji} ${escapeHtml(g.name)}</h2>
+      ${g.options.map((o) => `
+        <div class="setting-block"><label>${escapeHtml(o.label)}</label><div class="cat-chips">
+          ${o.choices.map((c) => `<button class="cat-chip ${(conf[o.key] ?? o.default) === c.v ? "on" : ""}" data-k="${o.key}" data-v="${escapeHtml(c.v)}" title="${escapeHtml(c.hint || "")}" ${host ? "" : "disabled"}>${escapeHtml(c.label)}</button>`).join("")}
+        </div></div>`).join("")}
+      ${host ? "" : `<p class="settings-note">Seul l'hôte peut modifier les réglages.</p>`}
+      <button class="btn btn-primary" data-close>OK</button>
+    </div>`;
+  document.body.appendChild(box);
+  const close = () => { plGear = null; box.remove(); };
+  box.onclick = (e) => { if (e.target === box) close(); };
+  box.querySelector("[data-close]").onclick = close;
+  box.querySelectorAll("[data-k]").forEach((b) => {
+    b.onclick = () => socket.emit("setDraft", { config: { gameId: g.id, key: b.dataset.k, value: b.dataset.v } });
+  });
+}
 function renderLobby() {
   $("room-code").textContent = hub.code;
   $("player-count").textContent = `${hub.players.length}/8`;
@@ -332,6 +360,7 @@ function renderLobby() {
         <span class="gt-desc">${escapeHtml(g.description)}</span>
       </button>
       ${window.GAME_HELP?.[g.id] ? `<button class="gt-help" data-help="${g.id}" title="Comment on joue ?">?</button>` : ""}
+      ${playlistMode && g.options.length ? `<button class="gt-gear" data-gear="${g.id}" title="Réglages de ce jeu">⚙️</button>` : ""}
     </div>`;
   });
   const soon = catalogue.upcoming.map((g) => `
@@ -342,6 +371,9 @@ function renderLobby() {
       </button>`);
   $("game-tiles").innerHTML = tiles.concat(soon).join("");
 
+  $("game-tiles").querySelectorAll(".gt-gear").forEach((b) => {
+    b.onclick = (e) => { e.stopPropagation(); plGear = b.dataset.gear; renderGear(); };
+  });
   $("game-tiles").querySelectorAll(".gt-help").forEach((b) => {
     b.onclick = () => showHelp(b.dataset.help);
   });
@@ -388,22 +420,7 @@ function renderLobby() {
       socket.emit("setDraft", { games: on ? draft.games.filter((id) => !ids.includes(id)) : [...new Set([...draft.games, ...ids])] });
     };
   });
-  // Les réglages de chaque jeu coché (choisis ici par l'hôte, une bonne fois pour toutes).
-  const picked = catalogue.games.filter((g) => draft.games.includes(g.id) && g.options.length);
-  const valueOf = (g, o) => draft.config?.[g.id]?.[o.key] ?? o.default;
-  const labelOf = (o, v) => o.choices.find((c) => c.v === v)?.label || v;
-  $("pl-config").innerHTML = picked.map((g) => `
-    <details class="pl-game" data-id="${g.id}" ${plOpen.has(g.id) ? "open" : ""}>
-      <summary><span>${g.emoji} ${escapeHtml(g.name)}</span><span class="pl-sum">${g.options.map((o) => escapeHtml(labelOf(o, valueOf(g, o)))).join(" · ")}</span></summary>
-      ${g.options.map((o) => `
-        <div class="setting-block"><label>${escapeHtml(o.label)}</label><div class="cat-chips">
-          ${o.choices.map((c) => `<button class="cat-chip ${valueOf(g, o) === c.v ? "on" : ""}" data-g="${g.id}" data-k="${o.key}" data-v="${escapeHtml(c.v)}" title="${escapeHtml(c.hint || "")}" ${host ? "" : "disabled"}>${escapeHtml(c.label)}</button>`).join("")}
-        </div></div>`).join("")}
-    </details>`).join("") || '<p class="muted">Coche des jeux pour choisir leurs réglages.</p>';
-  $("pl-config").querySelectorAll("details").forEach((d) => { d.ontoggle = () => { if (d.open) plOpen.add(d.dataset.id); else plOpen.delete(d.dataset.id); }; });
-  $("pl-config").querySelectorAll("[data-k]").forEach((b) => {
-    b.onclick = () => socket.emit("setDraft", { config: { gameId: b.dataset.g, key: b.dataset.k, value: b.dataset.v } });
-  });
+  renderGear();
   const start = $("btn-start-playlist");
   start.classList.toggle("hidden", !host);
   start.disabled = !draft.games.length;

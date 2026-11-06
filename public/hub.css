@@ -207,9 +207,12 @@
 
 /* Playlist : tout / rien / catégories, réglages de chaque jeu */
 .pl-bulk { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-.pl-config-title { font-weight: 700; margin: 6px 0 8px; }
-.pl-config { display: flex; flex-direction: column; gap: 6px; max-height: 340px; overflow-y: auto; margin-bottom: 12px; padding-right: 4px; }
-.pl-game { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; }
-.pl-game summary { display: flex; justify-content: space-between; gap: 12px; cursor: pointer; font-weight: 700; }
-.pl-sum { font-weight: 500; font-size: 13px; color: var(--muted); text-align: right; }
-.pl-game .setting-block { margin-top: 10px; }
+
+/* L'engrenage des réglages d'un jeu (playlist) */
+.gt-gear { position: absolute; right: 80px; top: 8px; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 16px; line-height: 1; cursor: pointer; padding: 0; z-index: 2; transition: transform 0.15s; }
+.gt-gear:hover { transform: rotate(45deg) scale(1.12); border-color: var(--accent); }
+.gear-overlay { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: rgba(5, 8, 16, 0.6); }
+.gear-card { width: 100%; max-width: 460px; max-height: 88vh; overflow-y: auto; margin: 0; }
+.gear-card h2 { margin-bottom: 8px; }
+.gear-card .setting-block { margin-bottom: 14px; }
+.gear-card .btn { width: 100%; }

@@ -778,7 +778,7 @@ Le 1er tour garde le nombre de tours d'indices réglé. Dès que la manche conti
 
 ### Playlist et manches
 
-- **Playlist** : boutons Tout, Rien et une catégorie (Action, Ambiance, Bluff, Quiz). L'hôte règle chaque jeu dans le panneau de la playlist (mode, manches, difficulté…) ; il n'y a plus de vote ni d'écran de réglages avant les jeux, juste une annonce de 5 s.
+- **Playlist** : boutons Tout, Rien et une catégorie (Action, Ambiance, Bluff, Quiz). L'hôte règle chaque jeu avec l'engrenage ⚙️ sur sa tuile (mode, manches, difficulté…) ; il n'y a plus de vote ni d'écran de réglages avant les jeux, juste une annonce de 5 s.
 - **Mode Alterné** (à la place d'aléatoire) : Roi de la colline, Sumo, Boules de neige : manche 1 chacun pour soi, manche 2 en équipes, etc., quand c'est possible (équipes égales, dès 4 joueurs pour les jeux à pied). Territoire : d'une partie à l'autre. Grand Prix : course puis élimination.
 - **Plus de manches** dans les jeux courts : Néon 8, Parkour et Chat et souris 7, Patate, Sumo, Avis de recherche, Sol qui s'effondre, Boules de neige, Roi de la colline, La Tour et Grand Prix 5.
 
