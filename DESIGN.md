@@ -703,6 +703,17 @@ Choix : éliminé au 1er choc, le même parcours pour tout le monde, sauter + s'
 - **Bots** : temps de réaction de 0,16 à 0,28 s, une petite erreur de timing qui grandit avec la vitesse, et un raté de temps en temps.
 - **Simulation** : manches de 25 à 45 s entre bots, avec des écarts nets.
 
+### Parkour 2 (refonte, « Go »)
+
+Scotty voulait un jeu plus compétitif, plus de pièges, plusieurs niveaux, et voir les autres sans gêner la vue. Cette partie remplace ce qui est écrit plus haut quand elles se contredisent.
+- **Une seule piste** : plus de lignes. Mon perso est net, au premier plan. Les autres sont des fantômes transparents derrière le décor, avec leur pseudo. Ceux hors de l'écran sont signalés sur le bord.
+- **Mur** : il part 110 m derrière et gagne 0,7 m par seconde sur une course parfaite. S'il touche un coureur, il l'élimine. Le dernier en course gagne (fin 2,5 s après). Classement : ordre inverse des éliminations.
+- **Chocs** : plus de mort au 1er choc. Un choc = vitesse ×0,35 pendant 0,9 s, puis 1,4 s de protection. Un trou = 0,8 s d'arrêt, on repart après le trou.
+- **3 étages** : sol, toits (118 px, saut maintenu) et passerelles (236 px, tremplin). Une fourche sur deux environ. En haut : tapis rapides, pièges, trous (on retombe en bas). En bas : tapis lents et obstacles simples.
+- **Pièges** : piques qui sortent en rythme, laser bas ou haut, scie qui monte et descend, dalles qui s'effondrent après 0,24 s (par joueur), tapis rapides et lents, tremplins, en plus des haies, caisses, barres, oiseaux et trous.
+- **Vitesse** : 420 à 996 px/s en 36 s, puis jusqu'à 1400.
+- **Fantômes fluides** : les autres sont affichés avec 110 ms de retard, en glissant entre leurs positions reçues.
+
 ## 7 unvicies. Grand Prix 🏁 — validé (« Go »)
 
 Idée de Scotty : une course sur un circuit généré au hasard, chacun choisit sa supersportive (3 voitures uniques).

@@ -1,8 +1,9 @@
 // ===================================================================
 //  PARKOUR — Moteur du jeu (module du hub Le Bordel)
-//  Chacun sa ligne, le même parcours pour tout le monde (tiré d'une seed).
+//  Tout le monde sur la même piste, le même parcours (tiré d'une seed), 3 étages.
 //  On court tout seul, de plus en plus vite : sauter, s'accroupir, glisser.
-//  Un obstacle touché (ou un trou) = éliminé. Le plus loin gagne.
+//  Un choc ralentit, un trou fait perdre du temps. Le mur qui suit la course élimine.
+//  Le dernier en course gagne.
 //  Le SERVEUR fait foi : il avance chaque coureur d'un pas à chaque touche
 //  reçue (comme le navigateur), en vérifiant qu'il ne va pas plus vite que le temps.
 // ===================================================================
@@ -19,13 +20,13 @@ export const meta = {
   family: "Action",
   minPlayers: 2,
   maxPlayers: 8,
-  description: "Chacun sa ligne, le même parcours : saute, accroupis-toi, glisse… le plus loin gagne !",
+  description: "Cours sur 3 étages, évite les pièges : le mur qui te suit élimine les plus lents !",
 };
 
 const TICK_MS = 1000 / 30;
 const COUNTDOWN_MS = 3000;
 const END_DELAY = 1500;
-const LAST_EXTRA = 10000;              // le dernier en course doit encore faire 1000 m (10 px = 1 m) de plus que l'avant-dernier
+const LAST_DELAY = 2500;               // quand il ne reste qu'un coureur : il a gagné, fin 2,5 s après
 const ROUND_OVER_MS = 6000;
 const FINISH_DELAY = 15000;
 const MAX_MS = 180000;                 // une manche dure au plus 3 min
@@ -47,7 +48,7 @@ export const playlist = {
   },
 };
 
-const shuffle = (arr) => {
+const shuffle = (arr) => {   // (mélange)
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
   return a;
@@ -63,7 +64,7 @@ export function createGame(ctx) {
     scores: {},
     round: 0,
     seed: 0, course: null,
-    lanes: [],            // l'ordre des lignes (ids)
+    out: [],              // l'ordre des éliminations
     runners: {},          // id -> { r, bot, seq, lastInputAt, ticks, ai, deadAt, cause }
     playAt: 0, endAt: 0, phaseEnd: 0,
     lastRound: null,
@@ -87,13 +88,11 @@ export function createGame(ctx) {
       round: g.round,
       players: players().map((p) => ({ ...p, score: g.scores[p.id] || 0 })),
       seed: g.seed,
-      lanes: g.lanes,
+      wall: g.phase === "play" ? P.wallAt((t - g.playAt) / 1000) : -P.WALL_GAP,
       runners: Object.entries(g.runners).map(([id, s]) => ({ id, seq: s.seq, cause: s.cause, ...P.copy(s.r) })),
       phaseLeft: Math.max(0, g.phaseEnd - t),
-      lastStand: g.phase === "play" ? g.lastStand || null : null,
-      lastTarget: g.lastTarget || 0,
       lastRound: g.lastRound,
-      fx: g.fx.filter((f) => t - f.t < 600).map(({ id, lane, kind }) => ({ id, lane, kind })),
+      fx: g.fx.filter((f) => t - f.t < 600).map(({ id, who, kind }) => ({ id, who, kind })),
       playlist: ctx.playlist && { final: g.final },
       finishLeft: g.final ? Math.max(0, g.finishAt - t) : 0,
     };
@@ -114,23 +113,23 @@ export function createGame(ctx) {
     g.round++;
     g.seed = Math.floor(Math.random() * 1e9);
     g.course = P.course(g.seed);
-    g.lanes = shuffle(list.map((p) => p.id));
+    g.out = [];
     g.runners = {};
     for (const p of list) {
       // Chaque bot a son temps de réaction (et il finit par se tromper).
       const react = 0.16 + Math.random() * 0.12;
-      g.runners[p.id] = { r: P.newRunner(), bot: !!p.bot, seq: 0, lastInputAt: 0, ticks: 0, ai: { react, k: 0, until: 0, done: new Set() }, deadAt: 0, cause: null };
+      g.runners[p.id] = { r: P.newRunner(), bot: !!p.bot, seq: 0, lastInputAt: 0, ticks: 0, ai: { react, k: 0, until: 0, b: 0, bold: 0.3 + Math.random() * 0.6, done: new Set() }, deadAt: 0, cause: null };
       g.scores[p.id] = g.scores[p.id] || 0;
     }
     g.fx = [];
-    g.endAt = 0; g.lastStand = null; g.lastTarget = 0;
+    g.endAt = 0;
     g.lastRound = null;
     g.phase = "countdown";
     g.phaseEnd = now() + COUNTDOWN_MS;
     startLoop();
   }
 
-  function addFx(id, kind) { g.fx.push({ id: ++g.fxId, t: now(), lane: id, kind }); if (g.fx.length > 30) g.fx.shift(); }
+  function addFx(id, kind) { g.fx.push({ id: ++g.fxId, t: now(), who: id, kind }); if (g.fx.length > 30) g.fx.shift(); }
 
   // Un pas de course pour un coureur.
   function advance(id, k) {
@@ -139,10 +138,8 @@ export function createGame(ctx) {
     const was = s.r.alive;
     const res = P.step(s.r, k, g.course);
     if (was && res) {
-      s.cause = res;
-      s.deadAt = now();
       addFx(id, res);
-      checkEnd();
+      if (res === "mur") { s.cause = res; s.deadAt = now(); g.out.push(id); checkEnd(); }
     }
   }
 
@@ -150,25 +147,18 @@ export function createGame(ctx) {
   function checkEnd() {
     const n = alive().length, total = Object.keys(g.runners).length;
     if (n === 0) { const t = now() + END_DELAY; if (!g.endAt || g.endAt > t) g.endAt = t; }
-    else if (n === 1 && total > 1 && !g.lastStand) {
-      // Le dernier en course : il continue jusqu'à 1000 m de plus que le meilleur des autres.
-      g.lastStand = alive()[0];
-      g.lastTarget = Math.max(...Object.entries(g.runners).filter(([id]) => id !== g.lastStand).map(([, x]) => x.r.d)) + LAST_EXTRA;
-    }
+    else if (n === 1 && total > 1 && !g.endAt) g.endAt = now() + LAST_DELAY;
   }
 
-  // Classement de la manche : à la distance.
+  // Classement de la manche : le dernier en course, puis l'ordre inverse des éliminations.
   function endRound() {
     stopLoop();
-    const order = Object.keys(g.runners).sort((a, b) => g.runners[b].r.d - g.runners[a].r.d);
+    const still = alive().sort((a, b) => g.runners[b].r.d - g.runners[a].r.d);
+    const order = [...still, ...g.out.slice().reverse().filter((id) => g.runners[id])];
     const gains = {};
-    let rank = 0;
-    order.forEach((id, i) => {
-      if (i > 0 && Math.floor(g.runners[id].r.d) < Math.floor(g.runners[order[i - 1]].r.d)) rank = i;
-      gains[id] = POINTS[rank] || 0;
-    });
+    order.forEach((id, i) => { gains[id] = POINTS[i] || 0; });
     for (const [id, n] of Object.entries(gains)) g.scores[id] = (g.scores[id] || 0) + n;
-    g.lastRound = { order, gains, dist: Object.fromEntries(order.map((id) => [id, Math.floor(g.runners[id].r.d / 10)])), cause: Object.fromEntries(order.map((id) => [id, g.runners[id].cause])) };
+    g.lastRound = { order, gains, dist: Object.fromEntries(order.map((id) => [id, Math.floor(g.runners[id].r.d / 10)])), cause: Object.fromEntries(order.map((id) => [id, g.runners[id].cause])), hits: Object.fromEntries(order.map((id) => [id, g.runners[id].r.hits])) };
     const last = g.round >= g.settings.rounds;
     g.phase = last ? "over" : "roundOver";
     if (last && ctx.playlist) {
@@ -192,26 +182,45 @@ export function createGame(ctx) {
   //  BOTS : ils regardent devant eux et réagissent (plus ou moins vite)
   // =================================================================
   function botKeys(s) {
-    const r = s.r, ai = s.ai, t = r.t;
+    const r = s.r, ai = s.ai, t = r.t, c = g.course;
     if (t < ai.until) return ai.k;
     ai.k = 0;
-    const v = P.speedAt(r.t);
-    // Le prochain danger devant.
-    const ahead = P.near(g.course, r.d, r.d + v * 1.2);
-    const items = [...ahead.obs.map((o) => ({ x: o.x, kind: o.kind, key: "o" + o.x })), ...ahead.gaps.map((gp) => ({ x: gp.x, kind: "trou", w: gp.w, key: "g" + gp.x }))]
-      .filter((it) => it.x + 30 > r.d - 10).sort((a, b) => a.x - b.x);
+    if (r.stall > 0) return 0;
+    if (!r.air) ai.b = r.y;
+    const b = ai.b, v = Math.max(200, P.speedOf(r));
+    const under = !r.air && P.support(c, r, r.d, r.y);
+    // Sur des dalles qui s'effondrent : il saute tout de suite.
+    if (under?.cr && !(r.pk & K.JUMP)) { ai.k = K.JUMP; ai.until = t + 0.07; return ai.k; }
+    const ahead = P.near(c, r.d, r.d + v * 1.2);
+    // Une fourche : il monte s'il aime le risque.
+    for (const p of ahead.plats) {
+      if (p.cr || p.y <= b || p.y - b > 130 || p.x < r.d) continue;
+      const key = "p" + p.id;
+      if (ai.done.has(key) || p.x - r.d > v * 0.2) continue;
+      ai.done.add(key);
+      if (!r.air && Math.random() < ai.bold) { ai.k = K.JUMP; ai.until = t + 0.24; return ai.k; }
+    }
+    // Le prochain danger sur son étage.
+    const items = [];
+    for (const o of ahead.obs) if (o.b === b && !P.KINDS[o.kind].pad && o.x + 30 > r.d - 10) items.push({ x: o.x, o, key: "o" + o.x + "/" + o.b });
+    if (b === 0) for (const gp of ahead.gaps) if (gp.x + 30 > r.d - 10) items.push({ x: gp.x, w: gp.w, key: "g" + gp.x });
+    for (const p of ahead.plats) if (p.cr && p.y === b && p.x > r.d - 10) items.push({ x: p.x, w: 60, key: "c" + p.id });
+    items.sort((a, c2) => a.x - c2.x);
     const it = items.find((x) => !ai.done.has(x.key));
     if (!it) return 0;
     const dist = it.x - (r.d + P.W / 2);
-    // Il réagit au bon moment… avec son temps de réaction et un peu de hasard (plus c'est rapide, plus il se trompe).
+    const z = it.o ? P.zone(it.o, t + Math.max(0, dist) / v) : null;
+    if (it.o && !z) { if (dist < 10) ai.done.add(it.key); return 0; }
+    const low = !!z && z[0] >= 30;                 // à passer en glissant
+    const big = !!z && z[1] > 60;
+    // Il réagit au bon moment… avec un peu de hasard (plus c'est rapide, plus il se trompe).
     const err = (Math.random() - 0.5) * (0.06 + v / 6000);
-    const low = it.kind === "barre" || it.kind === "oiseau_haut";
-    const lead = low ? 0.12 : it.kind === "trou" ? 0.06 : it.kind === "caisse" ? 0.2 : 0.16;
+    const lead = low ? 0.12 : it.o ? (big ? 0.2 : 0.16) : 0.06;
     if (dist < v * (lead + err) + 4 && dist > -10) {
       ai.done.add(it.key);
-      if (Math.random() < Math.min(0.12, 0.004 + v / 14000)) return 0;   // il rate parfois
-      if (low) { ai.k = K.DOWN; ai.until = t + (P.KINDS[it.kind].w + 60) / v + 0.1; }
-      else { ai.k = K.JUMP; ai.until = t + (it.kind === "caisse" ? 0.2 : it.kind === "trou" ? Math.min(0.2, it.w / v) : 0.08); }
+      if (Math.random() < Math.min(0.14, 0.01 + v / 11000)) return 0;   // il rate parfois
+      if (low) { ai.k = K.DOWN; ai.until = t + (P.wOf(it.o) + 60) / v + 0.1; }
+      else { ai.k = K.JUMP; ai.until = t + (big ? 0.2 : it.w ? Math.min(0.2, it.w / v) : 0.08); }
       return ai.k;
     }
     return 0;
@@ -232,8 +241,6 @@ export function createGame(ctx) {
         // (on attend 1 s de silence : un petit trou de réseau ne doit jamais faire « rater » un saut)
         else while (s.ticks < allowed - 30 && t - s.lastInputAt > 1000) advance(id, 0);
       }
-      // Le dernier en course a fait ses 1000 m de plus : on arrête.
-      if (g.lastStand && !g.endAt && g.runners[g.lastStand]?.r.alive && g.runners[g.lastStand].r.d >= g.lastTarget) g.endAt = t + 300;
       if (!g.endAt && t - g.playAt > MAX_MS) g.endAt = t;
       if (g.endAt && t >= g.endAt) return endRound();
     }
@@ -246,7 +253,7 @@ export function createGame(ctx) {
   function leave(id) {
     const s = g.runners[id];
     if (!s || !["countdown", "play"].includes(g.phase)) return;
-    if (s.r.alive) { s.r.alive = false; s.cause = "parti"; }
+    if (s.r.alive) { s.r.alive = false; s.cause = "parti"; g.out.push(id); }
     checkEnd();
   }
 

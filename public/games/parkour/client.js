@@ -1,16 +1,20 @@
 // ===================================================================
 //  PARKOUR — Client (s'affiche dans le hub Le Bordel)
-//  - Une ligne par joueur, le même parcours (refait ici à partir de la seed).
+//  - Une seule piste. Le parcours est refait ici à partir de la seed.
 //  - MON coureur est calculé ici tout de suite (prédiction), puis recalé :
 //    le serveur fait exactement les mêmes calculs, touche par touche.
+//  - Les autres sont des fantômes transparents, derrière le décor : affichés
+//    avec un léger retard, en glissant entre leurs positions reçues (pas de saccades).
 // ===================================================================
 
 (() => {
   const P = window.Parkour;
   const K = P.K;
   const W = 1280, HGT = 800;
-  const RUN_X = 230;          // où le coureur est dessiné dans sa ligne
-  const BASE = 235;           // hauteur « normale » d'une ligne : le saut le plus haut (tête comprise) y tient
+  const RUN_X = 340;          // où le coureur est dessiné
+  const S = 1.25;             // l'échelle de la piste
+  const FLOOR = 660;          // la hauteur du sol à l'écran
+  const DELAY = 110;          // le retard d'affichage des fantômes (ms)
 
   let api = null, root = null;
   let st = null;
@@ -24,7 +28,7 @@
   const history = new Map();
   let seq = 0, acc = 0;
   const pressed = new Set();
-  const shown = {};           // id -> position affichée (lissée)
+  const trail = {};           // id -> les dernières positions reçues (pour les fantômes)
   let particles = [];
   const seenFx = new Set();
   let prevPhase = null, playSeenAt = 0, flash = 0;
@@ -43,17 +47,18 @@
       <div class="logo imp-logo">
         <span class="logo-icon">🏃</span>
         <h1>PARKOUR</h1>
-        <p class="tagline">Chacun sa ligne, le même parcours. Le meilleur réflexe va le plus loin.</p>
+        <p class="tagline">Cours, monte, évite les pièges. Le mur élimine les plus lents.</p>
       </div>
       <div class="pt-setup-grid">
         <div class="card"><h2>⚙️ Réglages</h2><div id="pk-settings" class="settings"></div></div>
         <div class="card">
           <h2>🎮 Règles & commandes</h2>
           <ul class="pt-help">
-            <li>🏃 Tu cours tout seul, de plus en plus vite. Tout le monde a <b>le même parcours</b>, chacun sur sa ligne.</li>
-            <li>⬆️ <kbd>Espace</kbd> / <kbd>↑</kbd> / <kbd>Z</kbd> : <b>sauter</b> (garde appuyé pour sauter plus haut) — haies, caisses, oiseaux bas, <b>trous</b>.</li>
-            <li>⬇️ <kbd>↓</kbd> / <kbd>S</kbd> : <b>glisser</b> / s'accroupir — barres et oiseaux hauts. En l'air : retomber plus vite.</li>
-            <li>💥 Un obstacle touché ou un trou = <b>éliminé</b>. Le plus loin gagne la manche (10, 7, 5, 3, 2, 1 points).</li>
+            <li>🏃 Tu cours tout seul, de plus en plus vite. Les autres sont des <b>fantômes</b> : ils ne te gênent pas.</li>
+            <li>⬆️ <kbd>Espace</kbd> / <kbd>↑</kbd> / <kbd>Z</kbd> : <b>sauter</b> (maintenir = plus haut, pour monter sur les toits).</li>
+            <li>⬇️ <kbd>↓</kbd> / <kbd>S</kbd> : <b>glisser</b>. En l'air : retomber plus vite.</li>
+            <li>💥 Un choc te <b>ralentit</b>. Le <b>mur</b> qui te suit t'élimine : le dernier en course gagne.</li>
+            <li>🏢 En haut, c'est plus rapide mais plus piégé. En bas, c'est plus sûr mais plus lent.</li>
           </ul>
         </div>
       </div>
@@ -85,6 +90,7 @@
     mount(rootEl, hubApi) {
       api = hubApi; root = rootEl;
       st = null; pred = prevPred = null; pending = []; particles = []; courseSeed = null;
+      for (const k in trail) delete trail[k];
       seenFx.clear(); pressed.clear();
       root.innerHTML = TEMPLATE;
       api.setTheme("theme-violet");
@@ -117,7 +123,13 @@
       }
       $("pk-setup").classList.add("hidden");
       $("pk-play").classList.remove("hidden");
-      if (st.seed !== courseSeed) { courseSeed = st.seed; course = P.course(st.seed); }
+      if (st.seed !== courseSeed) { courseSeed = st.seed; course = P.course(st.seed); for (const k in trail) delete trail[k]; }
+      const at = performance.now();
+      for (const r of st.runners) {
+        const q = trail[r.id] || (trail[r.id] = []);
+        q.push({ at, d: r.d, y: r.y, crouch: r.crouch, air: r.air, alive: r.alive, stall: r.stall, safe: r.safe, t: r.t });
+        if (q.length > 24) q.shift();
+      }
       handleFx();
       reconcile();
       renderHud();
@@ -148,6 +160,21 @@
   //  PRÉDICTION DE MON COUREUR (le serveur fait les mêmes calculs)
   // ===================================================================
   const same = (a, b) => Math.abs(a.d - b.d) < 0.05 && Math.abs(a.y - b.y) < 0.05 && Math.abs(a.vy - b.vy) < 0.05 && a.alive === b.alive;
+  // Un fantôme : sa position il y a DELAY ms, en glissant entre deux positions reçues.
+  function ghostOf(id) {
+    const q = trail[id];
+    if (!q?.length) return null;
+    const at = performance.now() - DELAY;
+    for (let i = q.length - 1; i > 0; i--) {
+      const a = q[i - 1], b = q[i];
+      if (a.at <= at && at <= b.at) {
+        const f = b.at > a.at ? (at - a.at) / (b.at - a.at) : 1;
+        if (Math.abs(b.d - a.d) > 500) return b;      // (il vient de remonter d'un trou)
+        return { ...b, d: a.d + (b.d - a.d) * f, y: a.y + (b.y - a.y) * f };
+      }
+    }
+    return q[q.length - 1];
+  }
   function reconcile() {
     const sc = runnerOf(me());
     if (!sc || !driving() || !course) { pred = prevPred = null; pending = []; history.clear(); return; }
@@ -193,14 +220,14 @@
     for (const f of st.fx || []) {
       if (seenFx.has(f.id)) continue;
       seenFx.add(f.id);
-      const lane = st.lanes.indexOf(f.lane);
-      if (lane < 0) continue;
-      const L = laneBox(lane);
+      if (f.who !== me()) continue;
+      const v = myView();
+      const y = FLOOR - ((v?.y || 0) + 26) * S;
       for (let i = 0; i < 26; i++) {
-        const a = -Math.random() * Math.PI, v = 60 + Math.random() * 260;
-        particles.push({ x: RUN_X, y: L.ground - 30 * L.s, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.4 + Math.random() * 0.4, max: 0.8, col: f.kind === "trou" ? "#8a7a6a" : i % 2 ? "#ffcf5c" : "#fff" });
+        const a = -Math.random() * Math.PI, sp = 60 + Math.random() * 260;
+        particles.push({ x: RUN_X, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.4 + Math.random() * 0.4, max: 0.8, col: f.kind === "trou" ? "#8a7a6a" : i % 2 ? "#ffcf5c" : "#fff" });
       }
-      if (f.lane === me()) flash = 1;
+      flash = 1;
     }
     if (seenFx.size > 300) seenFx.clear();
   }
@@ -232,10 +259,10 @@
   function renderHud() {
     $("pk-round").textContent = `Manche ${st.round}/${st.settings.rounds}`;
     const mine = runnerOf(me());
-    const txt = !mine ? "👀 Tu regardes" : st.lastStand === me() ? "🏆 Dernier en course : tu gagnes la manche !" : mine.alive ? "🏃 Cours !" : `💥 Éliminé à ${meters(mine.d)} m`;
-    if ($("pk-me").textContent !== txt) $("pk-me").textContent = txt;
     const n = st.runners.filter((r) => r.alive).length;
-    $("pk-alive").textContent = st.lastStand ? `🏆 ${pseudoOf(st.lastStand)} est le dernier en course !` : `🏃 ${n} encore en course`;
+    const txt = !mine ? "👀 Tu regardes" : !mine.alive ? `🧱 Rattrapé par le mur à ${meters(mine.d)} m` : n === 1 && st.runners.length > 1 ? "🏆 Dernier en course !" : mine.slow > 0 ? "💥 Choc : tu ralentis !" : mine.stall > 0 ? "🕳️ Dans le trou !" : "🏃 Cours !";
+    if ($("pk-me").textContent !== txt) $("pk-me").textContent = txt;
+    $("pk-alive").textContent = `🏃 ${n} encore en course`;
   }
 
   function renderOver() {
@@ -248,9 +275,9 @@
     const key = JSON.stringify([st.phase, st.round, host, st.playlist?.final]);
     if (ov.dataset.key === key) return;
     ov.dataset.key = key;
-    const banner = `🏆 ${esc(pseudoOf(lr.order[0]))} va le plus loin : ${lr.dist[lr.order[0]]} m !`;
+    const banner = `🏆 ${esc(pseudoOf(lr.order[0]))} gagne la course !`;
     const rows = lr.order.filter((id) => playerOf(id)).map((id, i) => `<li><span class="s10-medal">${["🥇", "🥈", "🥉"][i] || i + 1 + "."}</span>${api.avatar(playerOf(id))}<b>${esc(pseudoOf(id))}</b>
-      <span class="muted">${lr.dist[id]} m${lr.cause[id] === "trou" ? " · tombé dans un trou" : lr.cause[id] === "obstacle" ? " · obstacle" : ""}</span><span class="gain">+${lr.gains[id] || 0}</span></li>`).join("");
+      <span class="muted">${lr.dist[id]} m · ${lr.hits[id]} choc${lr.hits[id] > 1 ? "s" : ""}${lr.cause[id] === "mur" ? " · rattrapé" : lr.cause[id] === "parti" ? " · parti" : ""}</span><span class="gain">+${lr.gains[id] || 0}</span></li>`).join("");
     const total = st.phase === "over" ? `<h3 class="ch-total">🏆 Classement</h3><ol class="s10-rank">${[...st.players].sort((a, b) => b.score - a.score)
       .map((p, i) => `<li><span class="s10-medal">${["🥇", "🥈", "🥉"][i] || i + 1 + "."}</span>${api.avatar(p)}<b>${esc(p.pseudo)}</b><span class="gain">${p.score} pts</span></li>`).join("")}</ol>` : "";
     let buttons;
@@ -283,13 +310,6 @@
   // ===================================================================
   //  DESSIN
   // ===================================================================
-  // La boîte d'une ligne : y du haut, hauteur, échelle, y du sol.
-  function laneBox(i) {
-    const n = Math.max(1, st.lanes.length);
-    const h = HGT / n, s = Math.min(1.35, h / BASE);
-    return { y: i * h, h, s, ground: i * h + h - 18 * s };
-  }
-
   function frame(ts) {
     rafId = requestAnimationFrame(frame);
     const dt = Math.min(0.1, (ts - lastTs) / 1000);
@@ -306,9 +326,9 @@
   // Le décor qui défile (ville au crépuscule, en 2 plans). Chaque immeuble est attaché
   // à sa place dans le monde (numéro de colonne) : il ne change jamais de forme en défilant.
   const hash = (a, b) => { let h = Math.imul(a ^ 0x9e3779b9, 2654435761) ^ Math.imul(b + 0x7f4a7c15, 1597334677); h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
-  function drawBackdrop(c, L, d, mineLane) {
+  function drawBackdrop(c, L, d) {
     const gr = c.createLinearGradient(0, L.y, 0, L.ground);
-    gr.addColorStop(0, "#4b6cb7"); gr.addColorStop(0.65, "#9d86c9"); gr.addColorStop(1, "#f3a96b");
+    gr.addColorStop(0, "#5f83cf"); gr.addColorStop(0.65, "#b09bd8"); gr.addColorStop(1, "#f7bb80");
     c.fillStyle = gr; c.fillRect(0, L.y, W, L.h);
     // Soleil couchant (fixe).
     c.fillStyle = "rgba(255,230,160,0.55)"; c.beginPath(); c.arc(W * 0.78, L.ground - (L.ground - L.y) * 0.25, 40 * L.s, 0, Math.PI * 2); c.fill();
@@ -344,7 +364,7 @@
   }
   const rectPath = (c, x, y, w, h) => () => { c.beginPath(); c.rect(x, y, w, h); };
   function drawObstacle(c, L, o, sx, ts) {
-    const K = P.KINDS[o.kind], s = L.s;
+    const z = P.zone(o, 0), K = { w: P.wOf(o), y0: z[0], y1: z[1] }, s = L.s;
     const x = sx, w = K.w * s, y0 = L.ground - K.y1 * s, h = (K.y1 - K.y0) * s;
     // Repère au sol devant chaque obstacle (triangle rouge).
     c.fillStyle = "#ff2d2d";
@@ -381,11 +401,9 @@
 
   // Le coureur, vu de côté : il court, saute, glisse, tombe.
   // Dessiné 3 fois (halo clair, contour noir, couleur) pour bien ressortir sur le décor.
-  function drawRunner(c, L, r, color, ts, alpha) {
-    const s = L.s, x = RUN_X, foot = L.ground - r.y * s;
+  function drawRunner(c, x, r, color, alpha, solid) {
+    const s = S, foot = FLOOR - r.y * s;
     c.save(); c.globalAlpha = alpha;
-    // Ombre au sol.
-    if (r.y >= 0) { c.fillStyle = "rgba(0,0,0,0.35)"; c.beginPath(); c.ellipse(x, L.ground + 2, 14 * s * Math.max(0.4, 1 - r.y / 160), 3 * s, 0, 0, Math.PI * 2); c.fill(); }
     const ph = (r.d / 40) % (Math.PI * 2);
     // Les traits (membres) et la tête, selon la pose.
     let lines, head;
@@ -403,121 +421,186 @@
       ];
       head = [x + 3, 43, 6.5];
     }
-    const X = (px) => x + (px - x) * s;   // les x sont donnés « en monde » autour de RUN_X
+    const X = (px) => x + (px - x) * s;   // les x sont donnés « en monde » autour de lui
     const pass = (col, extra) => {
       c.strokeStyle = col; c.fillStyle = col; c.lineCap = "round";
       for (const [x0, y0, x1, y1, w] of lines) { c.lineWidth = (w + extra) * s; c.beginPath(); c.moveTo(X(x0), foot - y0 * s); c.lineTo(X(x1), foot - y1 * s); c.stroke(); }
       c.beginPath(); c.arc(X(head[0]), foot - head[1] * s, (head[2] + extra / 2) * s, 0, Math.PI * 2); c.fill();
     };
-    pass("rgba(255,255,255,0.55)", 7);   // halo clair
-    pass("#0b0914", 3.5);                 // contour noir
+    if (solid) {
+      pass("rgba(255,255,255,0.8)", 8);   // halo clair
+      pass("#0b0914", 3.5);               // contour noir
+    }
     pass(color, 0);                       // la couleur du joueur
     c.restore();
   }
 
+  // Les nouveaux pièges, dessinés à l'instant t.
+  function drawTrap(c, o, x, base, t, ts) {
+    const K = P.KINDS[o.kind], w = P.wOf(o) * S, z = P.zone(o, t);
+    if (o.kind === "pique") {
+      // Rentrés, on voit leur socle. Ils sortent en rythme.
+      c.fillStyle = "#4a4560"; c.fillRect(x, base - 8, w, 8);
+      const n = 4, sw = w / n, hgt = z ? 34 * S + 8 : 8;
+      for (let i = 0; i < n; i++) {
+        c.fillStyle = z ? "#ff2d2d" : "#8c86a8"; c.strokeStyle = "#fff"; c.lineWidth = 2;
+        c.beginPath(); c.moveTo(x + i * sw, base); c.lineTo(x + i * sw + sw / 2, base - hgt); c.lineTo(x + (i + 1) * sw, base); c.closePath(); c.fill(); c.stroke();
+      }
+    } else if (o.kind === "laser") {
+      // 2 bornes. Le rayon est en bas (saute) ou en haut (glisse).
+      const top = base - 215 * S * (o.b ? 0.52 : 1);
+      c.fillStyle = "#2c2a3c"; c.fillRect(x - 4, top, 10, base - top);
+      const yA = base - z[1] * S, yB = base - z[0] * S;
+      c.fillStyle = "rgba(255,40,70,0.3)"; c.fillRect(x - 12, yA, w + 24, yB - yA);
+      c.fillStyle = "#ff2d55"; c.fillRect(x, yA, w, yB - yA);
+      c.fillStyle = "#fff"; c.fillRect(x + w / 2 - 2, yA, 4, yB - yA);
+    } else if (o.kind === "scie") {
+      const cy = base - ((z[0] + z[1]) / 2) * S, cx = x + w / 2, r = 22 * S + 3;
+      c.strokeStyle = "#3a3648"; c.lineWidth = 6; c.beginPath(); c.moveTo(cx, base); c.lineTo(cx, base - 118 * S); c.stroke();
+      c.save(); c.translate(cx, cy); c.rotate(ts / 60);
+      c.fillStyle = "#d8dde6"; c.strokeStyle = "#0b0914"; c.lineWidth = 3;
+      c.beginPath(); for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2, rr = i % 2 ? r : r - 8; c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } c.closePath(); c.fill(); c.stroke();
+      c.fillStyle = "#ff2d2d"; c.beginPath(); c.arc(0, 0, 7, 0, Math.PI * 2); c.fill();
+      c.restore();
+    } else if (o.kind === "rapide" || o.kind === "lent") {
+      const fast = o.kind === "rapide";
+      c.fillStyle = fast ? "#25d366" : "#7a4e2a"; c.fillRect(x, base - 3, w, 10);
+      c.fillStyle = fast ? "#d8ffe6" : "#a87a4e";
+      if (fast) { const shift = (ts / 8) % 40; for (let k = -40 + shift; k < w; k += 40) { if (k < 0) continue; c.beginPath(); c.moveTo(x + k, base - 3); c.lineTo(x + k + 12, base + 2); c.lineTo(x + k, base + 7); c.closePath(); c.fill(); } }
+      else for (let k = 8; k < w; k += 26) { c.beginPath(); c.arc(x + k, base + 1, 5, 0, Math.PI * 2); c.fill(); }
+    } else if (o.kind === "tremplin") {
+      c.fillStyle = "#ffd23f"; c.fillRect(x, base - 12, w, 10);
+      c.strokeStyle = "#0b0914"; c.lineWidth = 3; c.strokeRect(x, base - 12, w, 10);
+      c.strokeStyle = "#ff7a1a"; c.lineWidth = 4; c.beginPath(); for (let k = 0; k <= w; k += 10) c.lineTo(x + k, base - (k / 10) % 2 * 6); c.stroke();
+      c.fillStyle = "#ff2d2d"; c.beginPath(); c.moveTo(x + w / 2 - 10, base - 22); c.lineTo(x + w / 2, base - 38); c.lineTo(x + w / 2 + 10, base - 22); c.closePath(); c.fill();
+    }
+    void K;
+  }
+
+  // Toits et passerelles.
+  function drawPlat(c, p, x, ts) {
+    const w = p.w * S, y = FLOOR - p.y * S;
+    if (p.cr) {
+      // Dalles orange fissurées, posées sur le vide.
+      c.fillStyle = "#ff9a2e"; c.fillRect(x, y, w, 14);
+      c.fillStyle = "#6b3a10"; for (let k = 0; k < w; k += 46) { c.fillRect(x + k, y, 3, 14); c.fillRect(x + k + 18, y + 3, 12, 2); c.fillRect(x + k + 26, y + 8, 10, 2); }
+      c.fillStyle = "#fff0c8"; c.fillRect(x, y, w, 3);
+      return;
+    }
+    const top = p.y === P.Y2;
+    c.fillStyle = "#2c2a3c";
+    for (let k = 40; k < w - 20; k += 200) c.fillRect(x + k, y + 16, 8, (top ? P.Y2 - P.Y1 : P.Y1) * S - 16);
+    c.fillStyle = top ? "#39b3a6" : "#3f7fc4"; c.fillRect(x, y, w, 18);
+    c.fillStyle = top ? "#c8fff2" : "#cfe6ff"; c.fillRect(x, y, w, 4);
+    c.fillStyle = "rgba(0,0,0,0.25)"; for (let k = 0; k < w; k += 40) c.fillRect(x + k, y + 4, 2, 14);
+    void ts;
+  }
+
   function draw(ts, dt) {
     const c = g2d;
-    c.fillStyle = "#1b1830"; c.fillRect(0, 0, W, HGT);
-    const lanes = st.lanes;
-    lanes.forEach((id, i) => {
-      const L = laneBox(i);
-      const sr = runnerOf(id);
-      if (!sr) return;
-      const isMe = id === me();
-      // Position affichée : la mienne prédite, les autres lissées.
-      let r;
-      if (isMe && pred) r = myView();
-      else {
-        const sh = shown[id] || (shown[id] = { ...sr });
-        const k = Math.min(1, dt * 14);
-        sh.d += (sr.d - sh.d) * k; sh.y += (sr.y - sh.y) * k;
-        if (Math.abs(sr.d - sh.d) > 300) { sh.d = sr.d; sh.y = sr.y; }
-        r = { ...sr, d: sh.d, y: sh.y };
-      }
-      c.save();
-      c.beginPath(); c.rect(0, L.y, W, L.h); c.clip();
-      drawBackdrop(c, L, r.d, isMe);
-      // Le sol (avec les trous) : on dessine ce qui est entre la distance du coureur - RUN_X et + l'écran.
-      const d0 = r.d - RUN_X / L.s, d1 = d0 + W / L.s;
-      const near = P.near(course, d0, d1);
-      const toX = (x) => (x - d0) * L.s;
-      c.fillStyle = "#6b5b8e"; c.fillRect(0, L.ground, W, L.y + L.h - L.ground);
-      c.fillStyle = "#c9bff0"; c.fillRect(0, L.ground, W, 4 * L.s);
-      // Pointillés au sol (pour sentir la vitesse).
-      c.fillStyle = "rgba(255,255,255,0.15)";
-      for (let x = -((d0 * L.s) % 40); x < W; x += 40) c.fillRect(x, L.ground + 8 * L.s, 16, 3 * L.s);
-      for (const gp of near.gaps) {
-        const gx = toX(gp.x), gw = gp.w * L.s;
-        c.fillStyle = "#050308"; c.fillRect(gx, L.ground, gw, L.y + L.h - L.ground);
-        // Bords du trou : rayures rouge et blanc + petit cône.
-        for (const ex of [gx - 6 * L.s, gx + gw]) {
-          for (let k = 0; k < 3; k++) { c.fillStyle = k % 2 ? "#fff" : "#e0302f"; c.fillRect(ex, L.ground + k * 4 * L.s, 6 * L.s, 4 * L.s); }
-        }
-        c.fillStyle = "#ff7a1a"; for (const ex of [gx - 4 * L.s, gx + gw + 4 * L.s]) { c.beginPath(); c.moveTo(ex - 7 * L.s, L.ground); c.lineTo(ex, L.ground - 18 * L.s); c.lineTo(ex + 7 * L.s, L.ground); c.fill(); }
-      }
-      for (const o of near.obs) drawObstacle(c, L, o, toX(o.x), ts);
-      // Le départ.
-      if (d0 < P.START) { c.fillStyle = "rgba(255,255,255,0.6)"; const sx = toX(0); for (let k = 0; k < 6; k++) c.fillRect(sx + (k % 2) * 6, L.ground - (k + 1) * 8 * L.s, 6, 8 * L.s); }
-      const col = playerOf(id)?.color || "#fff";
-      drawRunner(c, L, r, col, ts, r.alive ? 1 : 0.5);
-      // Voiles : les autres lignes un peu assombries, les coureurs tombés encore plus.
-      if (!r.alive) {
-        c.fillStyle = "rgba(10,8,20,0.55)"; c.fillRect(0, L.y, W, L.h);
-        c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#ff7b7b"; c.font = `bold ${Math.round(Math.max(14, 26 * L.s))}px Segoe UI, sans-serif`;
-        c.fillText("💥 Tombé", W / 2, L.y + L.h / 2);
-      } else if (!isMe) { c.fillStyle = "rgba(15,12,30,0.38)"; c.fillRect(0, L.y, W, L.h); }
-      if (isMe) {
-        c.strokeStyle = "#ffd23f"; c.lineWidth = 8; c.strokeRect(4, L.y + 4, W - 8, L.h - 8);
-        // Flèche dorée au-dessus de mon bonhomme.
-        if (r.alive) {
-          const hy = L.ground - (r.y + P.height(r)) * L.s - 10 * L.s, bob = Math.sin(ts / 160) * 3;
-          c.fillStyle = "#ffd23f"; c.beginPath(); c.moveTo(RUN_X - 9 * L.s, hy - 14 * L.s + bob); c.lineTo(RUN_X + 9 * L.s, hy - 14 * L.s + bob); c.lineTo(RUN_X, hy + bob); c.closePath(); c.fill();
-        }
-      }
-      // Panneau à GAUCHE : (TOI) + pseudo, et la distance en très gros.
-      {
-        const px = isMe ? 14 : 10, py = L.y + (isMe ? 12 : 8);
-        const fn = Math.round(Math.max(12, 16 * L.s)), fd = Math.round(Math.max(22, (isMe ? 46 : 38) * L.s));
-        const dTxt = `${meters(r.d)} m`;
-        const stand = st.lastStand === id && r.alive && st.lastTarget;
-        const extra = stand ? `🏆 encore ${Math.max(0, Math.ceil((st.lastTarget - r.d) / 10))} m` : "";
-        c.font = `900 ${fd}px Segoe UI, sans-serif`;
-        const wD = c.measureText(dTxt).width;
-        c.font = `bold ${fn}px Segoe UI, sans-serif`;
-        const name = pseudoOf(id), badge = isMe ? "TOI" : "";
-        const wB = badge ? c.measureText(badge).width + 12 : 0;
-        const wN = c.measureText(name).width + wB + (badge ? 6 : 0);
-        const wE = extra ? c.measureText(extra).width : 0;
-        const pw = Math.min(RUN_X - 30, Math.max(wD, wN, wE) + 20), ph = fn + fd + 18 + (extra ? fn + 6 : 0);
-        c.fillStyle = "rgba(12,10,24,0.72)";
-        c.beginPath(); c.roundRect ? c.roundRect(px, py, pw, ph, 10) : c.rect(px, py, pw, ph); c.fill();
-        c.textBaseline = "top"; c.textAlign = "left";
-        let x = px + 10;
-        if (badge) {
-          c.fillStyle = "#ffd23f"; c.fillRect(x, py + 6, wB, fn + 4);
-          c.fillStyle = "#1b1830"; c.font = `900 ${fn}px Segoe UI, sans-serif`; c.fillText(badge, x + 6, py + 8);
-          x += wB + 6;
-        }
-        c.font = `bold ${fn}px Segoe UI, sans-serif`; c.fillStyle = "#fff"; c.fillText(name, x, py + 8);
-        c.font = `900 ${fd}px Segoe UI, sans-serif`; c.fillStyle = r.alive ? "#ffd23f" : "#ff9a9a";
-        c.fillText(dTxt, px + 10, py + fn + 14);
-        if (extra) { c.font = `bold ${fn}px Segoe UI, sans-serif`; c.fillStyle = "#7dffb0"; c.fillText(extra, px + 10, py + fn + fd + 16); }
-      }
-      c.restore();
-      c.fillStyle = "#0e0c1a"; c.fillRect(0, L.y + L.h - 2, W, 2);
-    });
-    // Étincelles (chutes).
+    // Qui suit-on ? Moi, sinon le premier encore en course.
+    const mine = runnerOf(me());
+    const live = mine?.alive ? null : st.runners.filter((r) => r.alive).sort((a, b) => b.d - a.d)[0];
+    const view = mine?.alive ? (pred ? myView() : mine) : live ? ghostOf(live.id) || live : mine || st.runners[0];
+    if (!view) return;
+    const cd = view.d, t = view.t || 0, toX = (d) => (d - cd) * S + RUN_X;
+    const L = { y: 0, h: HGT, s: S, ground: FLOOR };
+    drawBackdrop(c, L, cd);
+    // Les fantômes : derrière le décor, jamais devant mon perso ni devant les pièges.
+    const others = [];
+    for (const r of st.runners) {
+      if (r.id === me() && mine?.alive) continue;
+      const g = ghostOf(r.id);
+      if (!g) continue;
+      others.push({ id: r.id, g, x: toX(g.d) });
+    }
+    for (const o of others) {
+      if (o.x < -40 || o.x > W + 40 || !o.g.alive) continue;
+      const col = playerOf(o.id)?.color || "#fff";
+      drawRunner(c, o.x, o.g, col, live && o.id === live.id ? 1 : 0.42, !!live && o.id === live.id);
+      c.font = "bold 13px Segoe UI, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.globalAlpha = 0.75;
+      c.fillStyle = col; c.fillText(pseudoOf(o.id), o.x, FLOOR - (o.g.y + 72) * S);
+      c.globalAlpha = 1;
+    }
+    // Le sol, les trous, les toits, les pièges.
+    const d0 = cd - RUN_X / S, d1 = d0 + W / S;
+    const near = P.near(course, d0 - 60, d1 + 60);
+    c.fillStyle = "#6b5b8e"; c.fillRect(0, FLOOR, W, HGT - FLOOR);
+    c.fillStyle = "#d9d0f5"; c.fillRect(0, FLOOR, W, 5);
+    c.fillStyle = "rgba(255,255,255,0.18)";
+    for (let x = -((d0 * S) % 60); x < W; x += 60) c.fillRect(x, FLOOR + 14, 26, 4);
+    for (const gp of near.gaps) {
+      const gx = toX(gp.x), gw = gp.w * S;
+      c.fillStyle = "#050308"; c.fillRect(gx, FLOOR, gw, HGT - FLOOR);
+      for (const ex of [gx - 7, gx + gw]) for (let k = 0; k < 4; k++) { c.fillStyle = k % 2 ? "#fff" : "#e0302f"; c.fillRect(ex, FLOOR + k * 6, 7, 6); }
+    }
+    for (const p of near.plats) { if (p.cr && mine?.cx === p.id) continue; drawPlat(c, p, toX(p.x), ts); }
+    for (const o of near.obs) {
+      const base = FLOOR - o.b * S, x = toX(o.x);
+      if (P.KINDS[o.kind].pad || ["pique", "laser", "scie"].includes(o.kind)) drawTrap(c, o, x, base, t, ts);
+      else drawObstacle(c, { ...L, ground: base, y: o.b ? FLOOR - (o.b + 112) * S : 0 }, o, x, ts);
+    }
+    if (d0 < 200) { c.fillStyle = "rgba(255,255,255,0.7)"; const sx = toX(0); for (let k = 0; k < 8; k++) c.fillRect(sx + (k % 2) * 8, FLOOR - (k + 1) * 10, 8, 10); }
+    // Le mur.
+    const wall = mine?.alive && pred ? P.wallAt(pred.t) : st.wall;
+    const wx = toX(wall);
+    if (wx > -60) {
+      const g = c.createLinearGradient(wx - 120, 0, wx, 0);
+      g.addColorStop(0, "rgba(120,0,20,0)"); g.addColorStop(1, "rgba(160,10,30,0.85)");
+      c.fillStyle = g; c.fillRect(Math.max(0, wx - 120), 0, Math.min(120, wx + 120), HGT);
+      c.fillStyle = "#2a0810"; c.fillRect(0, 0, Math.max(0, wx - 2), HGT);
+      c.fillStyle = "#ff2d45"; for (let y = 0; y < HGT; y += 40) { const j = Math.sin(ts / 90 + y) * 6; c.beginPath(); c.moveTo(wx, y); c.lineTo(wx + 22 + j, y + 20); c.lineTo(wx, y + 40); c.closePath(); c.fill(); }
+    }
+    // Mon coureur, net et au premier plan.
+    if (mine?.alive) {
+      const r = view, col = playerOf(me())?.color || "#fff";
+      const blink = r.safe > 0 && Math.floor(ts / 90) % 2;
+      drawRunner(c, RUN_X, r, col, r.stall > 0 ? 0.55 : blink ? 0.55 : 1, true);
+      const hy = FLOOR - (r.y + P.height(r)) * S - 12, bob = Math.sin(ts / 160) * 3;
+      c.fillStyle = "#ffd23f"; c.strokeStyle = "#1b1830"; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(RUN_X - 11, hy - 16 + bob); c.lineTo(RUN_X + 11, hy - 16 + bob); c.lineTo(RUN_X, hy + bob); c.closePath(); c.fill(); c.stroke();
+      if (r.boost > 0) { c.fillStyle = "rgba(37,211,102,0.75)"; for (let k = 1; k < 5; k++) c.fillRect(RUN_X - 16 - k * 18, FLOOR - (r.y + 12 + k * 6) * S, 12, 4); }
+    }
+    // Ceux qui sont hors de l'écran : une étiquette sur le bord.
+    let lf = 0, rt = 0;
+    for (const o of others) {
+      if (!o.g.alive || (o.x >= -40 && o.x <= W + 40)) continue;
+      const ahead = o.x > W, gap = Math.abs(meters(o.g.d) - meters(cd)), txt = `${ahead ? "" : "◀ "}${pseudoOf(o.id)} ${gap} m${ahead ? " ▶" : ""}`;
+      c.font = "bold 14px Segoe UI, sans-serif"; const tw = c.measureText(txt).width + 16, y = 150 + (ahead ? rt++ : lf++) * 30;
+      c.fillStyle = "rgba(12,10,24,0.65)"; c.beginPath(); c.roundRect(ahead ? W - tw - 58 : 16, y, tw, 24, 6); c.fill();
+      c.textAlign = "left"; c.textBaseline = "middle"; c.fillStyle = playerOf(o.id)?.color || "#fff"; c.fillText(txt, (ahead ? W - tw - 58 : 16) + 8, y + 12);
+    }
+    // Étincelles.
     particles = particles.filter((p) => (p.life -= dt) > 0);
     for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 600 * dt; c.globalAlpha = p.life / p.max; c.fillStyle = p.col; c.fillRect(p.x, p.y, 4, 4); }
     c.globalAlpha = 1;
     if (flash > 0) { c.fillStyle = `rgba(255,60,60,${flash * 0.3})`; c.fillRect(0, 0, W, HGT); flash = Math.max(0, flash - dt * 2); }
+    // Le mur est proche : l'écran rougit.
+    const gapW = mine?.alive ? view.d - wall : 9999;
+    if (gapW < 400 && st.phase === "play") { c.fillStyle = `rgba(255,20,40,${(0.24 * (1 - Math.max(0, gapW) / 400)).toFixed(3)})`; c.fillRect(0, 0, W, HGT); }
+    // En haut à gauche : ma distance, ma place, le mur.
+    const panelH = mine ? 128 : 76;
+    c.fillStyle = "rgba(12,10,24,0.74)"; c.beginPath(); c.roundRect(16, 14, 272, panelH, 12); c.fill();
+    c.textBaseline = "top"; c.textAlign = "left";
+    c.font = "900 50px Segoe UI, sans-serif"; c.fillStyle = "#ffd23f"; c.fillText(`${meters(view.d)} m`, 30, 22);
+    if (mine) {
+      const place = 1 + st.runners.filter((r) => r.alive && r.id !== me() && r.d > (mine.alive ? view.d : mine.d)).length, total = st.runners.filter((r) => r.alive).length;
+      c.font = "bold 20px Segoe UI, sans-serif"; c.fillStyle = "#fff"; c.fillText(mine.alive ? `${place}${place === 1 ? "er" : "e"} sur ${total}` : "Éliminé", 30, 78);
+      if (mine.alive) {
+        const f = Math.max(0, Math.min(1, gapW / 1500));
+        c.fillStyle = "rgba(255,255,255,0.2)"; c.fillRect(30, 108, 244, 14);
+        c.fillStyle = f < 0.25 ? "#ff3b4e" : f < 0.5 ? "#ffb020" : "#3dff7a"; c.fillRect(30, 108, 244 * f, 14);
+        c.font = "bold 13px Segoe UI, sans-serif"; c.fillStyle = "#fff"; c.textBaseline = "middle"; c.fillText(`🧱 Mur à ${Math.max(0, meters(gapW))} m`, 36, 116);
+      }
+    }
     // Le compte à rebours.
     if (st.phase === "countdown") {
       const left = Math.ceil((phaseEndLocal - Date.now()) / 1000);
-      c.fillStyle = "rgba(0,0,0,0.55)"; c.fillRect(0, HGT / 2 - 70, W, 140);
+      c.fillStyle = "rgba(0,0,0,0.55)"; c.fillRect(0, HGT / 2 - 90, W, 170);
       c.textAlign = "center"; c.textBaseline = "middle";
-      c.font = "bold 64px Segoe UI, sans-serif"; c.fillStyle = "#fff"; c.fillText(left > 0 ? String(left) : "GO !", W / 2, HGT / 2 - 12);
-      c.font = "22px Segoe UI, sans-serif"; c.fillText("Espace / ↑ = sauter · ↓ = glisser — ta ligne est encadrée en jaune", W / 2, HGT / 2 + 40);
+      c.font = "bold 64px Segoe UI, sans-serif"; c.fillStyle = "#fff"; c.fillText(left > 0 ? String(left) : "GO !", W / 2, HGT / 2 - 32);
+      c.font = "22px Segoe UI, sans-serif"; c.fillText("Espace / ↑ = sauter (maintenir = plus haut) · ↓ = glisser", W / 2, HGT / 2 + 20);
+      c.fillText("Un choc te ralentit. Le mur qui te suit t'élimine.", W / 2, HGT / 2 + 52);
     }
   }
 })();

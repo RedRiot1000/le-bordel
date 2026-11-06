@@ -272,23 +272,20 @@
       example: "Tu es chez les 🔴. Tu fonces vers une grosse zone bleue en tirant des jets devant toi, tu ramasses le 🧹 et tu traverses toute l'arène en laissant une bande rouge énorme. À 10 s de la fin, la barre est à 48 % contre 47 %… tu attrapes la 💣 en plein milieu des bleus : victoire !",
     },
     parkour: {
-      goal: "Aller le plus loin possible sans toucher d'obstacle : sauter, s'accroupir, glisser au bon moment.",
+      goal: "Être le dernier en course : le mur qui te suit élimine les plus lents.",
       steps: [
-        "Chaque joueur a <b>sa propre ligne</b> (empilées à l'écran, la tienne est encadrée en jaune). Tout le monde a <b>exactement le même parcours</b> : c'est le réflexe qui fait la différence.",
-        "Ton coureur avance <b>tout seul</b>, de plus en plus vite.",
-        "<b>Sauter</b> (<kbd>Espace</kbd>, <kbd>↑</kbd> ou <kbd>Z</kbd>) par-dessus les <b>haies</b>, les <b>caisses</b> (garde appuyé pour sauter plus haut), les <b>oiseaux bas</b> et les <b>trous</b>.",
-        "<b>Glisser</b> (<kbd>↓</kbd> ou <kbd>S</kbd>) sous les <b>barres</b> et les <b>oiseaux hauts</b> (garde appuyé pour rester accroupi). En l'air, ↓ te fait retomber plus vite.",
-        "Plus loin, les obstacles se rapprochent et s'enchaînent (une haie puis une barre…).",
-        "Un obstacle touché ou un trou = <b>éliminé</b>. La manche finit quand tout le monde est tombé.",
+        "Tout le monde court sur <b>la même piste</b>. Les autres sont des fantômes transparents : ils ne te gênent pas.",
+        "Ton coureur avance tout seul, de plus en plus vite. <b>Saute</b> et <b>glisse</b> pour éviter les pièges.",
+        "Un choc te <b>ralentit</b>, un trou te fait perdre du temps. Le <b>mur</b> se rapproche : s'il te touche, tu es éliminé.",
+        "Le parcours a <b>3 étages</b>. Monte sur un toit avec un saut maintenu, ou sur un tremplin. En haut : plus rapide, plus de pièges. En bas : plus sûr, mais plus lent.",
+        "Les <b>tapis verts</b> accélèrent, les <b>tapis marron</b> ralentissent. Ne reste pas sur les <b>dalles orange</b> : elles s'effondrent.",
       ],
       controls: [
         "<kbd>Espace</kbd> / <kbd>↑</kbd> / <kbd>Z</kbd> : sauter (maintenir = plus haut)",
-        "<kbd>↓</kbd> / <kbd>S</kbd> : glisser, s'accroupir · en l'air : retomber vite",
+        "<kbd>↓</kbd> / <kbd>S</kbd> : glisser · en l'air : retomber vite",
       ],
-      points: [
-        "Classement à la distance : <b>10, 7, 5, 3, 2, 1</b> points selon ta place.",
-      ],
-      example: "Une haie : saut. Une barre juste derrière : tu retombes vite avec ↓ et tu glisses dessous. Un grand trou : tu sautes en gardant appuyé… Bob tombe à 840 m, toi tu tiens jusqu'à 1 020 m : 1re place, <b>10 points</b>.",
+      points: ["Selon ta place : <b>10, 7, 5, 3, 2, 1</b> points. Le dernier en course est 1er."],
+      example: "Un toit arrive : tu sautes en gardant appuyé et tu montes. Un tapis vert te lance, mais une scie te touche : tu ralentis et le mur se rapproche. Tu redescends, tu glisses sous un laser… Bob se fait rattraper, tu as gagné !",
     },
     course: {
       goal: "Gagner la course (mode Course) ou être le dernier survivant (mode Élimination) au volant de ta supersportive.",

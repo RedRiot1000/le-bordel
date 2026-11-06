@@ -59,7 +59,7 @@ const GAMES = {
   territoire: () => game.heroes?.length === 8,
   neige: () => game.heroes?.length === 8,
   colline: () => game.heroes?.length === 8,
-  parkour: () => game.runners?.length === 8 && game.lanes?.length === 8,
+  parkour: () => game.runners?.length === 8,
   course: () => game.cars?.length === 8 && game.phase === "pick",
   tour: () => game.runners?.length === 8,
   cavale: () => game.heroes?.length === 8,
