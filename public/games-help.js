@@ -340,7 +340,7 @@
       goal: "Avoir le plus gros butin à la fin de la manche : pille le manoir et ramène tout au van.",
       steps: [
         "Tout le monde cambriole <b>le même manoir</b>, chacun pour soi. Le <b>van</b> est sur le parking, et plusieurs sorties y mènent.",
-        "Tu ramasses un objet en <b>passant dessus</b>, et tu le déposes en arrivant au van (l'argent est pour toi). Un seul objet à la fois : <b>plus il vaut cher, plus tu es lent</b>.",
+        "Tu ramasses un objet en <b>passant dessus</b>, et tu le déposes en arrivant au van (l'argent est pour toi). Un seul objet à la fois : <b>plus il vaut cher, plus tu es lent</b>. Tu trouves mieux ? <kbd>E</kbd> échange ton objet avec celui d'à côté (ou le pose par terre).",
         "🥄 Argenterie 100 $ · 🏺 Vase 300 $ · 🖼️ Tableau 600 $ · 💎 Coffre-fort 1 500 $.",
         "<kbd>Espace</kbd> : <b>pousser</b>, seulement dans le manoir. Celui que tu touches <b>lâche son objet</b>, et n'importe qui peut le ramasser. Sur le parking, personne ne peut te pousser.",
         "👮 Les <b>gardiens</b> se promènent dans le manoir et ne s'occupent que de ceux qui portent un objet : ils te le reprennent, tu es sonné 1 s, et ils vont le ranger dans une autre pièce. Ils sont plus rapides que toi avec un tableau.",
@@ -348,6 +348,7 @@
       ],
       controls: [
         "<kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> ou <kbd>ZQSD</kbd> : marcher",
+        "<kbd>E</kbd> : échanger ton objet avec celui d'à côté, ou le poser par terre",
         "<kbd>Espace</kbd> : pousser · 🌀 Passages secrets (2 portails de la même couleur) et 🪜 escaliers : marcher vers le mur",
       ],
       points: [

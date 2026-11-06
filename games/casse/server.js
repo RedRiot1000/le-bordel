@@ -37,6 +37,7 @@ const CHEST_EVERY = 40000;            // un coffre-fort toutes les 40 s
 const VAN_R = 92;                     // on dépose en arrivant au van
 const PICK_R = 34;                    // on ramasse en marchant dessus
 const GRAB_CD = 1200;                 // pas de reprise juste après avoir lâché
+export const SWAP_R = 62;             // touche E : portée pour échanger avec un objet par terre
 const CAUGHT_MS = 1000;               // sonné par un gardien
 const SAFE_MS = 3500;                 // ... puis tranquille un moment
 const SIGHT = 240;                    // portée du regard d'un gardien
@@ -216,13 +217,28 @@ export function createGame(ctx) {
     s.carry = null;
   }
 
+  // Touche E : échanger avec l'objet le plus proche, ou poser le sien par terre.
+  function swapOrDrop(id, s) {
+    if (!s.carry) return;
+    const t = now();
+    let best = null, bd = SWAP_R;
+    for (const l of g.loot) { const d = dist(l, s.h); if (d < bd) { bd = d; best = l; } }
+    if (!best) return drop(id, s);
+    const mine = s.carry;
+    s.carry = best.kind;
+    best.kind = mine; best.by = id; best.at = t;    // mon ancien objet prend sa place
+    addFx(s.h.x, s.h.y, "pick");
+    if (s.carry === "coffre") { say(`💎 ${pseudo(id)} a le coffre-fort !`); g.chestRoom = null; }
+  }
+
   // =================================================================
-  //  UN JOUEUR AGIT (1/30 s) : marcher, pousser
+  //  UN JOUEUR AGIT (1/30 s) : marcher, pousser, poser / échanger
   // =================================================================
   function act(id, k) {
     const s = g.heroes[id];
     const t = now();
     const move = t < s.frozenUntil ? 0 : k & (K.UP | K.DOWN | K.LEFT | K.RIGHT | K.DASH);
+    if ((k & K.FIRE) && !(s.prevK & K.FIRE) && t >= s.frozenUntil && g.phase === "play") swapOrDrop(id, s);
     s.prevK = k;
     const env = envOf(s), dt = H.TICK / H.SUB;
     for (let sub = 0; sub < H.SUB; sub++) {
@@ -379,6 +395,11 @@ export function createGame(ctx) {
       if (goal) ai.field = fieldTo(goal);
     }
     let k = ai.field ? keyToward(h, M.lookAhead(nav, ai.field, h.x, h.y, 2)) : 0;
+    // Il trouve mieux sous son nez : il échange.
+    if (s.carry && !(s.prevK & K.FIRE)) {
+      const v = C.LOOT[s.carry].value;
+      if (g.loot.some((l) => dist(l, h) < SWAP_R && C.LOOT[l.kind].value > v && !(l.by === id && t - l.at < GRAB_CD))) k |= K.FIRE;
+    }
     // Quelqu'un qui porte un objet juste à côté : on lui fonce dessus et on pousse.
     if (!s.carry && inside(h)) {
       for (const [oid, o] of Object.entries(g.heroes)) {

@@ -56,6 +56,7 @@
             <li>🏃 <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> ou <kbd>ZQSD</kbd> : marcher. On ramasse un objet en passant dessus.</li>
             <li>🚐 Ramène-le au <b>van</b>, sur le parking, pour encaisser (plusieurs sorties y mènent). Un seul objet à la fois : <b>plus il vaut cher, plus tu es lent</b>.</li>
             <li>🥄 100 $ · 🏺 300 $ · 🖼️ 600 $ · 💎 coffre-fort 1 500 $ (annoncé à tout le monde).</li>
+            <li>🔄 <kbd>E</kbd> : <b>échanger</b> ton objet avec celui qui est à côté de toi, ou le <b>poser</b> par terre si tu n'as rien à côté.</li>
             <li>👊 <kbd>Espace</kbd> : <b>pousser</b>, seulement dans le manoir. Celui que tu touches <b>lâche son objet</b>. Sur le parking, tu es à l'abri.</li>
             <li>👮 Les <b>gardiens</b> ne s'occupent que de ceux qui portent un objet : ils te le reprennent, tu es sonné 1 s, et ils vont le ranger dans une autre pièce.</li>
             <li>🌀 Les <b>passages secrets</b> (portails de couleur) t'emmènent à l'autre bout du manoir, 🪜 les <b>escaliers</b> vont à la cave : marche vers le mur pour y entrer.</li>
@@ -81,7 +82,7 @@
         <canvas id="ca-canvas" width="${W}" height="${HGT}"></canvas>
         <div id="ca-overlay" class="pt-overlay hidden"></div>
       </div>
-      <p class="muted pt-keys">↑↓←→ / ZQSD = marcher · Espace = pousser (fait lâcher l'objet) · ramasse et dépose en passant dessus</p>
+      <p class="muted pt-keys">↑↓←→ / ZQSD = marcher · Espace = pousser (fait lâcher l'objet) · E = échanger / poser · ramasse et dépose en passant dessus</p>
     </div>`;
 
   // ===================================================================
@@ -161,7 +162,7 @@
   // ===================================================================
   const KEYMAP = {
     KeyW: K.UP, KeyZ: K.UP, ArrowUp: K.UP, KeyS: K.DOWN, ArrowDown: K.DOWN,
-    KeyA: K.LEFT, KeyQ: K.LEFT, ArrowLeft: K.LEFT, KeyD: K.RIGHT, ArrowRight: K.RIGHT, Space: K.DASH,
+    KeyA: K.LEFT, KeyQ: K.LEFT, ArrowLeft: K.LEFT, KeyD: K.RIGHT, ArrowRight: K.RIGHT, Space: K.DASH, KeyE: K.FIRE, KeyF: K.FIRE,
   };
   function onKey(e) {
     if (e.target.tagName === "INPUT" || !st || st.phase === "setup" || !(e.code in KEYMAP)) return;
@@ -545,6 +546,19 @@
       c.fillStyle = "#fff"; c.textBaseline = "middle"; c.fillText(f.text, 25, y + 15);
     });
     c.textBaseline = "top";
+    // Quand je porte quelque chose : ce que fait la touche E, juste sous mon bonhomme.
+    if (mv?.carry && st.phase === "play") {
+      let near = null, bd = 62;
+      for (const l of st.loot || []) { const d = Math.hypot(l.x - mv.x, l.y - mv.y); if (d < bd) { bd = d; near = l; } }
+      const txt = near ? `E : échanger contre ${C.LOOT[near.kind].emoji} ${C.LOOT[near.kind].value} $` : "E : poser";
+      const hx = (mv.x - camX) * Z, hy = (mv.y - camY) * Z + 66;
+      c.font = `bold ${near ? 17 : 13}px Segoe UI, sans-serif`; c.textAlign = "center"; c.textBaseline = "middle";
+      const w = c.measureText(txt).width + 18, h = near ? 28 : 22;
+      c.globalAlpha = near ? 1 : 0.7;
+      c.fillStyle = near ? "#ffd23f" : "rgba(0,0,0,0.6)"; c.beginPath(); c.roundRect(hx - w / 2, hy - h / 2, w, h, 7); c.fill();
+      c.fillStyle = near ? "#1b1830" : "#fff"; c.fillText(txt, hx, hy + 1);
+      c.globalAlpha = 1; c.textAlign = "left"; c.textBaseline = "top";
+    }
     // Quand je porte quelque chose : une grosse flèche vers le van.
     const myVan = st.van;
     if (mv?.carry && myVan && st.phase === "play") {

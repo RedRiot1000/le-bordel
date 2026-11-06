@@ -4,6 +4,7 @@ import { io } from "socket.io-client";
 import "../public/games/pieton/engine.js";
 import "../public/games/manoir/manor.js";
 import "../public/games/casse/loot.js";
+import { createGame } from "../games/casse/server.js";
 
 const H = globalThis.Pieton;
 const M = globalThis.Manoir;
@@ -40,6 +41,36 @@ console.log("— Manoir et butin —");
   check(v("argenterie").value < v("vase").value && v("vase").value < v("tableau").value && v("tableau").value < v("coffre").value, "Plus ça vaut cher…");
   check(C.speedOf(null) > v("argenterie").speed && v("argenterie").speed > v("vase").speed && v("vase").speed > v("tableau").speed && v("tableau").speed > v("coffre").speed, "… plus on est lent");
   check(C.GUARD_SPEED < C.FREE_SPEED && C.GUARD_SPEED > v("tableau").speed, "Gardien : moins vite que les mains vides, plus vite qu'un tableau");
+}
+
+console.log("— Touche E : poser, échanger —");
+{
+  const pl = ["a", "b"].map((id) => ({ id, pseudo: id, connected: true, bot: false }));
+  const game = createGame({ players: () => pl, isHost: () => true, update() {}, finish() {}, saveSettings() {}, savedSettings: null, playlist: null });
+  game.onAction("a", "start", {});
+  const g = game._g, s = g.heroes.a;
+  g.phase = "play"; g.timeUpAt = Date.now() + 100000; g.playAt = Date.now();
+  let n = 0;
+  const press = (k) => { s.budget = 6; s.lastInputAt = Date.now(); game.onAction("a", "in", { s: ++n, k }); };
+  g.loot.length = 0;
+  s.carry = "argenterie";
+  press(K.FIRE); press(0);
+  check(s.carry === null && g.loot.length === 1 && g.loot[0].kind === "argenterie", "E sans rien à côté : je pose mon objet");
+  s.carry = "vase";
+  g.loot[0].x = s.h.x + 40; g.loot[0].y = s.h.y; g.loot[0].kind = "tableau";
+  press(K.FIRE);
+  check(s.carry === "tableau" && g.loot.length === 1 && g.loot[0].kind === "vase", "E à côté d'un objet : j'échange");
+  const before = s.carry;
+  press(K.FIRE);
+  check(s.carry === before, "Garder E enfoncé ne refait rien");
+  press(0);
+  s.carry = null;
+  press(K.FIRE); press(0);
+  check(s.carry === null, "E les mains vides : rien");
+  s.carry = "vase"; s.frozenUntil = Date.now() + 500;
+  press(K.FIRE); press(0);
+  check(s.carry === "vase", "Sonné : pas d'échange");
+  game.destroy();
 }
 
 const socket = io(URL, { transports: ["websocket"], forceNew: true });
