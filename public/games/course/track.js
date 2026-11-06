@@ -13,7 +13,7 @@
   T.LEN = 13000;          // longueur visée d'un tour (px)
   T.MARGIN = 700;         // herbe autour du circuit jusqu'aux bords du monde
   T.CELL = 200;           // taille des cases de la grille de recherche
-  T.RAIL = 14;            // les barrières sont à WIDTH/2 + RAIL du milieu
+  T.RAIL = 60;            // les barrières sont à WIDTH/2 + RAIL du milieu (une bande d'herbe entre la piste et elles)
   T.TYRE = 26;            // une pile de pneus (carré)
   T.BALE = 34;            // une botte de paille (carré)
 
@@ -53,14 +53,15 @@
   }
 
   // Un essai de circuit. Renvoie null s'il ne convient pas (virage trop serré, piste qui se touche).
-  function attempt(rnd) {
+  // sharp : un circuit avec de vraies épingles (virages très serrés).
+  function attempt(rnd, sharp) {
     const n = 12 + Math.floor(rnd() * 6);
     const R = 1500, ctrl = [];
     for (let i = 0; i < n; i++) {
       const a = ((i + (rnd() - 0.5) * 0.55) / n) * Math.PI * 2;
       let r = R * (0.7 + 0.3 * rnd());
       const u = rnd();
-      if (u < 0.3) r *= 0.5;                           // un point rentré = une épingle ou une chicane
+      if (u < (sharp ? 0.4 : 0.3)) r *= sharp ? 0.42 : 0.5;   // un point rentré = une épingle ou une chicane
       else if (u < 0.42) r *= 1.18;                    // un point sorti = une grande courbe
       ctrl.push({ x: Math.cos(a) * r * 1.35, y: Math.sin(a) * r * 0.9 });
     }
@@ -75,13 +76,19 @@
       const a0 = ang[(i - 2 + N) % N], a1 = ang[(i + 2) % N];
       return Math.atan2(Math.sin(a1 - a0), Math.cos(a1 - a0)) / (4 * T.STEP);
     });
-    if (curv.some((c) => Math.abs(c) > 1 / 150)) return null;         // virage impossible à prendre
+    if (curv.some((c) => Math.abs(c) > 1 / (sharp ? 125 : 150))) return null;         // virage impossible à prendre
+    // Circuit « sec » : il faut au moins 2 vraies épingles.
+    if (sharp) {
+      let hair = 0, inside = false;
+      for (const c of curv) { const t = Math.abs(c) > 1 / 165; if (t && !inside) hair++; inside = t; }
+      if (hair < 2) return null;
+    }
     // La piste ne doit jamais toucher une autre partie d'elle-même.
     const W = T.WIDTH;
     for (let i = 0; i < N; i += 2) for (let j = i + 2; j < N; j += 2) {
       const along = Math.min(j - i, N - (j - i)) * T.STEP;
       if (along < W * 2.6) continue;
-      if (Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y) < W * 1.6) return null;
+      if (Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y) < W * 1.7) return null;
     }
     return { pts, ang, curv };
   }
@@ -90,8 +97,10 @@
   //  LE CIRCUIT COMPLET
   // ===================================================================
   T.build = function (seed) {
+    // Un circuit sur deux a de vraies épingles (s'il n'en trouve pas, un circuit normal).
+    const sharp = seeded(seed ^ 0x5eed)() < 0.5;
     let a = null, tries = 0;
-    while (!a) { a = attempt(seeded(seed + tries * 7919)); tries++; if (tries > 300) throw new Error("circuit introuvable"); }
+    while (!a) { a = attempt(seeded(seed + tries * 7919), sharp && tries < 200); tries++; if (tries > 500) throw new Error("circuit introuvable"); }
     let { pts, ang, curv } = a;
     let N = pts.length;
     // Départ : au milieu de la ligne droite la plus longue (là où ça tourne le moins).
@@ -111,7 +120,10 @@
     };
     const rnd = seeded(seed ^ 0x51ed);
     placeObstacles(t, rnd);
-    t.rails = [-1, 1].map((side) => t.pts.map((p, i) => { const n = normal(t, i), d = (T.WIDTH / 2 + T.RAIL) * side; return { x: p.x + n.x * d, y: p.y + n.y * d }; }));
+    // (à l'intérieur d'un virage serré, la ligne décalée se croiserait : on retire les points trop près de la piste)
+    const RD = T.WIDTH / 2 + T.RAIL;
+    t.rails = [-1, 1].map((side) => t.pts.map((p, i) => { const n = normal(t, i); return { x: p.x + n.x * RD * side, y: p.y + n.y * RD * side }; })
+      .filter((q) => { for (let j = 0; j < t.N; j += 2) if (Math.hypot(t.pts[j].x - q.x, t.pts[j].y - q.y) < RD - 6) return false; return true; }));
     t.segs = [];
     for (const line of t.rails) for (let i = 0; i < line.length; i++) { const a = line[i], b = line[(i + 1) % line.length]; t.segs.push([a.x, a.y, b.x, b.y]); }
     buildGrid(t);
@@ -215,8 +227,8 @@
   T.offAt = function (t, x, y) {
     const l = T.locate(t, x, y);
     if (!l) return 1;
-    const e = l.dist - T.WIDTH / 2 - 10;
-    return e <= 0 ? 0 : Math.min(1, e / 30);
+    const e = l.dist - T.WIDTH / 2 - 11;               // (le vibreur est encore de la piste)
+    return e <= 0 ? 0 : Math.min(1, e / 8);
   };
 
   // Les obstacles proches d'un point (pour la physique).

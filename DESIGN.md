@@ -711,7 +711,8 @@ Choix : vue de dessus, course en X tours, nitro + poussettes, virages variés + 
   - 12 à 17 points de contrôle autour d'un centre (certains rentrés = épingles/chicanes, d'autres sortis = grandes courbes), courbe lisse fermée, ~1300 m le tour, piste à 3 voies (240 px, 2 lignes pointillées) ;
   - refusé et refait (seed + 7919) si un virage est trop serré (rayon < 150 px) ou si la piste se touche elle-même (le test vérifie 300 circuits sans échec) ;
   - départ au milieu de la plus longue ligne droite, grille en 3 colonnes (une par voie) ;
-  - barrières de sécurité des 2 côtés (segments, physique « murs en segments ») : on ne peut pas sortir ; l'herbe entre le vibreur et la barrière ralentit un peu ;
+  - un circuit sur deux a de vraies épingles (au moins 2 virages de rayon 125 à 165 px) ;
+  - barrières de sécurité des 2 côtés, reculées de 60 px (segments, physique « murs en segments ») : on ne peut pas sortir. Entre le vibreur et la barrière, de l'herbe sans aucune adhérence : on y glisse comme sur de la glace ;
   - pneus derrière la barrière dans les virages serrés, bottes de paille sur les longues lignes droites (à éviter), plots à la corde (on les renverse, pur décor).
 - **Voitures** (dans `physics.js`, réservées à la course) :
   - ⚡ ÉCLAIR : la plus rapide en ligne droite, glisse plus ;

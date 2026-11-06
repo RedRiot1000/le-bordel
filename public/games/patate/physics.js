@@ -148,9 +148,9 @@
     const rx = -fy, ry = fx;                          // direction droite
     let vF = c.vx * fx + c.vy * fy;                   // vitesse avant
     let vR = c.vx * rx + c.vy * ry;                   // vitesse de côté (glisse)
-    // Hors piste (Grand Prix) : l'herbe colle moins et freine.
+    // Hors piste (Grand Prix) : aucune adhérence dans l'herbe, on glisse comme sur de la glace.
     const off = env.offAt ? env.offAt(c.x, c.y) : 0;
-    const surf = gripAt(env, c.x, c.y) * (1 - 0.4 * off);
+    const surf = gripAt(env, c.x, c.y) * (1 - 0.96 * off);
     const up = k & P.K.UP, down = k & P.K.DOWN, hb = k & P.K.HB;
     const steer = (k & P.K.RIGHT ? 1 : 0) - (k & P.K.LEFT ? 1 : 0);
     c.st = steer;
@@ -166,14 +166,14 @@
                       : Math.min(1, c.nitro + regen * dt);
 
     // Moteur / freins (moins de motricité sur sol glissant).
-    const tract = 0.55 + 0.45 * Math.min(1, surf);
+    const tract = (0.55 + 0.45 * Math.min(1, surf)) * (1 - 0.55 * off);
     let acc = 0;
     if (up) acc += V.engine * bonus * (c.boost ? NITRO_MULT : 1) * tract;
     if (down) acc -= vF > 20 ? V.brake * tract : V.reverse * tract;
     if (!up && !down) acc -= Math.sign(vF) * Math.min(Math.abs(vF) / dt, ROLL);
     if (hb) acc -= Math.sign(vF) * Math.min(Math.abs(vF) / dt, HANDBRAKE);
     vF += acc * dt;
-    vF -= vF * (V.drag + 2.2 * off) * dt;
+    vF -= vF * (V.drag + 0.9 * off) * dt;
 
     // Adhérence latérale : c'est ici que naît le dérapage.
     const absR = Math.abs(vR);

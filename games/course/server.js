@@ -232,7 +232,7 @@ export function createGame(ctx) {
       if (Math.abs(d) < 400) s.prog += d;                 // (pas de saut : couper par l'herbe ne compte pas)
       if (l.dist < W / 2 - 12 && s.prog > s.safe) s.safe = s.prog;
     }
-    const offNow = !l || l.dist > W / 2 + 50;
+    const offNow = !l || l.dist > W / 2 + T.RAIL + 30;     // (l'herbe avant la barrière, c'est encore le circuit)
     s.off = offNow ? s.off + P.TICK : 0;
     const speed = Math.hypot(c.vx, c.vy);
     s.stuck = speed < 30 ? s.stuck + P.TICK : 0;
