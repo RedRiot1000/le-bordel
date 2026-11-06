@@ -287,8 +287,8 @@
     const chips = (key, list) => `<div class="cat-chips">${list.map(([v, label]) =>
       `<button class="cat-chip ${s[key] === v ? "on" : ""}" data-key="${key}" data-v="${v}" ${host ? "" : "disabled"}>${label}</button>`).join("")}</div>`;
     panel.innerHTML = `
-      <div class="setting-block"><label>Mode</label>${chips("mode", [["aleatoire", "🎲 Aléatoire"], ["equipes", "🔴🔵 Équipes"], ["solo", "👤 Chacun pour soi"]])}</div>
-      <div class="setting-block"><label>Manches</label>${chips("rounds", [[3, "3"], [5, "5"], [7, "7"]])}</div>
+      <div class="setting-block"><label>Mode</label>${chips("mode", [["aleatoire", "🔁 Alterné"], ["equipes", "🔴🔵 Équipes"], ["solo", "👤 Chacun pour soi"]])}</div>
+      <div class="setting-block"><label>Manches</label>${chips("rounds", [[3, "3"], [5, "5"], [8, "8"]])}</div>
       <div class="setting-block"><label>Durée d'une manche</label>${chips("duration", [[60, "1 min"], [90, "1 min 30"], [120, "2 min"]])}</div>
       <p class="settings-note">Aléatoire : chaque manche est tirée au sort entre équipes et chacun pour soi (équipes seulement à 4, 6 ou 8 joueurs, pour qu'elles soient égales).</p>
       ${host ? "" : '<p class="settings-note">Seul l\'hôte peut modifier les réglages.</p>'}`;

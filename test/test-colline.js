@@ -35,7 +35,7 @@ async function run() {
   const picked = await emit("pickGame", { gameId: "colline" });
   await wait(200);
   check(picked.ok && game?.phase === "setup", "« Roi de la colline » se lance");
-  check(game.settings.mode === "aleatoire" && game.settings.rounds === 3 && game.settings.duration === 90, "Par défaut : aléatoire, 3 manches de 1 min 30");
+  check(game.settings.mode === "aleatoire" && game.settings.rounds === 5 && game.settings.duration === 90, "Par défaut : alterné, 5 manches de 1 min 30");
   await act("settings", { settings: { duration: 60, mode: "solo" } });
   await act("start");
   await wait(200);

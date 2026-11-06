@@ -38,18 +38,18 @@ export const W = P.W * 2, H = P.H * 2;
 export const ASPHALT_CHANCE = 0.75;   // 75 % d'asphalte, sinon terre ou neige
 
 function defaultSettings() {
-  return { rounds: 5, duration: 90 };
+  return { rounds: 7, duration: 90 };
 }
 
 export const playlist = {
   options: [
     {
-      key: "rounds", label: "Manches", default: "3",
-      choices: [{ v: "3", label: "3" }, { v: "5", label: "5" }],
+      key: "rounds", label: "Manches", default: "7",
+      choices: [{ v: "5", label: "5" }, { v: "7", label: "7" }, { v: "10", label: "10" }],
     },
   ],
   settingsFor(c) {
-    return { ...defaultSettings(), rounds: Number(c.rounds) === 5 ? 5 : 3 };
+    return { ...defaultSettings(), rounds: [5, 7, 10].includes(Number(c.rounds)) ? Number(c.rounds) : 7 };
   },
 };
 
@@ -337,7 +337,7 @@ export function createGame(ctx) {
     settings(pid, { settings }) {
       if (!ctx.isHost(pid) || g.phase !== "setup" || !settings) return;
       const s = { ...g.settings, ...settings };
-      if (![3, 5, 7].includes(s.rounds)) s.rounds = 5;
+      if (![5, 7, 10].includes(s.rounds)) s.rounds = 7;
       if (![60, 90, 120].includes(s.duration)) s.duration = 90;
       g.settings = s;
       ctx.saveSettings({ ...s });

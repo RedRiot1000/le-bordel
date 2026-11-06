@@ -39,7 +39,7 @@ const FULL_EVERY = 30;         // tous les murs renvoyés une fois par seconde (
 const WALLS = { court: 5, normal: 8, long: 12 };
 
 function defaultSettings() {
-  return { rounds: 5, walls: "normal", jump: true, zone: true };
+  return { rounds: 8, walls: "normal", jump: true, zone: true };
 }
 
 // ===================================================================
@@ -48,8 +48,8 @@ function defaultSettings() {
 export const playlist = {
   options: [
     {
-      key: "rounds", label: "Nombre de manches", default: "5",
-      choices: [{ v: "3", label: "3" }, { v: "5", label: "5" }, { v: "7", label: "7" }],
+      key: "rounds", label: "Nombre de manches", default: "8",
+      choices: [{ v: "5", label: "5" }, { v: "8", label: "8" }, { v: "12", label: "12" }],
     },
     {
       key: "walls", label: "Durée des murs", default: "normal",
@@ -61,7 +61,7 @@ export const playlist = {
     },
   ],
   settingsFor(c) {
-    return { ...defaultSettings(), rounds: Number(c.rounds) || 5, walls: WALLS[c.walls] ? c.walls : "normal" };
+    return { ...defaultSettings(), rounds: [5, 8, 12].includes(Number(c.rounds)) ? Number(c.rounds) : 8, walls: WALLS[c.walls] ? c.walls : "normal" };
   },
 };
 
@@ -398,7 +398,7 @@ export function createGame(ctx) {
     settings(pid, { settings }) {
       if (!ctx.isHost(pid) || g.phase !== "setup" || !settings) return;
       const s = { ...g.settings, ...settings };
-      if (![3, 5, 7].includes(s.rounds)) s.rounds = 5;
+      if (![5, 8, 12].includes(s.rounds)) s.rounds = 8;
       if (!WALLS[s.walls]) s.walls = "normal";
       s.jump = !!s.jump; s.zone = !!s.zone;
       g.settings = s;

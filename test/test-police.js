@@ -105,7 +105,7 @@ async function run() {
   const picked = await emit("pickGame", { gameId: "police" });
   await wait(200);
   check(picked.ok && game?.phase === "setup", "« Avis de recherche » se lance");
-  check(game.settings.rounds === 3 && game.settings.duration === 120 && game.settings.flee === 30, "Par défaut : 3 manches de 2 min, 30 s pour sortir");
+  check(game.settings.rounds === 5 && game.settings.duration === 120 && game.settings.flee === 30, "Par défaut : 5 manches de 2 min, 30 s pour sortir");
   await act("settings", { settings: { duration: 90, rounds: 2 } });
   await act("start");
   await wait(200);

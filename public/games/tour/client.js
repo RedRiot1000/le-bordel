@@ -213,7 +213,7 @@
     const panel = $("to-settings");
     panel.className = "settings" + (host ? "" : " locked");
     panel.innerHTML = `
-      <div class="setting-block"><label>Manches</label><div class="cat-chips">${[3, 5].map((v) =>
+      <div class="setting-block"><label>Manches</label><div class="cat-chips">${[3, 5, 8].map((v) =>
         `<button class="cat-chip ${s.rounds === v ? "on" : ""}" data-v="${v}" ${host ? "" : "disabled"}>${v}</button>`).join("")}</div></div>
       <p class="settings-note">Une nouvelle tour à chaque manche (la même pour tout le monde).</p>
       ${host ? "" : '<p class="settings-note">Seul l\'hôte peut modifier les réglages.</p>'}`;

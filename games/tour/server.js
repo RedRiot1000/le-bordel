@@ -32,11 +32,11 @@ const FINISH_DELAY = 15000;
 const MAX_MS = 240000;
 export const POINTS = [10, 7, 5, 3, 2, 1];
 
-function defaultSettings() { return { rounds: 3 }; }
+function defaultSettings() { return { rounds: 5 }; }
 
 export const playlist = {
-  options: [{ key: "rounds", label: "Manches", default: "3", choices: [{ v: "3", label: "3" }, { v: "5", label: "5" }] }],
-  settingsFor(c) { return { ...defaultSettings(), rounds: Number(c.rounds) === 5 ? 5 : 3 }; },
+  options: [{ key: "rounds", label: "Manches", default: "5", choices: [{ v: "3", label: "3" }, { v: "5", label: "5" }, { v: "8", label: "8" }] }],
+  settingsFor(c) { return { ...defaultSettings(), rounds: [3, 5, 8].includes(Number(c.rounds)) ? Number(c.rounds) : 5 }; },
 };
 
 // ===================================================================
@@ -208,7 +208,7 @@ export function createGame(ctx) {
     settings(pid, { settings }) {
       if (!ctx.isHost(pid) || g.phase !== "setup" || !settings) return;
       const s = { ...g.settings, ...settings };
-      if (![3, 5].includes(s.rounds)) s.rounds = 3;
+      if (![3, 5, 8].includes(s.rounds)) s.rounds = 5;
       g.settings = s;
       ctx.saveSettings({ ...s });
       ctx.update();

@@ -41,18 +41,22 @@ const FINISH_DELAY = 15000;
 const TEAMS = { 1: { name: "Rouges", emoji: "🔴", color: "#ff4d5a" }, 2: { name: "Bleus", emoji: "🔵", color: "#3a8bff" } };
 
 function defaultSettings() {
-  return { rounds: 3, mode: "auto" };   // mode : auto (équipes dès 4) · solo · equipes
+  return { rounds: 5, mode: "auto" };   // mode : auto (alterné, équipes dès 4 joueurs en nombre pair) · solo · equipes
 }
 
 export const playlist = {
   options: [
     {
-      key: "rounds", label: "Manches", default: "3",
-      choices: [{ v: "3", label: "3" }, { v: "5", label: "5" }],
+      key: "mode", label: "Mode", default: "auto",
+      choices: [{ v: "auto", label: "🔁 Alterné", hint: "Une manche en équipes, une manche chacun pour soi" }, { v: "solo", label: "⛄ Chacun pour soi" }, { v: "equipes", label: "🔴🔵 2 équipes" }],
+    },
+    {
+      key: "rounds", label: "Manches", default: "5",
+      choices: [{ v: "3", label: "3" }, { v: "5", label: "5" }, { v: "8", label: "8" }],
     },
   ],
   settingsFor(c) {
-    return { ...defaultSettings(), rounds: Number(c.rounds) === 5 ? 5 : 3 };
+    return { ...defaultSettings(), mode: ["auto", "solo", "equipes"].includes(c.mode) ? c.mode : "auto", rounds: [3, 5, 8].includes(Number(c.rounds)) ? Number(c.rounds) : 5 };
   },
 };
 
@@ -170,7 +174,7 @@ export function createGame(ctx) {
     const list = shuffle(players().filter((p) => p.connected));
     const n = list.length;
     g.round++;
-    g.teamsMode = g.settings.mode === "equipes" || (g.settings.mode === "auto" && n >= 4);
+    g.teamsMode = g.settings.mode === "equipes" || (g.settings.mode === "auto" && n >= 4 && n % 2 === 0 && g.round % 2 === 0);
     g.teamOf = {};
     if (g.teamsMode) list.forEach((p, i) => { g.teamOf[p.id] = (i % 2) + 1; });
     // Départs : en équipes, chacune de son côté ; sinon en cercle.
@@ -459,7 +463,7 @@ export function createGame(ctx) {
     settings(pid, { settings }) {
       if (!ctx.isHost(pid) || g.phase !== "setup" || !settings) return;
       const s = { ...g.settings, ...settings };
-      if (![3, 5, 7].includes(s.rounds)) s.rounds = 3;
+      if (![3, 5, 8].includes(s.rounds)) s.rounds = 5;
       if (!["auto", "solo", "equipes"].includes(s.mode)) s.mode = "auto";
       g.settings = s;
       ctx.saveSettings({ ...s });

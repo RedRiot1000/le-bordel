@@ -74,7 +74,7 @@ async function run() {
   const picked = await emit("pickGame", { gameId: "sol" });
   await wait(200);
   check(picked.ok && game?.phase === "setup", "« Sol qui s'effondre » se lance");
-  check(game.settings.rounds === 3 && game.settings.floor === "solides", "Par défaut : 3 manches, dalles solides");
+  check(game.settings.rounds === 5 && game.settings.floor === "solides", "Par défaut : 5 manches, dalles solides");
   await act("start");
   await wait(200);
   check(game.phase === "countdown" && game.heroes.length === 4, "4 bonshommes sur l'arène");

@@ -344,7 +344,7 @@
       `<button class="cat-chip ${s[key] === v ? "on" : ""}" data-key="${key}" data-v="${v}" ${host ? "" : "disabled"}>${label}</button>`).join("")}</div>`;
     panel.innerHTML = `
       <div class="setting-block"><label>Durée</label>${chips("duration", [[60, "60 s"], [90, "90 s"], [120, "2 min"]])}</div>
-      <div class="setting-block"><label>Mode</label>${chips("mode", [["auto", "🤖 Auto (équipes dès 4)"], ["solo", "🎨 Chacun pour soi"], ["equipes", "🔴🔵 2 équipes"]])}</div>
+      <div class="setting-block"><label>Mode</label>${chips("mode", [["auto", "🔁 Alterné"], ["solo", "🎨 Chacun pour soi"], ["equipes", "🔴🔵 2 équipes"]])}</div>
       ${host ? "" : '<p class="settings-note">Seul l\'hôte peut modifier les réglages.</p>'}`;
     if (host) panel.querySelectorAll("[data-key]").forEach((b) => {
       const v = b.dataset.v;

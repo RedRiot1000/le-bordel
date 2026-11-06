@@ -32,18 +32,18 @@ const MAX_MS = 180000;                 // une manche dure au plus 3 min
 export const POINTS = [10, 7, 5, 3, 2, 1];
 
 function defaultSettings() {
-  return { rounds: 3 };
+  return { rounds: 7 };
 }
 
 export const playlist = {
   options: [
     {
-      key: "rounds", label: "Manches", default: "3",
-      choices: [{ v: "3", label: "3" }, { v: "5", label: "5" }],
+      key: "rounds", label: "Manches", default: "7",
+      choices: [{ v: "5", label: "5" }, { v: "7", label: "7" }, { v: "10", label: "10" }],
     },
   ],
   settingsFor(c) {
-    return { ...defaultSettings(), rounds: Number(c.rounds) === 5 ? 5 : 3 };
+    return { ...defaultSettings(), rounds: [5, 7, 10].includes(Number(c.rounds)) ? Number(c.rounds) : 7 };
   },
 };
 
@@ -257,7 +257,7 @@ export function createGame(ctx) {
     settings(pid, { settings }) {
       if (!ctx.isHost(pid) || g.phase !== "setup" || !settings) return;
       const s = { ...g.settings, ...settings };
-      if (![3, 5, 7].includes(s.rounds)) s.rounds = 3;
+      if (![5, 7, 10].includes(s.rounds)) s.rounds = 7;
       g.settings = s;
       ctx.saveSettings({ ...s });
       ctx.update();

@@ -299,7 +299,7 @@
     course: {
       goal: "Gagner la course (mode Course) ou être le dernier survivant (mode Élimination) au volant de ta supersportive.",
       steps: [
-        "À chaque manche, un <b>nouveau circuit</b> est tiré au hasard. L'hôte choisit le mode : <b>Course</b>, <b>Élimination</b> ou <b>Aléatoire</b> (tiré à chaque manche).",
+        "À chaque manche, un <b>nouveau circuit</b> est tiré au hasard. L'hôte choisit le mode : <b>Course</b>, <b>Élimination</b> ou <b>Alterné</b> (une manche de chaque).",
         "Avant le départ, <b>10 s pour choisir ta voiture</b> : <b>⚡ ÉCLAIR</b> (la plus rapide en ligne droite, mais elle glisse), <b>🐍 VIPÈRE</b> (accélère et tourne le mieux, mais légère) ou <b>🦏 TITAN</b> (lourde, pousse très fort, moins rapide).",
         "🏁 <b>Course</b> : 2, 3 ou 5 tours. Dès que le premier passe la ligne, les autres ont <b>20 s</b> pour finir.",
         "💥 <b>Élimination</b> : pas de tours. <b>Toutes les 20 s, la voiture en dernière place explose !</b> Le dernier, marqué d'une 💣, doit vite remonter.",

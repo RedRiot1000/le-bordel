@@ -291,7 +291,7 @@
     const chips = (key, list) => `<div class="cat-chips">${list.map(([v, label]) =>
       `<button class="cat-chip ${s[key] === v ? "on" : ""}" data-key="${key}" data-v="${v}" ${host ? "" : "disabled"}>${label}</button>`).join("")}</div>`;
     panel.innerHTML = `
-      <div class="setting-block"><label>Manches</label>${chips("rounds", [[2, "2"], [3, "3"], [5, "5"]])}</div>
+      <div class="setting-block"><label>Manches</label>${chips("rounds", [[3, "3"], [5, "5"], [8, "8"]])}</div>
       <div class="setting-block"><label>Durée d'une manche</label>${chips("duration", [[90, "1 min 30"], [120, "2 min"], [180, "3 min"]])}</div>
       <div class="setting-block"><label>🚪 Temps pour sortir de la ville (« FUYEZ ! »)</label>${chips("flee", [[20, "20 s"], [30, "30 s"], [45, "45 s"]])}</div>
       <p class="settings-note">Une nouvelle ville à chaque manche. Le niveau de recherche monte 5 fois pendant la manche. À la fin du chrono, il faut sortir de la ville par une des 2 sorties.</p>

@@ -274,9 +274,9 @@
     const panel = $("ca-settings");
     panel.className = "settings" + (host ? "" : " locked");
     panel.innerHTML = `
-      <div class="setting-block"><label>Manches</label><div class="cat-chips">${[3, 5].map((v) =>
+      <div class="setting-block"><label>Manches</label><div class="cat-chips">${[2, 3, 5].map((v) =>
         `<button class="cat-chip ${s.rounds === v ? "on" : ""}" data-v="${v}" ${host ? "" : "disabled"}>${v}</button>`).join("")}</div></div>
-      <p class="settings-note">Une manche dure 2 min 30, un nouveau manoir à chaque fois.</p>
+      <p class="settings-note">Une manche dure 2 min, un nouveau manoir à chaque fois.</p>
       ${host ? "" : '<p class="settings-note">Seul l\'hôte peut modifier les réglages.</p>'}`;
     if (host) panel.querySelectorAll("[data-v]").forEach((b) => { b.onclick = () => api.action("settings", { settings: { rounds: Number(b.dataset.v) } }); });
     const n = st.players.filter((p) => p.connected).length;

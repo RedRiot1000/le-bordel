@@ -64,18 +64,18 @@ export const TASER_SPEED = 950, TASER_RANGE = 650;
 export const EMP_MS = 2000;            // moteur coupé 2 s
 
 function defaultSettings() {
-  return { rounds: 3, duration: 120, flee: 30 };
+  return { rounds: 5, duration: 120, flee: 30 };
 }
 
 export const playlist = {
   options: [
     {
-      key: "rounds", label: "Manches", default: "2",
-      choices: [{ v: "2", label: "2" }, { v: "3", label: "3" }],
+      key: "rounds", label: "Manches", default: "5",
+      choices: [{ v: "3", label: "3" }, { v: "5", label: "5" }, { v: "8", label: "8" }],
     },
   ],
   settingsFor(c) {
-    return { ...defaultSettings(), rounds: Number(c.rounds) === 3 ? 3 : 2 };
+    return { ...defaultSettings(), rounds: [3, 5, 8].includes(Number(c.rounds)) ? Number(c.rounds) : 5 };
   },
 };
 
@@ -668,7 +668,7 @@ export function createGame(ctx) {
     settings(pid, { settings }) {
       if (!ctx.isHost(pid) || g.phase !== "setup" || !settings) return;
       const s = { ...g.settings, ...settings };
-      if (![2, 3, 5].includes(s.rounds)) s.rounds = 3;
+      if (![3, 5, 8].includes(s.rounds)) s.rounds = 5;
       if (![90, 120, 180].includes(s.duration)) s.duration = 120;
       if (![20, 30, 45].includes(s.flee)) s.flee = 30;
       g.settings = s;

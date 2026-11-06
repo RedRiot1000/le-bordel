@@ -44,38 +44,36 @@ async function run() {
 
   console.log("\n— Playlist 1 : Patate chaude, réglages par défaut —");
   send("setLobbyMode", { mode: "playlist" });
-  send("setDraft", { games: ["patate"], settingsMode: "default", count: 1 });
+  send("setDraft", { games: ["patate"], count: 1 });
   await wait(200);
   check(hub.lobbyMode === "playlist" && hub.draft.games.join() === "patate", "Mode playlist, Patate cochée");
   await emit("startPlaylist");
   await wait(150);
-  check(hub.phase === "next" && hub.next.vote === false && hub.next.gameId === "patate", "Écran « prochain jeu » sans vote");
+  check(hub.phase === "next" && hub.next.gameId === "patate", "Écran « prochain jeu » sans vote");
   check(await waitFor(() => hub.phase === "game", 7000), "Le jeu se lance tout seul après 5 s");
   await waitFor(() => game, 1000);
   check(game.phase === "vehicle" && game.vehicleVote?.choices.length === 2, "Pas d'écran de réglages : direct au vote du véhicule");
-  check(game.playlist?.rounds === 3 && game.settings.fuse === "normale", `Normal par défaut : 3 manches, mèche ${game.settings.fuse}`);
+  check(game.playlist?.rounds === 5 && game.settings.fuse === "normale", `Normal par défaut : 5 manches, mèche ${game.settings.fuse}`);
   send("abortGame");
   await wait(200);
   check(hub.phase === "lobby" && !hub.playlist, "L'hôte arrête la playlist → retour au salon");
 
-  console.log("\n— Playlist 2 : Imposter ×2, vote des réglages —");
+  console.log("— Playlist 2 : Imposter ×2, réglages choisis par l'hôte —");
   game = null;
-  send("setDraft", { games: ["imposter"], settingsMode: "vote", count: 2 });
-  await wait(150);
+  send("setDraft", { games: ["imposter"], count: 2 });
+  send("setDraft", { config: { gameId: "imposter", key: "difficulty", value: "difficile" } });
+  send("setDraft", { config: { gameId: "imposter", key: "rounds", value: "2" } });
+  send("setDraft", { config: { gameId: "imposter", key: "rounds", value: "999" } });          // valeur invalide : ignorée
+  await wait(200);
+  check(hub.draft.config.imposter?.difficulty === "difficile" && hub.draft.config.imposter?.rounds === "2", "L'hôte règle le jeu dans la playlist (une valeur bidon est refusée)");
   await emit("startPlaylist");
   await wait(150);
-  check(hub.phase === "next" && hub.next.vote && hub.next.left > 25000, "Vote ouvert pendant 30 s");
-  send("voteOption", { key: "difficulty", value: "difficile" });
-  send("voteOption", { key: "rounds", value: "2" });
-  send("voteOption", { key: "rounds", value: "999" });          // valeur invalide : ignorée
-  await wait(200);
-  check(hub.next.votes.difficulty?.difficile?.includes(me) && hub.next.votes.rounds?.["2"]?.includes(me) && !hub.next.votes.rounds?.["999"],
-    "Mes votes sont comptés (et une valeur bidon est refusée)");
+  check(hub.phase === "next" && hub.next.left <= 5000 && hub.next.choices.difficulty === "difficile" && hub.next.vote === undefined, "Annonce de 5 s avec les réglages, plus de vote");
   send("launchNow");
-  check(await waitFor(() => hub.phase === "game" && game, 3000), "L'hôte lance sans attendre la fin du vote");
+  check(await waitFor(() => hub.phase === "game" && game, 3000), "L'hôte lance sans attendre la fin de l'annonce");
   check(game.settings.timers.clue === 30 && game.settings.clueRounds === 2 && !game.settings.mrWhiteEnabled,
     "Difficile appliqué : 30 s par indice, 2 tours, pas de Mr White");
-  check(game.playlist.rounds === 2, "2 manches votées");
+  check(game.playlist.rounds === 2, "2 manches, comme réglé");
 
   check(await playImposterRound(me), "Manche 1 jouée");
   check(game.playlist.played === 1 && !game.playlist.final, "Après la manche 1 : pas fini");
@@ -92,10 +90,10 @@ async function run() {
 
   send("nextInPlaylist");
   await wait(200);
-  check(hub.phase === "next" && hub.next.num === 2, "Jeu suivant : vote du jeu 2/2");
+  check(hub.phase === "next" && hub.next.num === 2, "Jeu suivant : annonce du jeu 2/2");
   send("launchNow");
   await waitFor(() => hub.phase === "game", 3000);
-  check(game.playlist.rounds === 2 && game.settings.timers.clue === 60, "Personne n'a voté → réglages par défaut (Normal, 2 manches)");
+  check(game.playlist.rounds === 2 && game.settings.timers.clue === 30, "Le jeu suivant garde les réglages de l'hôte");
   await playImposterRound(me); await act("start"); await waitFor(() => game.phase === "clues", 2000); await playImposterRound(me);
   await act("finish");
   await wait(200);

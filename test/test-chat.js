@@ -38,7 +38,7 @@ async function run() {
   const picked = await emit("pickGame", { gameId: "chat" });
   await wait(200);
   check(picked.ok && game?.phase === "setup", "« Chat et souris » se lance");
-  check(game.settings.rounds === 5 && game.settings.duration === 90, "Par défaut : 5 manches de 90 s");
+  check(game.settings.rounds === 7 && game.settings.duration === 90, "Par défaut : 7 manches de 90 s");
   await act("settings", { settings: { duration: 60, rounds: 3 } });
   await act("start");
   await wait(200);

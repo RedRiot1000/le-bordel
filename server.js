@@ -42,8 +42,7 @@ const COLORS = ["#7c5cff", "#ff5c9d", "#38e8c8", "#ffb547", "#4ade80", "#2e9dff"
 const HOST_GRACE_MS = 15_000;                // délai avant de passer l'hôte à un autre
 const ROOM_EMPTY_MS = 10 * 60_000;           // salon vide supprimé après 10 min
 const BOT_NAMES = ["Bernard", "Ginette", "Michel", "Josiane", "Gérard", "Huguette", "Roger", "Monique"];
-const VOTE_MS = 30_000;                      // playlist : temps pour voter les réglages
-const INTRO_MS = 5_000;                      // playlist sans vote : écran "prochain jeu"
+const INTRO_MS = 5_000;                      // playlist : écran "prochain jeu"
 const MAX_PLAYLIST = 20;                     // nombre max de jeux dans une playlist
 
 const rooms = {};
@@ -83,7 +82,7 @@ function shuffle(arr) {
   return a;
 }
 
-// Catalogue envoyé aux clients (infos des jeux + options votables en playlist).
+// Catalogue envoyé aux clients (infos des jeux + réglages disponibles en playlist).
 const catalogue = {
   games: Object.values(GAMES).map((g) => ({ ...g.meta, options: g.playlist?.options || [] })),
   upcoming: UPCOMING,
@@ -103,7 +102,7 @@ function publicHub(room) {
     lobbyMode: room.lobbyMode,      // "single" (un jeu) | "playlist"
     draft: room.draft,              // la playlist en préparation dans le salon
     playlist: room.playlist && { num: room.playlist.index + 1, total: room.playlist.order.length },
-    next: publicNext(room),         // écran "prochain jeu" (vote des réglages)
+    next: publicNext(room),         // écran "prochain jeu"
     pause: publicPause(room),       // jeux de réflexion : la partie peut être mise en pause
     players: room.players.map((p) => ({
       id: p.id,
@@ -117,15 +116,11 @@ function publicHub(room) {
   };
 }
 
-// Le prochain jeu de la playlist, avec qui a voté quoi.
+// Le prochain jeu de la playlist, avec ses réglages.
 function publicNext(room) {
   const nx = room.next;
   if (!nx) return null;
-  const votes = {};   // { option: { valeur: [ids des votants] } }
-  for (const [pid, v] of Object.entries(nx.votes)) {
-    for (const [key, value] of Object.entries(v)) ((votes[key] ||= {})[value] ||= []).push(pid);
-  }
-  return { gameId: nx.gameId, num: nx.num, total: nx.total, vote: nx.vote, left: Math.max(0, nx.endsAt - Date.now()), votes };
+  return { gameId: nx.gameId, num: nx.num, total: nx.total, left: Math.max(0, nx.endsAt - Date.now()), choices: nx.choices };
 }
 
 // ===================================================================
@@ -275,7 +270,7 @@ function buildOrder(games, count) {
   return order.slice(0, count);
 }
 
-// Écran "prochain jeu" : vote des réglages (30 s) ou simple annonce (5 s).
+// Écran "prochain jeu" : une simple annonce (5 s).
 function startNext(room) {
   const pl = room.playlist;
   const n = room.players.length;
@@ -287,34 +282,31 @@ function startNext(room) {
   }
   if (pl.index >= pl.order.length) return endPlaylist(room);
 
-  const vote = pl.settingsMode === "vote";
-  const ms = vote ? VOTE_MS : INTRO_MS;
+  const gameId = pl.order[pl.index];
   room.phase = "next";
   room.gameId = null;
-  room.next = { gameId: pl.order[pl.index], num: pl.index + 1, total: pl.order.length, vote, endsAt: Date.now() + ms, votes: {} };
+  room.next = { gameId, num: pl.index + 1, total: pl.order.length, endsAt: Date.now() + INTRO_MS, choices: choicesFor(room, gameId) };
   clearTimeout(room.nextTimer);
-  room.nextTimer = setTimeout(() => launchNext(room), ms);
+  room.nextTimer = setTimeout(() => launchNext(room), INTRO_MS);
   sendHub(room);
 }
 
-// Fin du vote : on compte, puis on lance le jeu avec les réglages gagnants.
+// Les réglages d'un jeu de la playlist : ceux choisis par l'hôte, sinon ceux par défaut.
+function choicesFor(room, gameId) {
+  const out = {}, conf = room.draft.config[gameId] || {};
+  for (const o of GAMES[gameId].playlist.options) out[o.key] = conf[o.key] ?? o.default;
+  return out;
+}
+
+// Fin de l'annonce : on lance le jeu avec les réglages choisis par l'hôte.
 function launchNext(room) {
   clearTimeout(room.nextTimer);
   const nx = room.next;
   if (!nx || room.phase !== "next") return;
   const def = GAMES[nx.gameId];
-  const choices = {};
-  for (const o of def.playlist.options) {
-    const counts = {};
-    for (const v of Object.values(nx.votes)) if (v[o.key] != null) counts[v[o.key]] = (counts[v[o.key]] || 0) + 1;
-    const max = Math.max(0, ...Object.values(counts));
-    const top = Object.keys(counts).filter((k) => counts[k] === max);
-    // Personne n'a voté -> valeur par défaut. Égalité -> tirage au sort.
-    choices[o.key] = max === 0 ? o.default : top[Math.floor(Math.random() * top.length)];
-  }
   room.next = null;
-  room.playlist.choices = choices;
-  startGame(room, nx.gameId, { settings: def.playlist.settingsFor(choices), rounds: Number(choices.rounds) || 2 });
+  room.playlist.choices = nx.choices;
+  startGame(room, nx.gameId, { settings: def.playlist.settingsFor(nx.choices), rounds: Number(nx.choices.rounds) || 2 });
 }
 
 function endPlaylist(room) {
@@ -446,8 +438,8 @@ io.on("connection", (socket) => {
       gameSettings: {},     // réglages mémorisés par jeu pour la soirée
       lastResult: null,
       lobbyMode: "single",  // "single" = un jeu, "playlist" = plusieurs au hasard
-      draft: { games: Object.keys(GAMES), settingsMode: "default", count: 0 },   // tous les jeux cochés par défaut
-      playlist: null,       // playlist en cours : { order, index, settingsMode, choices }
+      draft: { games: Object.keys(GAMES), config: {}, count: 0 },   // tous les jeux cochés ; config : { jeu: { réglage: valeur } } choisie par l'hôte
+      playlist: null,       // playlist en cours : { order, index, choices }
       next: null,           // écran "prochain jeu" en cours
     };
     rooms[code] = room;
@@ -567,13 +559,16 @@ io.on("connection", (socket) => {
     sendHub(room);
   });
 
-  // L'hôte prépare la playlist : jeux cochés, réglages (défaut/vote), nombre de jeux.
-  socket.on("setDraft", ({ games, settingsMode, count } = {}) => {
+  // L'hôte prépare la playlist : jeux cochés, réglages de chaque jeu, nombre de jeux.
+  socket.on("setDraft", ({ games, config, count } = {}) => {
     const room = roomOf();
     if (!room || !amHost() || room.phase !== "lobby") return;
     const d = room.draft;
     if (Array.isArray(games)) d.games = [...new Set(games)].filter((id) => GAMES[id]);
-    if (["default", "vote"].includes(settingsMode)) d.settingsMode = settingsMode;
+    if (config && GAMES[config.gameId]) {
+      const opt = GAMES[config.gameId].playlist?.options.find((o) => o.key === config.key);
+      if (opt?.choices.some((c) => c.v === config.value)) (d.config[config.gameId] ||= {})[config.key] = config.value;
+    }
     if (Number.isFinite(count)) d.count = Math.max(1, Math.min(MAX_PLAYLIST, Math.round(count)));
     sendHub(room);
   });
@@ -588,23 +583,12 @@ io.on("connection", (socket) => {
     if (!d.games.length) return callback?.({ error: "Coche au moins un jeu." });
     if (!playable.length) return callback?.({ error: `Pas assez de joueurs pour ces jeux (il en faut au moins ${Math.min(...d.games.map((id) => GAMES[id].meta.minPlayers))}).` });
     const count = d.count || d.games.length;
-    room.playlist = { order: buildOrder(playable, count), index: 0, settingsMode: d.settingsMode, choices: null };
+    room.playlist = { order: buildOrder(playable, count), index: 0, choices: null };
     callback?.({ ok: true });
     startNext(room);
   });
 
-  // Un joueur vote pour un réglage du prochain jeu.
-  socket.on("voteOption", ({ key, value } = {}) => {
-    const room = roomOf();
-    const nx = room?.next;
-    if (!nx || !nx.vote || room.phase !== "next" || !me()) return;
-    const opt = GAMES[nx.gameId].playlist.options.find((o) => o.key === key);
-    if (!opt || !opt.choices.some((c) => c.v === value)) return;
-    (nx.votes[socket.data.playerId] ||= {})[key] = value;
-    sendHub(room);
-  });
-
-  // L'hôte n'attend pas la fin des 30 s.
+  // L'hôte n'attend pas la fin de l'annonce.
   socket.on("launchNow", () => {
     const room = roomOf();
     if (room && amHost() && room.phase === "next") launchNext(room);

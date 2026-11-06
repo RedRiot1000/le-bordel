@@ -31,7 +31,7 @@ const TICK_MS = 1000 / 30;
 const COUNTDOWN_MS = 3000;
 const ROUND_OVER_MS = 8000;
 const FINISH_DELAY = 15000;
-export const DURATION_MS = 150000;    // une manche : 2 min 30
+export const DURATION_MS = 120000;    // une manche : 2 min
 export const ALARM_MS = 30000;        // les 30 dernières secondes : le butin vaut double
 const CHEST_EVERY = 40000;            // un coffre-fort toutes les 40 s
 const VAN_R = 92;                     // on dépose en arrivant au van
@@ -45,11 +45,11 @@ const TP_CD = 900;
 export const POINTS = [10, 7, 5, 3, 2, 1];
 const ROOM_NAMES = { hall: "le hall", bal: "la salle de bal", salon: "le salon", chambre: "une chambre", cuisine: "la cuisine", bibliotheque: "la bibliothèque", manger: "la salle à manger", bain: "la salle de bain", placard: "un placard", bureau: "le bureau" };
 
-function defaultSettings() { return { rounds: 3 }; }
+function defaultSettings() { return { rounds: 2 }; }
 
 export const playlist = {
-  options: [{ key: "rounds", label: "Manches", default: "3", choices: [{ v: "3", label: "3" }, { v: "5", label: "5" }] }],
-  settingsFor(c) { return { ...defaultSettings(), rounds: Number(c.rounds) === 5 ? 5 : 3 }; },
+  options: [{ key: "rounds", label: "Manches", default: "2", choices: [{ v: "2", label: "2" }, { v: "3", label: "3" }, { v: "5", label: "5" }] }],
+  settingsFor(c) { return { ...defaultSettings(), rounds: [2, 3, 5].includes(Number(c.rounds)) ? Number(c.rounds) : 2 }; },
 };
 
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -463,7 +463,7 @@ export function createGame(ctx) {
     settings(pid, { settings }) {
       if (!ctx.isHost(pid) || g.phase !== "setup" || !settings) return;
       const s = { ...g.settings, ...settings };
-      if (![3, 5].includes(s.rounds)) s.rounds = 3;
+      if (![2, 3, 5].includes(s.rounds)) s.rounds = 2;
       g.settings = s;
       ctx.saveSettings({ ...s });
       ctx.update();

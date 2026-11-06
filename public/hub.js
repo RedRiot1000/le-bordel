@@ -252,6 +252,7 @@ $("btn-copy").addEventListener("click", async () => {
 });
 
 let colorTriedIn = null;
+const plOpen = new Set();   // les jeux dont les réglages sont dépliés
 function renderLobby() {
   $("room-code").textContent = hub.code;
   $("player-count").textContent = `${hub.players.length}/8`;
@@ -362,18 +363,47 @@ function renderLobby() {
 
   // --- Panneau de la playlist ---
   $("playlist-panel").classList.toggle("hidden", !playlistMode);
+  $("pl-bulk").classList.toggle("hidden", !playlistMode);
   if (!playlistMode) return;
   const count = draft.count || draft.games.length;
   $("pl-count").textContent = count;
   $("pl-dec").disabled = !host || count <= 1;
   $("pl-inc").disabled = !host || count >= 20;
-  $("pl-settings").querySelectorAll("button").forEach((b) => {
-    b.classList.toggle("on", b.dataset.sm === draft.settingsMode);
-    b.disabled = !host;
+  // Tout / rien / par catégorie.
+  const allIds = catalogue.games.map((g) => g.id);
+  const families = [...new Set(catalogue.games.map((g) => g.family))];
+  const isAll = allIds.every((id) => draft.games.includes(id));
+  $("pl-bulk").innerHTML = `
+    <button class="cat-chip ${isAll ? "on" : ""}" data-bulk="all" ${host ? "" : "disabled"}>✅ Tout</button>
+    <button class="cat-chip ${draft.games.length ? "" : "on"}" data-bulk="none" ${host ? "" : "disabled"}>⬜ Rien</button>
+    ${families.map((f) => {
+      const ids = catalogue.games.filter((g) => g.family === f).map((g) => g.id);
+      return `<button class="cat-chip ${ids.every((id) => draft.games.includes(id)) ? "on" : ""}" data-fam="${escapeHtml(f)}" ${host ? "" : "disabled"}>${escapeHtml(f)}</button>`;
+    }).join("")}`;
+  $("pl-bulk").querySelectorAll("[data-bulk]").forEach((b) => { b.onclick = () => socket.emit("setDraft", { games: b.dataset.bulk === "all" ? allIds : [] }); });
+  $("pl-bulk").querySelectorAll("[data-fam]").forEach((b) => {
+    b.onclick = () => {
+      const ids = catalogue.games.filter((g) => g.family === b.dataset.fam).map((g) => g.id);
+      const on = ids.every((id) => draft.games.includes(id));
+      socket.emit("setDraft", { games: on ? draft.games.filter((id) => !ids.includes(id)) : [...new Set([...draft.games, ...ids])] });
+    };
   });
-  $("pl-settings-hint").textContent = draft.settingsMode === "vote"
-    ? "Avant chaque jeu, tout le monde a 30 s pour voter la difficulté, le nombre de manches et les options."
-    : "Chaque jeu se lance en difficulté normale, avec son nombre de manches par défaut.";
+  // Les réglages de chaque jeu coché (choisis ici par l'hôte, une bonne fois pour toutes).
+  const picked = catalogue.games.filter((g) => draft.games.includes(g.id) && g.options.length);
+  const valueOf = (g, o) => draft.config?.[g.id]?.[o.key] ?? o.default;
+  const labelOf = (o, v) => o.choices.find((c) => c.v === v)?.label || v;
+  $("pl-config").innerHTML = picked.map((g) => `
+    <details class="pl-game" data-id="${g.id}" ${plOpen.has(g.id) ? "open" : ""}>
+      <summary><span>${g.emoji} ${escapeHtml(g.name)}</span><span class="pl-sum">${g.options.map((o) => escapeHtml(labelOf(o, valueOf(g, o)))).join(" · ")}</span></summary>
+      ${g.options.map((o) => `
+        <div class="setting-block"><label>${escapeHtml(o.label)}</label><div class="cat-chips">
+          ${o.choices.map((c) => `<button class="cat-chip ${valueOf(g, o) === c.v ? "on" : ""}" data-g="${g.id}" data-k="${o.key}" data-v="${escapeHtml(c.v)}" title="${escapeHtml(c.hint || "")}" ${host ? "" : "disabled"}>${escapeHtml(c.label)}</button>`).join("")}
+        </div></div>`).join("")}
+    </details>`).join("") || '<p class="muted">Coche des jeux pour choisir leurs réglages.</p>';
+  $("pl-config").querySelectorAll("details").forEach((d) => { d.ontoggle = () => { if (d.open) plOpen.add(d.dataset.id); else plOpen.delete(d.dataset.id); }; });
+  $("pl-config").querySelectorAll("[data-k]").forEach((b) => {
+    b.onclick = () => socket.emit("setDraft", { config: { gameId: b.dataset.g, key: b.dataset.k, value: b.dataset.v } });
+  });
   const start = $("btn-start-playlist");
   start.classList.toggle("hidden", !host);
   start.disabled = !draft.games.length;
@@ -384,9 +414,6 @@ function renderLobby() {
 $("mode-switch").querySelectorAll("button").forEach((b) => {
   b.onclick = () => socket.emit("setLobbyMode", { mode: b.dataset.mode });
 });
-$("pl-settings").querySelectorAll("button").forEach((b) => {
-  b.onclick = () => socket.emit("setDraft", { settingsMode: b.dataset.sm });
-});
 const plCount = () => hub.draft.count || hub.draft.games.length;
 $("pl-dec").onclick = () => socket.emit("setDraft", { count: plCount() - 1 });
 $("pl-inc").onclick = () => socket.emit("setDraft", { count: plCount() + 1 });
@@ -396,10 +423,10 @@ $("btn-start-playlist").onclick = () => {
 };
 
 // ===================================================================
-//  PLAYLIST : PROCHAIN JEU (vote des réglages)
+//  PLAYLIST : PROCHAIN JEU
 // ===================================================================
 let nextEndLocal = 0;
-let nextTotalMs = 30000;
+const nextTotalMs = 5000;
 
 $("btn-launch-now").onclick = () => socket.emit("launchNow");
 
@@ -407,41 +434,20 @@ function renderNext() {
   const nx = hub.next;
   const game = catalogue.games.find((g) => g.id === nx.gameId);
   nextEndLocal = Date.now() + nx.left;
-  nextTotalMs = nx.vote ? 30000 : 5000;
   $("next-num").textContent = `🎲 Jeu ${nx.num} / ${nx.total}`;
   $("next-emoji").textContent = game?.emoji || "🎮";
   $("next-name").textContent = game?.name || "?";
-  $("next-hint").textContent = nx.vote
-    ? "🗳️ Votez pour les réglages ! (la majorité l'emporte)"
-    : "Réglages par défaut — c'est parti !";
+  $("next-hint").textContent = "C'est parti !";
   $("btn-launch-now").classList.toggle("hidden", !isHost());
 
-  const myVotes = {};
-  for (const [key, byValue] of Object.entries(nx.votes || {})) {
-    for (const [value, ids] of Object.entries(byValue)) if (ids.includes(store.playerId)) myVotes[key] = value;
-  }
-
+  // Les réglages choisis par l'hôte (pour info).
   $("next-options").innerHTML = (game?.options || []).map((o) => `
     <div class="next-option">
       <div class="next-option-label">${escapeHtml(o.label)}</div>
       <div class="next-choices">
-        ${o.choices.map((c) => {
-          const voters = nx.votes?.[o.key]?.[c.v] || [];
-          const mine = myVotes[o.key] === c.v;
-          const isDefault = !nx.vote && c.v === o.default;
-          return `
-            <button class="next-choice ${mine || isDefault ? "on" : ""}" data-key="${o.key}" data-v="${c.v}" ${nx.vote ? "" : "disabled"}>
-              <span class="nc-label">${escapeHtml(c.label)}</span>
-              ${c.hint ? `<span class="nc-hint">${escapeHtml(c.hint)}</span>` : ""}
-              ${nx.vote ? `<span class="nc-voters">${voters.map((id) => avatar(playerOf(id))).join("") || '<span class="muted">0 vote</span>'}</span>` : ""}
-            </button>`;
-        }).join("")}
+        <span class="next-choice on"><span class="nc-label">${escapeHtml(o.choices.find((c) => c.v === nx.choices?.[o.key])?.label || "")}</span></span>
       </div>
     </div>`).join("");
-
-  $("next-options").querySelectorAll(".next-choice:not([disabled])").forEach((b) => {
-    b.onclick = () => socket.emit("voteOption", { key: b.dataset.key, value: b.dataset.v });
-  });
 }
 
 // Compte à rebours de l'écran "prochain jeu".

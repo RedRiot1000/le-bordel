@@ -75,10 +75,10 @@ async function run() {
   const picked = await emit("pickGame", { gameId: "neon" });
   await wait(200);
   check(picked.ok && game?.phase === "setup", "« Néon » se lance");
-  check(game.settings.rounds === 5 && game.settings.jump && game.settings.zone, "Par défaut : 5 manches, saut et zone activés");
-  await act("settings", { settings: { rounds: 3, walls: "long" } });
+  check(game.settings.rounds === 8 && game.settings.jump && game.settings.zone, "Par défaut : 8 manches, saut et zone activés");
+  await act("settings", { settings: { rounds: 5, walls: "long" } });
   await wait(100);
-  check(game.settings.rounds === 3 && game.settings.walls === "long", "Réglages : 3 manches, murs de 12 s");
+  check(game.settings.rounds === 5 && game.settings.walls === "long", "Réglages : 5 manches, murs de 12 s");
 
   console.log("\n— Manche 1 —");
   await act("start");
@@ -109,12 +109,12 @@ async function run() {
   check(syncOk > 0 && syncBad === 0, `Murs recollés sans erreur (${syncOk} vérifications, ${syncBad} écart)`);
 
   console.log("\n— Manches 2 et 3 —");
-  for (let r = 2; r <= 3; r++) {
+  for (let r = 2; r <= 5; r++) {
     await act("start");
     await waitFor(() => game.phase === "play", 5000);
     await waitFor(() => game.phase === "roundOver", 100000);
   }
-  check(game.phase === "roundOver" && game.final && game.finishLeft > 10000, "Après 3 manches : dernière manche, classement automatique dans 15 s");
+  check(game.phase === "roundOver" && game.final && game.finishLeft > 10000, "Après 5 manches : dernière manche, classement automatique dans 15 s");
   const again = await act("start");
   await wait(100);
   check(game.phase === "roundOver", "Plus de manche après la dernière");

@@ -36,19 +36,19 @@ const SHAPES = ["carré", "rond", "croix", "anneau", "îlots", "gruyère"];
 
 // floor : "solides" = une dalle se fissure au 1er passage et tombe au 2e (défaut) · "fragiles" = elle tombe dès le 1er passage
 function defaultSettings() {
-  return { rounds: 3, floor: "solides" };
+  return { rounds: 5, floor: "solides" };
 }
 const STAY_MS = 1100;              // rester planté sur une dalle la fait tomber (il faut bouger)
 
 export const playlist = {
   options: [
     {
-      key: "rounds", label: "Manches", default: "3",
-      choices: [{ v: "3", label: "3" }, { v: "5", label: "5" }],
+      key: "rounds", label: "Manches", default: "5",
+      choices: [{ v: "3", label: "3" }, { v: "5", label: "5" }, { v: "8", label: "8" }],
     },
   ],
   settingsFor(c) {
-    return { ...defaultSettings(), rounds: Number(c.rounds) === 5 ? 5 : 3 };
+    return { ...defaultSettings(), rounds: [3, 5, 8].includes(Number(c.rounds)) ? Number(c.rounds) : 5 };
   },
 };
 
@@ -486,7 +486,7 @@ export function createGame(ctx) {
     settings(pid, { settings }) {
       if (!ctx.isHost(pid) || g.phase !== "setup" || !settings) return;
       const s = { ...g.settings, ...settings };
-      if (![3, 5, 7].includes(s.rounds)) s.rounds = 3;
+      if (![3, 5, 8].includes(s.rounds)) s.rounds = 5;
       if (!["solides", "fragiles"].includes(s.floor)) s.floor = "solides";
       g.settings = s;
       ctx.saveSettings({ ...s });

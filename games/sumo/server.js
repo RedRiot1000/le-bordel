@@ -62,8 +62,12 @@ export const playlist = {
       ],
     },
     {
-      key: "rounds", label: "Nombre de manches", default: "3",
-      choices: [{ v: "3", label: "3" }, { v: "5", label: "5" }, { v: "7", label: "7" }],
+      key: "rounds", label: "Nombre de manches", default: "5",
+      choices: [{ v: "5", label: "5" }, { v: "7", label: "7" }, { v: "10", label: "10" }],
+    },
+    {
+      key: "mode", label: "Mode", default: "auto",
+      choices: [{ v: "auto", label: "🔁 Alterné", hint: "Une manche en équipes, une manche chacun pour soi" }, { v: "ffa", label: "Chacun pour soi" }, { v: "teams", label: "👥 Équipes" }],
     },
     {
       key: "nitro", label: "Nitro", default: "oui",
@@ -76,6 +80,7 @@ export const playlist = {
   ],
   settingsFor(c) {
     const s = defaultSettings();
+    if (["auto", "ffa", "teams"].includes(c.mode)) s.mode = c.mode;
     if (c.difficulty === "facile") { s.shrink = "lent"; s.zoneTime = 20; }
     if (c.difficulty === "difficile") { s.shrink = "rapide"; s.zoneTime = 10; }
     s.nitro = c.nitro !== "non";
@@ -198,11 +203,11 @@ export function createGame(ctx) {
     g.map = variant === "arena" ? arenaMap(n) : islandsMap(n);
     g.env = { w: g.map.w, h: g.map.h, grip: 1, oils: [], obstacles: [], nitro: g.settings.nitro, walls: false };
 
-    // Mode : impair = toujours FFA ; pair = au hasard (ou forcé par l'hôte).
+    // Mode : impair = toujours FFA ; pair = une manche sur deux (ou forcé par l'hôte).
     const even = n % 2 === 0;
     g.mode = !even || g.settings.mode === "ffa" ? "ffa"
       : g.settings.mode === "teams" ? "teams"
-      : Math.random() < 0.5 ? "teams" : "ffa";
+      : g.roundNum % 2 === 0 ? "teams" : "ffa";
     const teamOf = {};
     if (g.mode === "teams") shuffle(players.map((p) => p.id)).forEach((id, i) => { teamOf[id] = i % 2 ? "blue" : "red"; });
 

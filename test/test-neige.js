@@ -40,7 +40,9 @@ async function run() {
   const picked = await emit("pickGame", { gameId: "neige" });
   await wait(200);
   check(picked.ok && game?.phase === "setup", "« Boules de neige » se lance");
-  check(game.settings.rounds === 3 && game.settings.mode === "auto", "Par défaut : 3 manches, mode auto");
+  check(game.settings.rounds === 5 && game.settings.mode === "auto", "Par défaut : 5 manches, mode alterné");
+  await act("settings", { settings: { mode: "equipes" } });
+  await wait(100);
   await act("start");
   await wait(200);
   check(game.phase === "countdown" && game.teamsMode && game.heroes.length === 4, "4 joueurs → 2 équipes");

@@ -86,17 +86,12 @@
             <button data-mode="playlist">🎲 Playlist</button>
           </div>
           <p id="games-hint" class="muted games-hint"></p>
+            <div class="pl-bulk" id="pl-bulk"></div>
           <div id="game-tiles" class="game-tiles"></div>
 
           <div id="playlist-panel" class="playlist-panel hidden">
-            <div class="setting">
-              <label>Réglages des jeux</label>
-              <div class="seg" id="pl-settings">
-                <button data-sm="default">⚙️ Par défaut</button>
-                <button data-sm="vote">🗳️ Vote (30 s)</button>
-              </div>
-            </div>
-            <p id="pl-settings-hint" class="muted pl-settings-hint"></p>
+            <div class="pl-config-title">⚙️ Réglages de chaque jeu</div>
+            <div id="pl-config" class="pl-config"></div>
             <div class="setting">
               <label>Nombre de jeux</label>
               <div class="stepper">
@@ -110,7 +105,7 @@
       </div>
     </section>
 
-    <!-- ============ PLAYLIST : PROCHAIN JEU (vote des réglages) ============ -->
+    <!-- ============ PLAYLIST : PROCHAIN JEU ============ -->
     <section id="screen-next" class="screen">
       <div class="card next-card">
         <p class="next-num" id="next-num">🎲 Jeu 1 / 3</p>

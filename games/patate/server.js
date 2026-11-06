@@ -56,8 +56,8 @@ export const playlist = {
       ],
     },
     {
-      key: "rounds", label: "Nombre de manches", default: "3",
-      choices: [{ v: "3", label: "3" }, { v: "5", label: "5" }, { v: "7", label: "7" }],
+      key: "rounds", label: "Nombre de manches", default: "5",
+      choices: [{ v: "5", label: "5" }, { v: "7", label: "7" }, { v: "10", label: "10" }],
     },
     {
       key: "nitro", label: "Nitro", default: "oui",

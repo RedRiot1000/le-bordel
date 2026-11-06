@@ -109,7 +109,7 @@ async function run() {
   // Les bots ramènent du butin.
   const earned = await waitFor(() => game.heroes.some((h) => h.money > 0), 40000);
   check(earned, `Les bots encaissent (${game.heroes.map((h) => h.money).join(" / ")})`);
-  check(game.timeLeft > 0 && game.timeLeft <= 150000, "Chrono de 2 min 30");
+  check(game.timeLeft > 0 && game.timeLeft <= 120000, "Chrono de 2 min");
   const alarm = await waitFor(() => game.alarm, 130000);
   check(alarm && game.timeLeft <= 30000, "L'alarme sonne dans les 30 dernières secondes");
   await waitFor(() => game.phase === "roundOver", 35000);

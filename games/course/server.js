@@ -40,7 +40,7 @@ export const POINTS = [10, 7, 5, 3, 2, 1];
 export const MODES = ["course", "elimination"];
 
 function defaultSettings() {
-  return { mode: "aleatoire", laps: 3, rounds: 3 };
+  return { mode: "aleatoire", laps: 3, rounds: 5 };
 }
 
 export const playlist = {
@@ -48,19 +48,19 @@ export const playlist = {
     {
       key: "mode", label: "Mode", default: "aleatoire",
       choices: [
-        { v: "aleatoire", label: "🎲 Aléatoire", hint: "Course ou élimination, tiré à chaque manche" },
+        { v: "aleatoire", label: "🔁 Alterné", hint: "Une manche en course, une manche en élimination" },
         { v: "course", label: "🏁 Course", hint: "X tours, l'ordre d'arrivée compte" },
         { v: "elimination", label: "💥 Élimination", hint: "Toutes les 20 s, le dernier explose" },
       ],
     },
     { key: "laps", label: "Tours", default: "3", choices: [{ v: "2", label: "2" }, { v: "3", label: "3" }, { v: "5", label: "5" }] },
-    { key: "rounds", label: "Manches", default: "3", choices: [{ v: "3", label: "3" }, { v: "5", label: "5" }] },
+    { key: "rounds", label: "Manches", default: "5", choices: [{ v: "3", label: "3" }, { v: "5", label: "5" }, { v: "8", label: "8" }] },
   ],
   settingsFor(c) {
     const s = defaultSettings();
     if (["aleatoire", ...MODES].includes(c.mode)) s.mode = c.mode;
     if ([2, 3, 5].includes(Number(c.laps))) s.laps = Number(c.laps);
-    if ([3, 5].includes(Number(c.rounds))) s.rounds = Number(c.rounds);
+    if ([3, 5, 8].includes(Number(c.rounds))) s.rounds = Number(c.rounds);
     return s;
   },
 };
@@ -143,7 +143,7 @@ export function createGame(ctx) {
     g.seed = (Math.random() * 2 ** 31) >>> 0;
     g.track = T.build(g.seed);
     g.env = T.env(g.track);
-    g.mode = g.settings.mode === "aleatoire" ? pick(MODES) : g.settings.mode;
+    g.mode = g.settings.mode === "aleatoire" ? MODES[(g.round - 1) % 2] : g.settings.mode;
     g.cars = {};
     g.picks = {};
     g.cones = {};
@@ -412,7 +412,7 @@ export function createGame(ctx) {
       const s = { ...g.settings, ...settings };
       if (!["aleatoire", ...MODES].includes(s.mode)) s.mode = "aleatoire";
       if (![2, 3, 5].includes(s.laps)) s.laps = 3;
-      if (![3, 5].includes(s.rounds)) s.rounds = 3;
+      if (![3, 5, 8].includes(s.rounds)) s.rounds = 5;
       g.settings = s;
       ctx.saveSettings({ ...s });
       ctx.update();

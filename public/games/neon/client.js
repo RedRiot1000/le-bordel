@@ -303,7 +303,7 @@
       `<button class="cat-chip ${s[key] === v ? "on" : ""}" data-key="${key}" data-v="${v}" ${host ? "" : "disabled"}>${label}</button>`).join("")}</div>`;
     const toggle = (key) => `<label class="switch"><input type="checkbox" data-toggle="${key}" ${s[key] ? "checked" : ""} ${host ? "" : "disabled"} /><span class="track"></span></label>`;
     panel.innerHTML = `
-      <div class="setting-block"><label>Nombre de manches</label>${chips("rounds", [[3, "3"], [5, "5"], [7, "7"]])}</div>
+      <div class="setting-block"><label>Nombre de manches</label>${chips("rounds", [[5, "5"], [8, "8"], [12, "12"]])}</div>
       <div class="setting-block"><label>Durée des murs de lumière</label>${chips("walls", [["court", "5 s"], ["normal", "8 s"], ["long", "12 s"]])}</div>
       <div class="setting"><label>Saut (Espace)</label><div class="val">${toggle("jump")}</div></div>
       <div class="setting"><label>Zone qui rétrécit (après 40 s)</label><div class="val">${toggle("zone")}</div></div>

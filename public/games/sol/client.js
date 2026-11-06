@@ -253,7 +253,7 @@
     const chips = (key, list) => `<div class="cat-chips">${list.map(([v, label]) =>
       `<button class="cat-chip ${s[key] === v ? "on" : ""}" data-key="${key}" data-v="${v}" ${host ? "" : "disabled"}>${label}</button>`).join("")}</div>`;
     panel.innerHTML = `
-      <div class="setting-block"><label>Manches</label>${chips("rounds", [[3, "3"], [5, "5"], [7, "7"]])}</div>
+      <div class="setting-block"><label>Manches</label>${chips("rounds", [[3, "3"], [5, "5"], [8, "8"]])}</div>
       <div class="setting-block"><label>Les dalles</label>${chips("floor", [["solides", "🧱 Solides (tombent au 2e passage)"], ["fragiles", "💨 Fragiles (tombent dès le 1er)"]])}</div>
       <p class="settings-note">Une nouvelle arène à chaque manche (carré, rond, croix, anneau, îlots, gruyère).</p>
       ${host ? "" : '<p class="settings-note">Seul l\'hôte peut modifier les réglages.</p>'}`;

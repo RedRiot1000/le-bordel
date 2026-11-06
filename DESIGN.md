@@ -753,7 +753,7 @@ Choix : labyrinthe vertical, routes rapide/risquée ou lente/sûre, caméra zoom
 ## 7 tervicies. Cambrioleurs 💰 — validé (« Go »)
 
 Lampe torche et La Nuit du Tueur ont été retirés (trop lents, rôles déséquilibrés ; le code reste dans l'historique Git). Le manoir est gardé (`public/games/manoir/`) pour ce jeu, où tout le monde joue à égalité.
-- **Principe** : chacun pour soi dans le même manoir, un seul van pour tous au milieu du parking (l'argent déposé va à celui qui dépose). Manche de 2 min 30, classement à l'argent (10, 7, 5, 3, 2, 1).
+- **Principe** : chacun pour soi dans le même manoir, un seul van pour tous au milieu du parking (l'argent déposé va à celui qui dépose). 2 manches de 2 min par défaut, classement à l'argent (10, 7, 5, 3, 2, 1).
 - **Manoir** : `M.build(seed, n, { small: true })`, plus petit, tout éclairé (le décor de nuit est peint plus clair). Dehors, un parking vide. 5 à 7 sorties (devant et sur le côté) : personne ne peut attendre les autres à une seule porte. Pas de portes, de lustres, d'interrupteurs, de toiles ; escaliers et passages secrets gardés.
 - **Butin** (`public/games/casse/loot.js`) : un seul objet à la fois, ramassé en passant dessus, déposé en arrivant à sa camionnette. Argenterie 100 $ (vitesse ×1,05), vase 300 $ (×0,9), tableau 600 $ (×0,72), coffre 1 500 $ (×0,5) ; mains vides ×1,15. Nouveaux objets toutes les 2,5 s.
 - **Touche E** (ou F) : échange son objet avec l'objet par terre le plus proche (à moins de 62 px), sinon pose le sien. L'objet posé ne se reprend qu'après 1,2 s. Une étiquette sous le bonhomme dit ce que fait E.
@@ -775,6 +775,12 @@ Dans le salon, chaque joueur choisit sa couleur parmi 12. Elle sert dans tous le
 ### Imposter : un seul mot après un vote
 
 Le 1er tour garde le nombre de tours d'indices réglé. Dès que la manche continue après un vote (élimination d'un civil, ou égalité), chacun ne donne plus qu'un mot avant de revoter.
+
+### Playlist et manches
+
+- **Playlist** : boutons Tout, Rien et une catégorie (Action, Ambiance, Bluff, Quiz). L'hôte règle chaque jeu dans le panneau de la playlist (mode, manches, difficulté…) ; il n'y a plus de vote ni d'écran de réglages avant les jeux, juste une annonce de 5 s.
+- **Mode Alterné** (à la place d'aléatoire) : Roi de la colline, Sumo, Boules de neige : manche 1 chacun pour soi, manche 2 en équipes, etc., quand c'est possible (équipes égales, dès 4 joueurs pour les jeux à pied). Territoire : d'une partie à l'autre. Grand Prix : course puis élimination.
+- **Plus de manches** dans les jeux courts : Néon 8, Parkour et Chat et souris 7, Patate, Sumo, Avis de recherche, Sol qui s'effondre, Boules de neige, Roi de la colline, La Tour et Grand Prix 5.
 
 ## 8. Feuille de route
 

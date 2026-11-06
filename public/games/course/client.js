@@ -323,10 +323,10 @@
     const chips = (key, list) => `<div class="cat-chips">${list.map(([v, label]) =>
       `<button class="cat-chip ${s[key] === v ? "on" : ""}" data-key="${key}" data-v="${v}" data-num="${typeof v === "number"}" ${host ? "" : "disabled"}>${label}</button>`).join("")}</div>`;
     panel.innerHTML = `
-      <div class="setting-block"><label>Mode</label>${chips("mode", [["aleatoire", "🎲 Aléatoire"], ["course", "🏁 Course"], ["elimination", "💥 Élimination"]])}</div>
+      <div class="setting-block"><label>Mode</label>${chips("mode", [["aleatoire", "🔁 Alterné"], ["course", "🏁 Course"], ["elimination", "💥 Élimination"]])}</div>
       <div class="setting-block"><label>Tours (mode course)</label>${chips("laps", [[2, "2"], [3, "3"], [5, "5"]])}</div>
-      <div class="setting-block"><label>Manches</label>${chips("rounds", [[3, "3"], [5, "5"]])}</div>
-      <p class="settings-note">Un nouveau circuit à chaque manche. En aléatoire, le mode est tiré au sort à chaque manche.</p>
+      <div class="setting-block"><label>Manches</label>${chips("rounds", [[3, "3"], [5, "5"], [8, "8"]])}</div>
+      <p class="settings-note">Un nouveau circuit à chaque manche. En alterné : une manche en course, une manche en élimination.</p>
       ${host ? "" : '<p class="settings-note">Seul l\'hôte peut modifier les réglages.</p>'}`;
     if (host) panel.querySelectorAll("[data-key]").forEach((b) => {
       b.onclick = () => api.action("settings", { settings: { [b.dataset.key]: b.dataset.num === "true" ? Number(b.dataset.v) : b.dataset.v } });

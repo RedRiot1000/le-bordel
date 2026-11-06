@@ -3,7 +3,7 @@
 //  Tout le monde a une batte. Une zone dorée : chaque seconde passée
 //  dedans rapporte 1 point… si on y est seul (ou seule son équipe).
 //  La zone saute ailleurs toutes les 20 s. Un coup de batte propulse fort.
-//  Modes : équipes, chacun pour soi, ou aléatoire (tiré à chaque manche).
+//  Modes : équipes, chacun pour soi, ou alterné (une manche sur deux).
 //  Le SERVEUR fait foi (30 calculs/s, même moteur que le navigateur).
 // ===================================================================
 
@@ -38,18 +38,22 @@ const FINISH_DELAY = 15000;
 const TEAMS = { 1: { name: "Rouges", emoji: "🔴", color: "#ff4d5a" }, 2: { name: "Bleus", emoji: "🔵", color: "#3a8bff" } };
 
 function defaultSettings() {
-  return { rounds: 3, duration: 90, mode: "aleatoire" };   // mode : aleatoire · equipes · solo
+  return { rounds: 5, duration: 90, mode: "aleatoire" };   // mode : aleatoire · equipes · solo
 }
 
 export const playlist = {
   options: [
     {
-      key: "rounds", label: "Manches", default: "3",
-      choices: [{ v: "3", label: "3" }, { v: "5", label: "5" }],
+      key: "mode", label: "Mode", default: "aleatoire",
+      choices: [{ v: "aleatoire", label: "🔁 Alterné", hint: "Une manche en équipes, une manche chacun pour soi" }, { v: "equipes", label: "🔴🔵 Équipes" }, { v: "solo", label: "👤 Chacun pour soi" }],
+    },
+    {
+      key: "rounds", label: "Manches", default: "5",
+      choices: [{ v: "3", label: "3" }, { v: "5", label: "5" }, { v: "8", label: "8" }],
     },
   ],
   settingsFor(c) {
-    return { ...defaultSettings(), rounds: Number(c.rounds) === 5 ? 5 : 3 };
+    return { ...defaultSettings(), mode: ["aleatoire", "equipes", "solo"].includes(c.mode) ? c.mode : "aleatoire", rounds: [3, 5, 8].includes(Number(c.rounds)) ? Number(c.rounds) : 5 };
   },
 };
 
@@ -156,8 +160,8 @@ export function createGame(ctx) {
     const n = list.length;
     g.round++;
     const m = g.settings.mode;
-    // Équipes : à partir de 3 joueurs. Aléatoire : une chance sur deux, à partir de 4 et seulement si les équipes sont égales (nombre pair).
-    g.teamsMode = m === "equipes" ? n >= 3 : m === "aleatoire" ? n >= 4 && n % 2 === 0 && Math.random() < 0.5 : false;
+    // Équipes : à partir de 3 joueurs. Alterné : une manche sur deux, à partir de 4 et seulement si les équipes sont égales (nombre pair).
+    g.teamsMode = m === "equipes" ? n >= 3 : m === "aleatoire" ? n >= 4 && n % 2 === 0 && g.round % 2 === 0 : false;
     g.teamOf = {};
     if (g.teamsMode) list.forEach((p, i) => { g.teamOf[p.id] = (i % 2) + 1; });
     // Les obstacles : piliers et caisses, loin du centre (la 1re zone).
@@ -373,7 +377,7 @@ export function createGame(ctx) {
     settings(pid, { settings }) {
       if (!ctx.isHost(pid) || g.phase !== "setup" || !settings) return;
       const s = { ...g.settings, ...settings };
-      if (![3, 5, 7].includes(s.rounds)) s.rounds = 3;
+      if (![3, 5, 8].includes(s.rounds)) s.rounds = 5;
       if (![60, 90, 120].includes(s.duration)) s.duration = 90;
       if (!["aleatoire", "equipes", "solo"].includes(s.mode)) s.mode = "aleatoire";
       g.settings = s;

@@ -46,12 +46,16 @@ function defaultSettings() {
 export const playlist = {
   options: [
     {
+      key: "mode", label: "Mode", default: "auto",
+      choices: [{ v: "auto", label: "🔁 Alterné" }, { v: "solo", label: "🎨 Chacun pour soi" }, { v: "equipes", label: "🔴🔵 2 équipes" }],
+    },
+    {
       key: "duration", label: "Durée", default: "90",
       choices: [{ v: "60", label: "60 s" }, { v: "90", label: "90 s" }],
     },
   ],
   settingsFor(c) {
-    return { ...defaultSettings(), duration: Number(c.duration) === 60 ? 60 : 90 };
+    return { ...defaultSettings(), mode: ["auto", "solo", "equipes"].includes(c.mode) ? c.mode : "auto", duration: Number(c.duration) === 60 ? 60 : 90 };
   },
 };
 
@@ -187,7 +191,9 @@ export function createGame(ctx) {
   function startMatch() {
     const list = shuffle(players().filter((p) => p.connected));
     const n = list.length;
-    g.teamsMode = g.settings.mode === "equipes" || (g.settings.mode === "auto" && n >= 4);
+    // Alterné : d'une partie à l'autre (en équipes dès 4 joueurs en nombre pair).
+    g.plays = (g.plays || 0) + 1;
+    g.teamsMode = g.settings.mode === "equipes" || (g.settings.mode === "auto" && n >= 4 && n % 2 === 0 && g.plays % 2 === 1);
     g.owners = {};
     g.ownerOf = {};
     if (g.teamsMode) {

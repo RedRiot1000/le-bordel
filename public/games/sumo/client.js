@@ -426,7 +426,7 @@
       `<button class="cat-chip ${String(s[key]) === String(v) ? "on" : ""}" data-key="${key}" data-v="${v}" ${host ? "" : "disabled"}>${label}</button>`).join("")}</div>`;
     panel.innerHTML = `
       <div class="setting-block"><label>Version</label>${chips("variant", [["random", "🎲 Au hasard"], ["arena", "🔴 Arène"], ["islands", "🏝️ Îles"]])}</div>
-      <div class="setting-block"><label>Mode</label>${chips("mode", [["auto", "🎲 Auto"], ["ffa", "Chacun pour soi"], ["teams", "👥 Équipes"]])}</div>
+      <div class="setting-block"><label>Mode</label>${chips("mode", [["auto", "🔁 Alterné"], ["ffa", "Chacun pour soi"], ["teams", "👥 Équipes"]])}</div>
       <p class="settings-note">Équipes seulement avec un nombre pair de joueurs (sinon chacun pour soi).</p>
       <div class="setting-block"><label>Arène : vitesse de rétrécissement</label>${chips("shrink", [["lent", "Lente"], ["normal", "Normale"], ["rapide", "Rapide"]])}</div>
       <div class="setting-block"><label>Îles : chrono de la zone</label>${chips("zoneTime", [[10, "10 s"], [15, "15 s"], [20, "20 s"]])}</div>

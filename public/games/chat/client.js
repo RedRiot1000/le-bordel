@@ -274,7 +274,7 @@
     const chips = (key, list) => `<div class="cat-chips">${list.map(([v, label]) =>
       `<button class="cat-chip ${s[key] === v ? "on" : ""}" data-key="${key}" data-v="${v}" ${host ? "" : "disabled"}>${label}</button>`).join("")}</div>`;
     panel.innerHTML = `
-      <div class="setting-block"><label>Manches</label>${chips("rounds", [[3, "3"], [5, "5"], [7, "7"]])}</div>
+      <div class="setting-block"><label>Manches</label>${chips("rounds", [[5, "5"], [7, "7"], [10, "10"]])}</div>
       <div class="setting-block"><label>Durée d'une manche</label>${chips("duration", [[60, "60 s"], [90, "90 s"], [120, "2 min"]])}</div>
       <p class="settings-note">Chacun est chat à tour de rôle. 2 chats au départ à partir de 5 joueurs.</p>
       ${host ? "" : '<p class="settings-note">Seul l\'hôte peut modifier les réglages.</p>'}`;
