@@ -9,7 +9,8 @@
 (() => {
   const H = window.Pieton, Q = window.Quartier;
   const K = H.K;
-  const W = 1280, HGT = 800, AIM_MAX = 320, RANGE = 340, BUTTON_R = 50, CAMP_R = 420, CAMP_S = 5;
+  const AIM = 64, SMOKE_R = 120;                       // (les mêmes que games/cavale/server.js)
+  const W = 1280, HGT = 800, AIM_MAX = 320, RANGE = 340, CAMP_R = 340, CAMP_S = 8;
   const NAMES = { sprint: "⚡ Sprint", fumi: "💨 Fumigène", banane: "🍌 Peau de banane", barrage: "🚧 Barrage", rapide: "🔋 Taser rapide" };
 
   let api = null, root = null;
@@ -54,9 +55,11 @@
           <ul class="pt-help">
             <li>🔒 Au début, un flic <b>pose la prison</b> où il veut (clic ou <kbd>Espace</kbd>).</li>
             <li>🚓 <b>Flics</b> : tire au taser (clic gauche), puis touche le runner sonné pour l'envoyer en prison.</li>
-            <li>🏃 <b>Runners</b> : ne te fais pas prendre. Reste 2 s sur un <b>bouton</b> à côté de la prison pour libérer tout le monde.</li>
+            <li>🏃 <b>Runners</b> : ne te fais pas prendre. Touche un prisonnier pour le libérer.</li>
+            <li>🔵 La prison est un <b>cercle</b> : les prisonniers ne peuvent pas en sortir, tous les autres y entrent librement.</li>
             <li>🏆 Les flics gagnent si tous les runners sont en prison. Sinon, les runners gagnent au bout de 2 min.</li>
-            <li>🎒 Passe sur une caisse pour prendre un gadget, <kbd>Espace</kbd> pour l'utiliser.</li>
+            <li>🎒 Passe sur une caisse (elles sont rares) pour prendre un gadget, <kbd>Espace</kbd> pour l'utiliser.</li>
+            <li>💨 Fumigène : <b>clic droit</b> pour viser, <b>clic gauche</b> pour lancer. Clic gauche direct : il tombe à tes pieds.</li>
             <li><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> / flèches : bouger. Les rôles changent à chaque manche.</li>
           </ul>
         </div>
@@ -80,7 +83,7 @@
         <ul id="cv-feed" class="so-feed"></ul>
         <div id="cv-overlay" class="pt-overlay hidden"></div>
       </div>
-      <p class="muted pt-keys">ZQSD = bouger · clic gauche = taser (flics) · Espace / E / clic droit = gadget · Échap = libérer la souris</p>
+      <p class="muted pt-keys">ZQSD = bouger · clic gauche = taser (flics) · Espace / E = gadget · fumigène : clic droit = viser, clic gauche = lancer · Échap = libérer la souris</p>
     </div>`;
 
   // ===================================================================
@@ -187,18 +190,19 @@
     if (e.button === 0) mouse.left = false;
     if (e.button === 2) mouse.right = false;
   }
+  const hasSmoke = () => heroOf(me())?.gadget === "fumi";
   function keyMask() {
     let k = 0;
     for (const code of pressed) k |= KEYMAP[code];
     if (mouse.left) k |= K.FIRE;
-    if (mouse.right) k |= K.DASH;
+    if (mouse.right) k |= hasSmoke() ? AIM : K.DASH;
     return k;
   }
 
   // ===================================================================
   //  PRÉDICTION DE MON BONHOMME
   // ===================================================================
-  const envFor = (h, spd) => ({ walls: true, w: Q.W, h: Q.H, noDash: true, speedMul: spd || 1, rects: [...Q.near(map, h.x, h.y), ...(st.bars || [])] });
+  const envFor = (h, sc) => ({ walls: true, w: Q.W, h: Q.H, noDash: true, speedMul: sc.spd || 1, rects: [...Q.near(map, h.x, h.y), ...(st.bars || [])], circle: sc.jailed && map.prison ? { x: map.prison.cx, y: map.prison.cy, r: Q.JAIL_R } : null });
   const moveBits = (k, lock) => (lock ? 0 : k & (K.UP | K.DOWN | K.LEFT | K.RIGHT));
   function ownView() {
     if (!prevPred) return pred;
@@ -221,7 +225,7 @@
     const oldPred = pred;
     pred = H.copy(sc);
     pred.stun = 0;
-    pending.forEach((p, i) => { H.simulate(pred, moveBits(p.k, sc.lock), p.a, envFor(pred, sc.spd), othersAt((i + 1) * H.TICK, sc)); history.set(p.s, H.copy(pred)); });
+    pending.forEach((p, i) => { H.simulate(pred, moveBits(p.k, sc.lock), p.a, envFor(pred, sc), othersAt((i + 1) * H.TICK, sc)); history.set(p.s, H.copy(pred)); });
     if (prevPred && oldPred) { prevPred.x += pred.x - oldPred.x; prevPred.y += pred.y - oldPred.y; }
     if (before) {
       const after = ownView();
@@ -236,13 +240,14 @@
     acc = Math.min(acc + dt, 0.2);
     while (acc >= H.TICK) {
       const k = keyMask();
-      const a = sc.role === "cop" ? Math.atan2(mouse.oy, mouse.ox) : null;
+      const aiming = k & AIM;
+      const a = sc.role === "cop" || aiming ? Math.atan2(mouse.oy, mouse.ox) : null;
       seq++;
-      api.send("in", { s: seq, k, a });
+      api.send("in", { s: seq, k, a, d: aiming ? Math.hypot(mouse.ox, mouse.oy) : undefined });
       pending.push({ s: seq, k, a });
       if (pending.length > 90) pending.shift();
       prevPred = H.copy(pred);
-      H.simulate(pred, moveBits(k, sc.lock), a, envFor(pred, sc.spd), othersAt(pending.length * H.TICK, sc));
+      H.simulate(pred, moveBits(k, sc.lock), a, envFor(pred, sc), othersAt(pending.length * H.TICK, sc));
       history.set(seq, H.copy(pred));
       acc -= H.TICK;
     }
@@ -253,7 +258,7 @@
   let lastSnapRecv = 0;
   function othersAt(t, mine) {
     t = Math.min(MAX_AHEAD, Math.max(0, t));
-    return st.heroes.filter((h) => h.id !== me() && h.jailed === mine.jailed).map((h) => H.extrapolate(h, t));
+    return st.heroes.filter((h) => h.id !== me()).map((h) => H.extrapolate(h, t));
   }
   const aheadNow = () => pred ? Math.min(MAX_AHEAD, Math.max(0, (pending.length - 1 + acc / H.TICK) * H.TICK))
                               : Math.min(0.1, (performance.now() - lastSnapRecv) / 1000);
@@ -291,7 +296,7 @@
       if (f.kind === "zap") { zaps.push({ ...f, life: 0.18 }); if (f.hit) burst(f.x2, f.y2, 16, ["#ffe14d", "#7fd8ff", "#fff"]); }
       else if (f.kind === "cuff") burst(f.x, f.y, 24, ["#3a8bff", "#fff"]);
       else if (f.kind === "place") { flash = 0.5; burst(f.x, f.y, 40, ["#7fb0ff", "#fff"], 380); }
-      else if (f.kind === "free") { flash = 1; burst(f.x, f.y, 50, ["#3dff7a", "#ffe14d", "#fff"], 420); }
+      else if (f.kind === "free") burst(f.x, f.y, 34, ["#3dff7a", "#ffe14d", "#fff"], 300);
       else if (f.kind === "use") burst(f.x, f.y, 10, ["#fff", "#ffd23f"], 120);
     }
     if (seenFx.size > 500) seenFx.clear();
@@ -314,14 +319,14 @@
     $("cv-start").style.display = host ? "" : "none";
     $("cv-start").disabled = n < 3;
     $("cv-finish-setup").classList.toggle("hidden", !host);
-    const cops = n <= 5 ? 1 : 2;
+    const cops = n <= 4 ? 1 : n <= 6 ? 2 : 3;
     $("cv-hint").textContent = !host ? "En attente que l'hôte lance la partie…" : n < 3 ? "Il faut au moins 3 joueurs (les bots comptent)." : `${cops} flic${cops > 1 ? "s" : ""} contre ${n - cops} runners`;
   }
 
   function renderHud() {
     $("cv-round").textContent = `Manche ${st.round}/${st.settings.rounds}`;
     const mine = heroOf(me());
-    const txt = !mine ? "👀 Tu regardes" : !st.prison && st.warden === me() ? "🔒 Pose la prison : clic ou Espace" : mine.role === "cop" ? (mine.camp >= CAMP_S ? "🚓 Flic · 🐌 Tu campes la prison : tu ralentis !" : "🚓 Tu es FLIC") : mine.jailed ? "🔒 En prison : attends qu'on te libère" : mine.stun > 0 ? "⚡ Sonné !" : "🏃 Tu es RUNNER";
+    const txt = !mine ? "👀 Tu regardes" : !st.prison && st.warden === me() ? "🔒 Pose la prison : clic ou Espace" : mine.role === "cop" ? (mine.camp >= CAMP_S ? "🚓 Flic · 🐌 Tu campes la prison : tu ralentis !" : "🚓 Tu es FLIC") : mine.jailed ? "🔒 En prison : un copain doit te toucher" : mine.stun > 0 ? "⚡ Sonné !" : "🏃 Tu es RUNNER";
     if ($("cv-me").textContent !== txt) $("cv-me").textContent = txt;
     const runners = st.heroes.filter((h) => h.role === "runner"), inJail = runners.filter((h) => h.jailed).length;
     $("cv-jail").textContent = `🔒 ${inJail}/${runners.length} en prison`;
@@ -340,7 +345,7 @@
     if (ov.dataset.key === key) return;
     ov.dataset.key = key;
     const banner = lr.win === "cops" ? "🚓 Les flics gagnent !" : "🏃 Les runners gagnent !";
-    const note = (id) => [lr.role[id] === "cop" ? "🚓" : "🏃", lr.arrests[id] ? `${lr.arrests[id]} arrestation${lr.arrests[id] > 1 ? "s" : ""}` : "", lr.frees[id] ? `${lr.frees[id]} évasion${lr.frees[id] > 1 ? "s" : ""}` : "", lr.jailed[id] ? "en prison" : ""].filter(Boolean).join(" · ");
+    const note = (id) => [lr.role[id] === "cop" ? "🚓" : "🏃", lr.arrests[id] ? `${lr.arrests[id]} arrestation${lr.arrests[id] > 1 ? "s" : ""}` : "", lr.frees[id] ? `${lr.frees[id]} libération${lr.frees[id] > 1 ? "s" : ""}` : "", lr.jailed[id] ? "en prison" : ""].filter(Boolean).join(" · ");
     const rows = lr.order.filter((id) => playerOf(id)).map((id) => `<li>${api.avatar(playerOf(id))}<b>${esc(pseudoOf(id))}</b>
       <span class="muted">${note(id)}</span><span class="gain">+${lr.gains[id] || 0}</span></li>`).join("");
     const total = st.phase === "over" ? `<h3 class="ch-total">🏆 Classement</h3><ol class="s10-rank">${[...st.players].sort((a, b) => b.score - a.score)
@@ -467,9 +472,19 @@
         c.fillStyle = "rgba(40,20,10,0.22)"; c.fillRect(x, y + 15, T, 2); c.fillRect(x + (r % 2 ? 15 : 3), y, 2, 15); c.fillRect(x + (r % 2 ? 3 : 15), y + 16, 2, 16);
         c.fillStyle = "rgba(255,255,255,0.5)"; if (S(q, r - 1) !== 1) c.fillRect(x, y, T, 4);
       } else if (v === 2) {
-        c.fillStyle = "#79c760"; c.fillRect(x, y, T + 0.5, T + 0.5);
-        c.fillStyle = "#b98a4c"; for (let k = 2; k < T; k += 8) c.fillRect(x + k, y + 5, 4, T - 10);
-        c.fillRect(x, y + 9, T, 3); c.fillRect(x, y + T - 12, T, 3);
+        // Une clôture de planches : elle suit son tracé, et se raccorde dans les angles.
+        const L = S(q - 1, r) === 2, Rr = S(q + 1, r) === 2, U = S(q, r - 1) === 2, D = S(q, r + 1) === 2;
+        const horiz = L || Rr || !(U || D), vert = U || D, m = 6, w = T - 2 * m;
+        c.fillStyle = "rgba(10,30,10,0.22)";
+        if (horiz) c.fillRect(L ? x : x + m, y + m + 4, T - (L ? 0 : m) - (Rr ? 0 : m), w);
+        if (vert) c.fillRect(x + m + 3, U ? y : y + m, w, T - (U ? 0 : m) - (D ? 0 : m));
+        c.fillStyle = "#c79a5b";
+        if (horiz) c.fillRect(L ? x : x + m, y + m, T - (L ? 0 : m) - (Rr ? 0 : m), w);
+        if (vert) c.fillRect(x + m, U ? y : y + m, w, T - (U ? 0 : m) - (D ? 0 : m));
+        c.fillStyle = "#8f6636";
+        if (horiz && !vert) for (let k = 0; k < T; k += 8) c.fillRect(x + k, y + m, 2, w);
+        if (vert && !horiz) for (let k = 0; k < T; k += 8) c.fillRect(x + m, y + k, w, 2);
+        c.fillStyle = "#6f4c26"; c.fillRect(x + T / 2 - 6, y + T / 2 - 6, 12, 12);
       } else if (v === 3) {
         if (S(q - 1, r) === 3 || S(q, r - 1) === 3) continue;
         c.fillStyle = "rgba(10,30,10,0.28)"; c.beginPath(); c.arc(x + 42, y + 44, 33, 0, 7); c.fill();
@@ -488,8 +503,9 @@
     // Les lampadaires, sur les trottoirs.
     for (let r = 0; r < R; r += 1) for (let q = 0; q < C; q += 1) {
       if (ground[r * C + q] !== Q.WALK || S(q, r) || hash(q * 7, r * 11) > 0.03) continue;
-      c.fillStyle = "#3c4047"; c.beginPath(); c.arc(q * T + 16, r * T + 16, 4, 0, 7); c.fill();
-      c.strokeStyle = "#3c4047"; c.lineWidth = 3; c.beginPath(); c.moveTo(q * T + 16, r * T + 16); c.lineTo(q * T + 30, r * T + 12); c.stroke();
+      c.fillStyle = "rgba(0,0,0,0.2)"; c.beginPath(); c.arc(q * T + 18, r * T + 19, 7, 0, 7); c.fill();
+      c.fillStyle = "#4a4f58"; c.beginPath(); c.arc(q * T + 16, r * T + 16, 7, 0, 7); c.fill();
+      c.fillStyle = "#ffe9a0"; c.beginPath(); c.arc(q * T + 16, r * T + 16, 3.5, 0, 7); c.fill();
     }
     paintMini();
   }
@@ -497,27 +513,10 @@
     miniImg = document.createElement("canvas"); miniImg.width = 232; miniImg.height = Math.round(232 * Q.H / Q.W);
     miniImg.getContext("2d").drawImage(worldImg, 0, 0, miniImg.width, miniImg.height);
   }
-  // La prison et sa place, ajoutées quand le gardien la pose.
+  // Quand le gardien pose la prison, ce qu'il y avait là est dégagé (le cercle, lui, est dessiné à chaque image).
   function paintPrison() {
-    const T = Q.T, M = Q.MARGIN, P = map.prison, c = worldImg.getContext("2d");
-    const x0 = (P.c - M) * T, y0 = (P.r - M) * T, w = (Q.PW + 2 * M) * T, h = (Q.PH + 2 * M) * T;
-    // La place : de grandes dalles.
-    c.fillStyle = "#e6dcc4"; c.fillRect(x0, y0, w, h);
-    c.strokeStyle = "rgba(120,100,70,0.22)"; c.lineWidth = 1.5;
-    for (let x = x0; x <= x0 + w; x += T * 2) { c.beginPath(); c.moveTo(x, y0); c.lineTo(x, y0 + h); c.stroke(); }
-    for (let y = y0; y <= y0 + h; y += T * 2) { c.beginPath(); c.moveTo(x0, y); c.lineTo(x0 + w, y); c.stroke(); }
-    c.strokeStyle = "#b8ad94"; c.lineWidth = 6; c.strokeRect(x0 + 3, y0 + 3, w - 6, h - 6);
-    // L'ombre, la cour, les murs de béton et les miradors.
-    c.fillStyle = "rgba(10,20,40,0.26)"; c.fillRect(P.x + 14, P.y + 16, P.w, P.h);
-    c.fillStyle = "#c9d2de"; c.fillRect(P.x, P.y, P.w, P.h);
-    c.strokeStyle = "rgba(60,80,110,0.18)"; c.lineWidth = 2;
-    for (let x = P.x + T; x < P.x + P.w; x += T) { c.beginPath(); c.moveTo(x, P.y); c.lineTo(x, P.y + P.h); c.stroke(); }
-    c.fillStyle = "#68768c";
-    c.fillRect(P.x, P.y, P.w, T); c.fillRect(P.x, P.y + P.h - T, P.w, T); c.fillRect(P.x, P.y, T, P.h); c.fillRect(P.x + P.w - T, P.y, T, P.h);
-    c.fillStyle = "#8896ad"; c.fillRect(P.x + 4, P.y + 4, P.w - 8, 8); c.fillRect(P.x + 4, P.y + P.h - T + 4, P.w - 8, 8);
-    c.fillStyle = "#e9eef6"; for (let x = P.x + 6; x < P.x + P.w - 6; x += 14) { c.fillRect(x, P.y + 16, 4, 12); c.fillRect(x, P.y + P.h - 16, 4, 12); }
-    for (const [x, y] of [[P.x, P.y], [P.x + P.w - T, P.y], [P.x, P.y + P.h - T], [P.x + P.w - T, P.y + P.h - T]]) { c.fillStyle = "#3f4c63"; c.fillRect(x - 6, y - 6, T + 12, T + 12); c.fillStyle = "#ffd23f"; c.beginPath(); c.arc(x + T / 2, y + T / 2, 8, 0, 7); c.fill(); }
-    c.font = "900 40px Segoe UI, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "rgba(50,70,110,0.32)"; c.fillText("PRISON", P.cx, P.cy);
+    const T = Q.T, c = worldImg.getContext("2d");
+    for (const [q, r] of map.prison.tiles) { c.fillStyle = (q + r) % 2 ? "#e6dcc4" : "#ded3b9"; c.fillRect(q * T, r * T, T + 0.5, T + 0.5); }
     paintMini();
   }
   // Une voiture garée, vue de dessus.
@@ -574,29 +573,26 @@
     c.setTransform(1, 0, 0, 1, -ox, -oy);
 
     for (const o of map.cars) { const x = o.c * Q.T, y = o.r * Q.T; if (x > ox - 80 && x < ox + W + 80 && y > oy - 80 && y < oy + HGT + 80) drawCar(c, o); }
+    // La prison : un simple cercle, à bordure transparente.
+    if (map.prison) {
+      const P = map.prison;
+      c.fillStyle = "rgba(63,108,196,0.13)"; c.beginPath(); c.arc(P.cx, P.cy, P.rad, 0, 7); c.fill();
+      c.strokeStyle = "rgba(47,111,255,0.42)"; c.lineWidth = 10; c.stroke();
+      c.font = "900 40px Segoe UI, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "rgba(40,70,130,0.22)"; c.fillText("PRISON", P.cx, P.cy);
+    }
     // Le gardien voit où tombera la prison.
     if (!st.prison && st.phase === "play" && st.warden === me() && mine) {
-      const p = Q.prisonSpot(mine.x, mine.y), x = p.c * Q.T, y = p.r * Q.T, m = Q.MARGIN * Q.T, pw = Q.PW * Q.T, ph = Q.PH * Q.T;
-      c.fillStyle = "rgba(47,111,255,0.14)"; c.fillRect(x - m, y - m, pw + 2 * m, ph + 2 * m);
-      c.fillStyle = "rgba(47,111,255,0.3)"; c.fillRect(x, y, pw, ph);
-      c.strokeStyle = "#2f6fff"; c.lineWidth = 5; c.setLineDash([18, 12]); c.strokeRect(x, y, pw, ph); c.setLineDash([]);
-      c.font = "900 32px Segoe UI, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#17357e"; c.fillText("PRISON", x + pw / 2, y + ph / 2);
+      const p = Q.prisonSpot(mine.x, mine.y), x = p.c * Q.T, y = p.r * Q.T;
+      c.fillStyle = "rgba(47,111,255,0.18)"; c.beginPath(); c.arc(x, y, Q.JAIL_R, 0, 7); c.fill();
+      c.strokeStyle = "#2f6fff"; c.lineWidth = 5; c.setLineDash([18, 12]); c.stroke(); c.setLineDash([]);
+      c.font = "900 32px Segoe UI, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#17357e"; c.fillText("PRISON", x, y - 60);
     }
     // La zone où un flic se fatigue.
     if (mine?.role === "cop" && map.prison) {
       c.strokeStyle = mine.camp > 0 ? "rgba(255,120,40,0.8)" : "rgba(63,108,196,0.35)"; c.lineWidth = 4; c.setLineDash([16, 14]);
       c.beginPath(); c.arc(map.prison.cx, map.prison.cy, CAMP_R, 0, 7); c.stroke(); c.setLineDash([]);
     }
-    // Les boutons d'ouverture.
     c.textAlign = "center"; c.textBaseline = "middle";
-    map.buttons.forEach((b, i) => {
-      const ready = st.buttonsReady, p = (st.press || [])[i] || 0;
-      c.fillStyle = "rgba(0,0,0,0.22)"; c.beginPath(); c.arc(b.x + 3, b.y + 5, BUTTON_R - 8, 0, 7); c.fill();
-      c.fillStyle = ready ? "#ff4d5a" : "#9aa3af"; c.beginPath(); c.arc(b.x, b.y, BUTTON_R - 8, 0, 7); c.fill();
-      c.strokeStyle = "#fff"; c.lineWidth = 5; c.stroke();
-      if (p > 0) { c.strokeStyle = "#3dff7a"; c.lineWidth = 9; c.beginPath(); c.arc(b.x, b.y, BUTTON_R, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2); c.stroke(); }
-      c.font = "30px sans-serif"; c.fillStyle = "#fff"; c.fillText("🔓", b.x, b.y + 1);
-    });
     // Les caisses à gadgets.
     for (const b of st.boxes || []) {
       const bob = Math.sin(ts / 300 + b.id) * 2;
@@ -618,6 +614,7 @@
       if (cop) { c.fillStyle = "rgba(47,111,255,0.35)"; c.beginPath(); c.arc(v.x, v.y, 27, 0, 7); c.fill(); c.strokeStyle = "#2f6fff"; c.lineWidth = 3; c.stroke(); }
       window.HeroArt.paint(c, v, col, { id: v.id, isMe: v.id === me(), alpha: v.safe && Math.floor(ts / 90) % 2 ? 0.4 : 1 });
       if (cop) { c.fillStyle = "#17357e"; c.beginPath(); c.arc(v.x, v.y, 9, 0, 7); c.fill(); c.font = "10px sans-serif"; c.fillStyle = "#ffd23f"; c.fillText("★", v.x, v.y + 1); }
+      if (v.jailed) { c.strokeStyle = "#ffd23f"; c.lineWidth = 3; c.setLineDash([5, 5]); c.beginPath(); c.arc(v.x, v.y, 25, 0, 7); c.stroke(); c.setLineDash([]); c.font = "15px sans-serif"; c.fillText("🔒", v.x + 22, v.y - 22); }
       if (v.stun > 0 && !cop) { c.fillStyle = "#ffe14d"; c.font = "bold 16px sans-serif"; for (let q = 0; q < 3; q++) { const a = ts / 170 + q * 2.1; c.fillText("★", v.x + Math.cos(a) * 24, v.y - 4 + Math.sin(a) * 12); } }
       c.font = "bold 13px Segoe UI, sans-serif";
       c.lineWidth = 3; c.strokeStyle = "rgba(255,255,255,0.9)"; c.strokeText(pseudoOf(v.id), v.x, v.y - 30);
@@ -626,6 +623,12 @@
     }
     // Les fumigènes (au-dessus des bonshommes : on ne voit plus rien dedans).
     for (const m of st.smokes || []) {
+      // En vol : la grenade décrit une petite courbe.
+      if (m.fly > 0) {
+        const f = 1 - m.fly / 350, x = m.fx + (m.x - m.fx) * f, y = m.fy + (m.y - m.fy) * f - Math.sin(f * Math.PI) * 50;
+        c.fillStyle = "#3d4450"; c.beginPath(); c.arc(x, y, 8, 0, 7); c.fill(); c.strokeStyle = "#fff"; c.lineWidth = 2; c.stroke();
+        continue;
+      }
       for (let i = 0; i < 9; i++) {
         const a = i * 0.7 + ts / 1400, r = i ? 70 : 0;
         c.fillStyle = "rgba(235,238,245,0.72)"; c.beginPath(); c.arc(m.x + Math.cos(a) * r, m.y + Math.sin(a) * r, 62, 0, 7); c.fill();
@@ -641,6 +644,15 @@
     particles = particles.filter((p) => (p.life -= dt) > 0);
     for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.92; p.vy *= 0.92; c.globalAlpha = Math.max(0, p.life / p.max); c.fillStyle = p.col; c.fillRect(p.x - 3, p.y - 3, 6, 6); }
     c.globalAlpha = 1;
+    // Je vise avec un fumigène : le point d'arrivée et la taille du nuage.
+    if (mine?.gadget === "fumi" && mouse.right && st.phase === "play") {
+      const a = Math.atan2(mouse.oy, mouse.ox), d = Q.ray(map, mine.x, mine.y, a, Math.min(AIM_MAX, Math.hypot(mouse.ox, mouse.oy)));
+      const tx = mine.x + Math.cos(a) * d, ty = mine.y + Math.sin(a) * d;
+      c.setLineDash([8, 8]); c.strokeStyle = "rgba(255,255,255,0.95)"; c.lineWidth = 3;
+      c.beginPath(); c.moveTo(mine.x, mine.y); c.quadraticCurveTo((mine.x + tx) / 2, (mine.y + ty) / 2 - 50, tx, ty); c.stroke(); c.setLineDash([]);
+      c.fillStyle = "rgba(235,238,245,0.3)"; c.beginPath(); c.arc(tx, ty, SMOKE_R, 0, 7); c.fill();
+      c.strokeStyle = "rgba(30,40,60,0.8)"; c.lineWidth = 3; c.stroke();
+    }
     // Mon viseur de flic.
     if (mine?.role === "cop" && st.hunting) {
       const a = Math.atan2(mouse.oy, mouse.ox), d = Math.hypot(mouse.ox, mouse.oy), reach = Q.ray(map, mine.x, mine.y, a, RANGE);
@@ -675,26 +687,28 @@
       c.font = "bold 24px Segoe UI, sans-serif"; c.fillStyle = "#ffd23f";
       c.fillText(`${mine?.role === "cop" ? "🚓 Tu pars" : "🏃 Cours ! Les flics partent"} dans ${Math.ceil(st.copWait / 1000)} s`, W / 2, 100);
     }
-    // La mini-carte : la prison, les boutons, moi et mes coéquipiers. Les barres sont dessous, hors de la vue.
-    const mw = miniImg.width, mh = miniImg.height, mx = W - mw - 14, bars = mine && mine.role === "cop" ? 68 : 36, my = HGT - mh - bars - 14;
+    // La mini-carte (runners seulement) : la prison, moi et mes coéquipiers. Les barres sont dessous, hors de la vue.
+    const noMap = mine?.role === "cop";
+    const mw = miniImg.width, mh = noMap ? 0 : miniImg.height, mx = W - mw - 14, bars = noMap ? 68 : 36, my = HGT - mh - bars - 14;
     panel(c, mx - 6, my - 6, mw + 12, mh + bars + 12);
-    c.drawImage(miniImg, mx, my);
-    const P = (p) => [mx + p.x * mw / Q.W, my + p.y * mh / Q.H];
-    if (map.prison) { const [x, y] = P(map.prison); c.fillStyle = "rgba(63,108,196,0.75)"; c.fillRect(x, y, map.prison.w * mw / Q.W, map.prison.h * mh / Q.H); }
-    for (const b of map.buttons) { const [x, y] = P(b); c.fillStyle = st.buttonsReady ? "#ff4d5a" : "#9aa3af"; c.beginPath(); c.arc(x, y, 5, 0, 7); c.fill(); c.strokeStyle = "#fff"; c.lineWidth = 1.5; c.stroke(); }
-    for (const h of st.heroes) {
-      if (mine && h.role !== mine.role && h.id !== me()) continue;
-      const [x, y] = P(h.id === me() && mine ? mine : h);
-      c.fillStyle = colorOf(h.id); c.strokeStyle = h.id === me() ? "#fff" : "#000"; c.lineWidth = h.id === me() ? 2.5 : 1;
-      c.beginPath(); c.arc(x, y, h.id === me() ? 6 : 4.5, 0, 7); c.fill(); c.stroke();
+    if (!noMap) {
+      c.drawImage(miniImg, mx, my);
+      const P = (p) => [mx + p.x * mw / Q.W, my + p.y * mh / Q.H];
+      if (map.prison) { const [x, y] = P({ x: map.prison.cx, y: map.prison.cy }); c.fillStyle = "rgba(47,111,255,0.55)"; c.strokeStyle = "#fff"; c.lineWidth = 2; c.beginPath(); c.arc(x, y, Math.max(7, map.prison.rad * mw / Q.W), 0, 7); c.fill(); c.stroke(); }
+      for (const h of st.heroes) {
+        if (mine && h.role !== mine.role && h.id !== me()) continue;
+        const [x, y] = P(h.id === me() && mine ? mine : h);
+        c.fillStyle = colorOf(h.id); c.strokeStyle = h.id === me() ? "#fff" : "#000"; c.lineWidth = h.id === me() ? 2.5 : 1;
+        c.beginPath(); c.arc(x, y, h.id === me() ? 6 : 4.5, 0, 7); c.fill(); c.stroke();
+      }
     }
     if (mine) {
-      let by = my + mh + 8;
+      let by = my + (noMap ? 0 : mh + 8);
       if (mine.role === "cop") {
         window.VehicleArt.bar(c, mx, by, mw, 28, 1 - mine.taser / mine.taserCd, "⚡ TASER", "cd", false, mine.taser > 0 ? (mine.taser / 1000).toFixed(1) + " s" : "PRÊT !");
         by += 32;
       }
-      window.VehicleArt.bar(c, mx, by, mw, 28, mine.gadget ? 1 : 0, mine.gadget ? NAMES[mine.gadget] : "🎒 Aucun gadget", "nitro", false, mine.gadget ? "Espace" : "");
+      window.VehicleArt.bar(c, mx, by, mw, 28, mine.gadget ? 1 : 0, mine.gadget ? NAMES[mine.gadget] : "🎒 Aucun gadget", "nitro", false, mine.gadget === "fumi" ? "Clic droit" : mine.gadget ? "Espace" : "");
     }
     // Compte à rebours : le rôle, en gros.
     if (st.phase === "countdown") {
@@ -703,7 +717,7 @@
       c.font = "900 70px Segoe UI, sans-serif"; c.fillStyle = mine?.role === "cop" ? "#7fb0ff" : "#ffd23f";
       c.fillText(!mine ? "Tu regardes" : mine.role === "cop" ? "🚓 TU ES FLIC" : "🏃 TU ES RUNNER", W / 2, HGT / 2 - 48);
       c.font = "26px Segoe UI, sans-serif"; c.fillStyle = "#fff";
-      c.fillText(st.warden === me() ? "D'abord, pose la prison où tu veux" : mine?.role === "cop" ? "Tire au taser, puis touche le runner sonné" : "Ne te fais pas prendre, libère les autres avec les boutons rouges", W / 2, HGT / 2 + 14);
+      c.fillText(st.warden === me() ? "D'abord, pose la prison où tu veux" : mine?.role === "cop" ? "Tire au taser, puis touche le runner sonné" : "Ne te fais pas prendre, touche les prisonniers pour les libérer", W / 2, HGT / 2 + 14);
       c.font = "900 44px Segoe UI, sans-serif"; c.fillText(String(n), W / 2, HGT / 2 + 66);
     }
     if (mine?.role === "cop" && st.phase === "play" && document.pointerLockElement !== canvas) {

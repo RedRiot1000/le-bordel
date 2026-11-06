@@ -3,7 +3,7 @@
 //  Un quartier tiré d'une seed : le serveur et le navigateur construisent
 //  EXACTEMENT le même. Rues, ruelles, immeubles, maisons à traverser,
 //  cours clôturées, parcs, voitures garées. La prison n'y est pas : c'est un
-//  gardien qui la pose où il veut (Q.prisonAt dégage une place à cet endroit).
+//  gardien qui la pose où il veut (Q.prisonAt dégage le cercle à cet endroit).
 //  Tout est rangé dans une grille de cases de 32 px.
 //    globalThis.Quartier
 // ===================================================================
@@ -13,8 +13,7 @@
   Q.T = 32;                 // taille d'une case
   Q.COLS = 104; Q.ROWS = 70;
   Q.W = Q.T * Q.COLS; Q.H = Q.T * Q.ROWS;
-  Q.PW = 12; Q.PH = 8;      // la prison, en cases
-  Q.MARGIN = 4;             // la place dégagée autour
+  Q.JAIL_R = 210;           // le rayon de la prison (un simple cercle)
   const CELL = 128;         // case de la grille de recherche des murs
 
   // Ce qui bloque (t.cells) : 1 mur, 2 clôture (on tire à travers), 3 arbre, 4 cabane, 5 mur de prison, 6 toit, 7 voiture, 8 poubelle.
@@ -107,7 +106,7 @@
     // Quelques poubelles au bord des trottoirs.
     for (let r = 1; r < R - 1; r++) for (let c = 1; c < C - 1; c++) if (ground[at(c, r)] === Q.WALK && !cells[at(c, r)] && rnd() < 0.012) cells[at(c, r)] = 8;
 
-    const t = { seed, cells, ground, xs, ys, cars, prison: null, buttons: [], jailSpots: [], freeSpots: [], flows: new Map() };
+    const t = { seed, cells, ground, xs, ys, cars, prison: null, jailSpots: [], freeSpots: [], flows: new Map() };
     finish(t);
     const T = Q.T, cx = Q.W / 2, cy = Q.H / 2;
     // Les départs des runners (loin de la prison) et les emplacements des gadgets (carrefours, cours, parcs, maisons).
@@ -168,31 +167,28 @@
     t.flows.clear();
   }
 
-  // Où tombe la prison si le gardien la pose ici ? (coin haut-gauche, en cases ; elle reste dans le quartier)
+  // Où tombe la prison si le gardien la pose ici ? (le centre, en cases : le cercle reste dans le quartier)
   Q.prisonSpot = function (x, y) {
-    const m = Q.MARGIN + 2;
-    return { c: Math.max(m, Math.min(Q.COLS - Q.PW - m, Math.round(x / Q.T - Q.PW / 2))), r: Math.max(m, Math.min(Q.ROWS - Q.PH - m, Math.round(y / Q.T - Q.PH / 2))) };
+    const m = Math.ceil(Q.JAIL_R / Q.T) + 3;
+    return { c: Math.max(m, Math.min(Q.COLS - m, Math.round(x / Q.T))), r: Math.max(m, Math.min(Q.ROWS - m, Math.round(y / Q.T))) };
   };
-  // Le gardien pose la prison : on dégage une place, on construit, on place les 2 boutons.
+  // Le gardien pose la prison : un cercle sans murs. Ce qui s'y trouve est dégagé.
   Q.prisonAt = function (t, c0, r0) {
-    const C = Q.COLS, T = Q.T, M = Q.MARGIN, { cells, ground } = t;
-    const put = (a, x0, y0, x1, y1, v) => { for (let r = y0; r < y1; r++) for (let c = x0; c < x1; c++) a[r * C + c] = v; };
-    // Une voiture touchée par la place disparaît en entier.
+    const C = Q.COLS, R = Q.ROWS, T = Q.T, { cells, ground } = t;
+    const cx = c0 * T, cy = r0 * T, reach = Q.JAIL_R + 44;
+    const inDisc = (c, r) => Math.hypot(c * T + 16 - cx, r * T + 16 - cy) <= reach;
+    // Une voiture touchée disparaît en entier.
     t.cars = t.cars.filter((o) => {
-      const hit = o.c + o.w > c0 - M && o.c < c0 + Q.PW + M && o.r + o.h > r0 - M && o.r < r0 + Q.PH + M;
-      if (hit) put(cells, o.c, o.r, o.c + o.w, o.r + o.h, 0);
+      let hit = false;
+      for (let r = o.r; r < o.r + o.h; r++) for (let c = o.c; c < o.c + o.w; c++) if (inDisc(c, r)) hit = true;
+      if (hit) for (let r = o.r; r < o.r + o.h; r++) for (let c = o.c; c < o.c + o.w; c++) cells[r * C + c] = 0;
       return !hit;
     });
-    put(cells, c0 - M, r0 - M, c0 + Q.PW + M, r0 + Q.PH + M, 0);
-    put(ground, c0 - M, r0 - M, c0 + Q.PW + M, r0 + Q.PH + M, Q.PLAZA);
-    put(cells, c0, r0, c0 + Q.PW, r0 + Q.PH, 5);
-    put(cells, c0 + 1, r0 + 1, c0 + Q.PW - 1, r0 + Q.PH - 1, 0);
-    put(ground, c0, r0, c0 + Q.PW, r0 + Q.PH, Q.JAIL);
-    const cx = (c0 + Q.PW / 2) * T, cy = (r0 + Q.PH / 2) * T;
-    t.prison = { c: c0, r: r0, x: c0 * T, y: r0 * T, w: Q.PW * T, h: Q.PH * T, cx, cy };
-    t.buttons = [{ id: 0, x: (c0 - 2) * T, y: cy }, { id: 1, x: (c0 + Q.PW + 2) * T, y: cy }];
-    t.jailSpots = []; for (let i = 0; i < 8; i++) t.jailSpots.push({ x: (c0 + 2.5 + (i % 4) * 2.3) * T, y: (r0 + 2.5 + Math.floor(i / 4) * 3) * T });
-    t.freeSpots = []; for (let i = 0; i < 8; i++) t.freeSpots.push({ x: (c0 + 1.5 + (i % 4) * 3) * T, y: i < 4 ? (r0 - 2) * T : (r0 + Q.PH + 2) * T });
+    const tiles = [];
+    for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) if (inDisc(c, r)) { cells[r * C + c] = 0; ground[r * C + c] = Q.PLAZA; tiles.push([c, r]); }
+    t.prison = { c: c0, r: r0, cx, cy, rad: Q.JAIL_R, tiles };
+    t.jailSpots = []; for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; t.jailSpots.push({ x: cx + Math.cos(a) * 90, y: cy + Math.sin(a) * 90 }); }
+    t.freeSpots = []; for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; t.freeSpots.push({ x: cx + Math.cos(a) * (Q.JAIL_R - 30), y: cy + Math.sin(a) * (Q.JAIL_R - 30) }); }
     finish(t);
   };
 

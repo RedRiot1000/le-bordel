@@ -3,7 +3,8 @@
 //  Flics contre runners, à pied, dans un quartier tiré au hasard.
 //  Un gardien pose la prison où il veut au début de la manche.
 //  Le flic tire au taser (le runner est sonné) puis le touche : en prison.
-//  Un runner libre reste 2 s sur un bouton : tout le monde est libéré.
+//  La prison est un simple cercle : un prisonnier ne peut pas en sortir,
+//  les autres y entrent comme ils veulent. Un runner libre touche un prisonnier : il est libre.
 //  Les flics gagnent si tous les runners sont en prison, les runners s'ils
 //  tiennent jusqu'à la fin du chrono. Les rôles tournent à chaque manche.
 //  Le SERVEUR fait foi (30 calculs/s, même moteur que le navigateur).
@@ -23,7 +24,7 @@ export const meta = {
   family: "Action",
   minPlayers: 3,
   maxPlayers: 8,
-  description: "Flics contre runners : mets-les en prison, ou libère tes potes !",
+  description: "Flics contre runners : mets-les en prison, ou touche tes potes pour les libérer !",
 };
 
 const TICK_MS = 1000 / 30;
@@ -36,20 +37,22 @@ export const RECOIL_MS = 400;          // le flic ne bouge plus juste après un 
 export const RAPID_CD = 1500;          // recharge avec le gadget
 export const STUN_MS = 1500;           // runner sonné
 export const CUFF_R = 42;              // distance pour menotter
-export const SAFE_MS = 2000;           // protégé juste après une évasion
-export const BUTTON_R = 50, BUTTON_S = 2;
+export const SAFE_MS = 1500;           // protégé juste après une évasion
+export const FREE_R = 40;               // distance pour libérer un prisonnier (on se touche)
 export const SPEED = 1.8;              // tout le monde court bien plus vite que dans les autres jeux
 export const SPRINT = 1.4, SPRINT_MS = 3000;
-export const CAMP_R = 420, CAMP_S = 5, CAMP_SLOW = 0.55;   // un flic qui reste près de la prison ralentit
-const BUTTON_CD = 5000;                // après une évasion : les boutons se rechargent
+export const CAMP_R = 340, CAMP_S = 8, CAMP_SLOW = 0.65;   // un flic qui reste près de la prison ralentit
+export const AIM = 64;                 // touche « viser » (clic droit, pour lancer un fumigène)
+export const THROW_MAX = 320;          // portée d'un lancer
+const FLY_MS = 350;                    // temps de vol
 const SMOKE_MS = 5000, SMOKE_R = 120;
 const BANANA_MS = 30000, SLIP_MS = 1000;
 const BAR_MS = 8000, BAR_LEN = 128, BAR_W = 26;
 const RAPID_MS = 10000;
-const BOXES = 24, BOX_BACK = 10000;
+const BOXES = 9, BOX_BACK = 20000;
 const COUNTDOWN_MS = 3000, END_DELAY = 1800, ROUND_OVER_MS = 7000, FINISH_DELAY = 15000;
 export const GADGETS = { runner: ["sprint", "fumi", "banane"], cop: ["sprint", "barrage", "rapide"] };
-export const copCount = (n) => (n <= 5 ? 1 : 2);
+export const copCount = (n) => (n <= 4 ? 1 : n <= 6 ? 2 : 3);
 
 function defaultSettings() { return { rounds: 4 }; }
 
@@ -86,7 +89,6 @@ export function createGame(ctx) {
     seed: 0, map: null, warden: null, prison: null,
     heroes: {},           // id -> { h, role, jailed, stunUntil, safeUntil, taserAt, rapidUntil, sprintUntil, gadget, camp, gains… }
     boxes: [], bananas: [], smokes: [], bars: [], itemId: 0,
-    press: [0, 0], btnReadyAt: 0,
     playAt: 0, endAt: 0, phaseEnd: 0, win: null,
     lastRound: null, loop: null, lastTickAt: 0,
     fx: [], fxId: 0, feed: [],
@@ -106,7 +108,7 @@ export function createGame(ctx) {
   // Le taser ne marche qu'une fois la prison posée et les 5 s passées.
   const huntOn = (t) => !!g.prison && t >= g.playAt + HEAD_START;
   const speedOf = (s, t) => SPEED * (t < s.sprintUntil ? SPRINT : 1) * (s.role === "cop" && s.camp >= CAMP_S ? CAMP_SLOW : 1);
-  const envOf = (s, t) => ({ walls: true, w: Q.W, h: Q.H, noDash: true, speedMul: speedOf(s, t), rects: [...Q.near(g.map, s.h.x, s.h.y), ...g.bars] });
+  const envOf = (s, t) => ({ walls: true, w: Q.W, h: Q.H, noDash: true, speedMul: speedOf(s, t), rects: [...Q.near(g.map, s.h.x, s.h.y), ...g.bars], circle: s.jailed ? { x: g.map.prison.cx, y: g.map.prison.cy, r: Q.JAIL_R } : null });
 
   // =================================================================
   //  ÉTAT PUBLIC (30 fois/s)
@@ -125,10 +127,8 @@ export function createGame(ctx) {
       })),
       boxes: g.boxes.filter((b) => t >= b.backAt).map((b) => ({ id: b.id, x: b.x, y: b.y })),
       bananas: g.bananas.map((b) => ({ id: b.id, x: b.x, y: b.y })),
-      smokes: g.smokes.map((b) => ({ id: b.id, x: b.x, y: b.y, left: b.until - t })),
+      smokes: g.smokes.map((b) => ({ id: b.id, x: b.x, y: b.y, fx: b.fx, fy: b.fy, fly: Math.max(0, b.landAt - t) })),
       bars: g.bars.map((b) => ({ id: b.id, x: b.x, y: b.y, w: b.w, h: b.h })),
-      press: g.press.map((v) => Math.min(1, v / BUTTON_S)),
-      buttonsReady: t >= g.btnReadyAt,
       timeLeft: g.phase === "play" ? Math.max(0, ROUND_MS - (t - g.playAt)) : ROUND_MS,
       copWait: g.phase === "play" ? Math.max(0, g.playAt + HEAD_START - t) : HEAD_START,
       hunting: huntOn(t),
@@ -182,7 +182,6 @@ export function createGame(ctx) {
     }
     g.boxes = shuffle(g.map.boxSpots).slice(0, BOXES).map((b, i) => ({ id: i + 1, x: b.x, y: b.y, backAt: 0 }));
     g.bananas = []; g.smokes = []; g.bars = []; g.itemId = 100;
-    g.press = [0, 0]; g.btnReadyAt = 0;
     g.endAt = 0; g.win = null; g.feed = []; g.fx = []; g.lastRound = null;
     g.phase = "countdown";
     g.phaseEnd = now() + COUNTDOWN_MS;
@@ -201,7 +200,7 @@ export function createGame(ctx) {
     stopLoop();
     const gains = {};
     for (const [id, s] of Object.entries(g.heroes)) {
-      let n = s.arrests * 2 + s.frees * 3;
+      let n = s.arrests * 2 + s.frees * 2;
       if (s.role === "runner" && !s.jailed) n += 3;
       if ((g.win === "cops") === (s.role === "cop")) n += 2;
       gains[id] = n;
@@ -246,12 +245,14 @@ export function createGame(ctx) {
     for (let sub = 0; sub < H.SUB; sub++) {
       H.drive(s.h, move, aim, dt, env);
       H.collideWalls(s.h, env);
-      for (const [oid, o] of Object.entries(g.heroes)) if (oid !== id && o.jailed === s.jailed) H.collideHeroes(s.h, o.h);
+      for (const [oid, o] of Object.entries(g.heroes)) if (oid !== id) H.collideHeroes(s.h, o.h);
     }
     if (g.phase === "play" && !g.prison && s.warden && k & (K.FIRE | K.DASH) && !(s.prevK & (K.FIRE | K.DASH))) { placePrison(id, s); s.prevK = k; return; }
     if (g.phase === "play" && !locked(s, t) && !s.jailed) {
       if (s.role === "cop" && huntOn(t) && k & K.FIRE && !(s.prevK & K.FIRE)) shoot(id, s, aim ?? s.h.face, t);
-      if (k & K.DASH && !(s.prevK & K.DASH)) useGadget(id, s, t);
+      // Le fumigène : clic gauche. Si on vise (clic droit maintenu), il part là où on vise ; sinon il tombe à nos pieds.
+      if (s.gadget === "fumi" && k & K.FIRE && !(s.prevK & K.FIRE)) useGadget(id, s, t, k & AIM ? { a: aim ?? s.h.face, d: s.aimD ?? THROW_MAX } : null);
+      else if (k & K.DASH && !(s.prevK & K.DASH)) useGadget(id, s, t);
     }
     s.prevK = k;
   }
@@ -262,14 +263,8 @@ export function createGame(ctx) {
     Q.prisonAt(g.map, c, r);
     g.prison = { c, r };
     const P = g.map.prison;
-    for (const o of Object.values(g.heroes)) {
-      if (o.h.x < P.x - 24 || o.h.x > P.x + P.w + 24 || o.h.y < P.y - 24 || o.h.y > P.y + P.h + 24) continue;
-      const sp = g.map.freeSpots.slice().sort((a, b) => dist(a, o.h) - dist(b, o.h))[0];
-      o.h.x = sp.x; o.h.y = sp.y; o.h.vx = 0; o.h.vy = 0;
-    }
-    // Les caisses recouvertes sont déplacées ailleurs.
-    const M = Q.MARGIN * Q.T;
-    g.boxes = g.boxes.filter((b) => b.x < P.x - M || b.x > P.x + P.w + M || b.y < P.y - M || b.y > P.y + P.h + M);
+    // Les caisses recouvertes disparaissent.
+    g.boxes = g.boxes.filter((b) => dist(b, { x: P.cx, y: P.cy }) > Q.JAIL_R + 50);
     addFx({ kind: "place", x: Math.round(P.cx), y: Math.round(P.cy) });
     say(`🔒 ${pseudo(id)} a posé la prison !`);
   }
@@ -282,7 +277,7 @@ export function createGame(ctx) {
     const { x, y } = s.h, dx = Math.cos(a), dy = Math.sin(a);
     let reach = Q.ray(g.map, x, y, a, RANGE);
     for (const b of g.bars) if (segHitsRect(x, y, x + dx * reach, y + dy * reach, b)) { for (let d = 8; d < reach; d += 8) if (x + dx * d > b.x && x + dx * d < b.x + b.w && y + dy * d > b.y && y + dy * d < b.y + b.h) { reach = d; break; } }
-    for (const m of g.smokes) { const along = (m.x - x) * dx + (m.y - y) * dy, off = Math.abs((m.x - x) * dy - (m.y - y) * dx); if (along > 0 && off < SMOKE_R) reach = Math.min(reach, Math.max(10, along - Math.sqrt(SMOKE_R * SMOKE_R - off * off))); }
+    for (const m of g.smokes) { if (t < m.landAt) continue; const along = (m.x - x) * dx + (m.y - y) * dy, off = Math.abs((m.x - x) * dy - (m.y - y) * dx); if (along > 0 && off < SMOKE_R) reach = Math.min(reach, Math.max(10, along - Math.sqrt(SMOKE_R * SMOKE_R - off * off))); }
     let hit = null, best = reach;
     for (const [oid, o] of freeRunners()) {
       if (t < o.safeUntil) continue;
@@ -297,13 +292,18 @@ export function createGame(ctx) {
     say(`⚡ ${pseudo(id)} a tasé ${pseudo(hit)} !`);
   }
 
-  function useGadget(id, s, t) {
+  function useGadget(id, s, t, target = null) {
     const gd = s.gadget;
     if (!gd) return;
     s.gadget = null;
     const { x, y, face } = s.h;
     if (gd === "sprint") s.sprintUntil = t + SPRINT_MS;
-    else if (gd === "fumi") g.smokes.push({ id: ++g.itemId, x: Math.round(x), y: Math.round(y), until: t + SMOKE_MS });
+    else if (gd === "fumi") {
+      // Il s'arrête au premier mur sur son chemin.
+      const d = target ? Q.ray(g.map, x, y, target.a, Math.min(THROW_MAX, target.d)) : 0;
+      const tx = x + Math.cos(target?.a ?? 0) * d, ty = y + Math.sin(target?.a ?? 0) * d;
+      g.smokes.push({ id: ++g.itemId, x: Math.round(tx), y: Math.round(ty), fx: Math.round(x), fy: Math.round(y), landAt: t + (target ? FLY_MS : 0), until: t + SMOKE_MS + (target ? FLY_MS : 0) });
+    }
     else if (gd === "banane") g.bananas.push({ id: ++g.itemId, x: Math.round(x), y: Math.round(y), until: t + BANANA_MS });
     else if (gd === "rapide") { s.rapidUntil = t + RAPID_MS; s.taserAt = Math.min(s.taserAt, t); }
     else if (gd === "barrage") {
@@ -327,20 +327,13 @@ export function createGame(ctx) {
     if (!freeRunners().length) finishRound("cops");
   }
 
-  function release(id, s, t) {
-    let i = 0;
-    const spots = shuffle(g.map.freeSpots);
-    for (const [, o] of all("runner")) {
-      if (!o.jailed) continue;
-      const sp = spots[i++ % spots.length];
-      o.jailed = false; o.safeUntil = t + SAFE_MS;
-      o.h.x = sp.x; o.h.y = sp.y; o.h.vx = 0; o.h.vy = 0;
-    }
+  // Un runner libre touche un prisonnier : il est libre, et protégé un court instant.
+  function freeOne(id, s, rid, r, t) {
+    r.jailed = false;
+    r.safeUntil = t + SAFE_MS;
     s.frees++;
-    g.btnReadyAt = t + BUTTON_CD;
-    g.press = [0, 0];
-    addFx({ kind: "free", x: Math.round(g.map.prison.cx), y: Math.round(g.map.prison.cy) });
-    say(`🔓 ${pseudo(id)} a ouvert la prison !`);
+    addFx({ kind: "free", x: Math.round(r.h.x), y: Math.round(r.h.y) });
+    say(`🔓 ${pseudo(id)} a libéré ${pseudo(rid)} !`);
   }
 
   // Ce qui se passe tout seul à chaque calcul.
@@ -370,16 +363,15 @@ export function createGame(ctx) {
         if (!locked(s, t)) for (const [rid, r] of freeRunners()) if (t < r.stunUntil && dist(r.h, s.h) < CUFF_R) arrest(id, s, rid, r);
       }
     }
-    // Les boutons d'ouverture.
-    if (jailedCount() > 0 && t >= g.btnReadyAt) {
-      g.map.buttons.forEach((b, i) => {
-        const who = freeRunners().find(([, s]) => t >= s.stunUntil && dist(b, s.h) < BUTTON_R);
-        if (!who) { g.press[i] = Math.max(0, g.press[i] - dt * 2); return; }
-        g.press[i] += dt;
-        if (g.press[i] >= BUTTON_S) release(who[0], who[1], t);
-      });
-    } else g.press = [0, 0];
+    // Toucher un prisonnier le libère.
+    const prisoners = all("runner").filter(([, s]) => s.jailed);
+    for (const [id, s] of freeRunners()) {
+      if (t < s.stunUntil) continue;
+      for (const [rid, r] of prisoners) if (r.jailed && dist(r.h, s.h) < FREE_R) freeOne(id, s, rid, r, t);
+    }
   }
+
+  g.__world = world;      // (pour les tests)
 
   // =================================================================
   //  BOTS
@@ -414,7 +406,7 @@ export function createGame(ctx) {
     if (!free.length) {
       // Personne en vue : il va voir là où il l'a perdu, surveille un bouton, ou fait sa ronde.
       if (ai.lastSeen && t - ai.lastAt < 2500) return { k: go(s, ai.lastSeen, t), aim: null };
-      if (!ai.goal || dist(ai.goal, h) < 70 || t >= (ai.goalAt || 0)) { ai.goal = jailedCount() && Math.random() < 0.4 ? pick(g.map.freeSpots) : pick(g.map.runSpots); ai.goalAt = t + 8000; }
+      if (!ai.goal || dist(ai.goal, h) < 70 || t >= (ai.goalAt || 0)) { ai.goal = jailedCount() && Math.random() < 0.75 ? pick(g.map.freeSpots) : pick(g.map.runSpots); ai.goalAt = t + 8000; }
       const b0 = !s.gadget ? nearBox(s, t, 300) : null;
       return { k: go(s, b0 || ai.goal, t), aim: null };
     }
@@ -438,17 +430,26 @@ export function createGame(ctx) {
   }
 
   function runnerBot(s, t) {
-    if (s.jailed || t < s.stunUntil) return { k: 0, aim: null };
+    if (t < s.stunUntil) return { k: 0, aim: null };
     const h = s.h, ai = s.ai;
+    // Un prisonnier va vers le bord du cercle, du côté d'un copain libre.
+    if (s.jailed) {
+      const f = freeRunners().map(([, o]) => o).sort((a, b) => dist(a.h, h) - dist(b.h, h))[0];
+      return { k: f ? keyTo(h, f.h) : 0, aim: null };
+    }
     const cops = all("cop").map(([, o]) => o);
     const close = cops.slice().sort((a, b) => dist(a.h, h) - dist(b.h, h))[0];
     const dc = close ? dist(close.h, h) : 9999;
     const threat = dc < 460 && close && Q.sees(g.map, h, close.h);
     let k = 0;
-    // Libérer les autres, si un bouton n'est pas gardé.
-    if (g.prison && (ai.brave || jailedCount() >= freeRunners().length) && jailedCount() > 0 && t >= g.btnReadyAt) {
-      const b = g.map.buttons.filter((o) => cops.every((c) => dist(c.h, o) > 230)).sort((a, c) => dist(a, h) - dist(c, h))[0];
-      if (b) { if (dist(b, h) < 34) return { k: 0, aim: null }; if (!threat || dist(b, h) < 240) return { k: go(s, b, t), aim: null }; }
+    // Libérer les autres, si aucun flic ne garde la prison.
+    if (g.prison && (ai.brave || jailedCount() >= freeRunners().length) && jailedCount() > 0) {
+      const P = { x: g.map.prison.cx, y: g.map.prison.cy };
+      const guarded = cops.some((c) => dist(c.h, P) < Q.JAIL_R + 120);
+      if (!guarded || dist(P, h) < Q.JAIL_R) {
+        const r = all("runner").map(([, o]) => o).filter((o) => o.jailed).sort((a, b) => dist(a.h, h) - dist(b.h, h))[0];
+        if (r && (!threat || dist(r.h, h) < 260)) return { k: go(s, r.h, t), aim: null };
+      }
     }
     if (threat) {
       // Il fuit vers l'endroit le plus loin du flic.
@@ -525,19 +526,20 @@ export function createGame(ctx) {
       ctx.update();
     },
     // Touches + visée : { s, k, a (angle) }
-    in(pid, { s, k, a }) {
+    in(pid, { s, k, a, d }) {
       const st = g.heroes[pid];
       if (!st || st.bot || typeof s !== "number" || s <= st.seq) return;
       const t = now();
       st.seq = s;
       st.lastInputAt = t;
       st.aim = typeof a === "number" && isFinite(a) ? a : null;
+      st.aimD = typeof d === "number" && isFinite(d) ? Math.max(0, Math.min(THROW_MAX, d)) : null;
       if (g.phase !== "play") return;
       st.budget = Math.min(6, (st.budget ?? 6) + (t - (st.budgetAt || t)) * 0.036);
       st.budgetAt = t;
       if (st.budget < 1) return;
       st.budget -= 1;
-      act(pid, k & 63, st.aim);
+      act(pid, k & 127, st.aim);
     },
     setup(pid) {
       if (!ctx.isHost(pid) || g.phase !== "over" || ctx.playlist) return;

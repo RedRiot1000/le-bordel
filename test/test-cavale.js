@@ -3,7 +3,7 @@
 import { io } from "socket.io-client";
 import "../public/games/pieton/engine.js";
 import "../public/games/cavale/quartier.js";
-import { copCount, RANGE, ROUND_MS } from "../games/cavale/server.js";
+import { copCount, RANGE, ROUND_MS, FREE_R, AIM, THROW_MAX, createGame } from "../games/cavale/server.js";
 
 const Q = globalThis.Quartier, H = globalThis.Pieton, K = H.K;
 const URL = process.env.URL || "http://localhost:3000";
@@ -26,30 +26,81 @@ console.log("— Quartier —");
     const on = (p) => t.walk[Math.floor(p.y / Q.T) * Q.COLS + Math.floor(p.x / Q.T)];
     const p = Q.prisonSpot((s * 523) % Q.W, (s * 311) % Q.H);
     Q.prisonAt(t, p.c, p.r);
-    if (![...t.buttons, ...t.freeSpots, ...t.runSpots.slice(0, 20).filter(on)].every(on)) ok = false;
+    if (!t.freeSpots.every(on)) ok = false;
     if (t.copSpots.length < 3) ok = false;
     if (t.runSpots.length < 40 || t.boxSpots.length < 24 || t.cars.length < 15) ok = false;
     if (t.ground.includes(Q.FLOOR)) houses++;
     walls = Math.min(walls, t.cells.filter((v) => v).length / t.cells.length);
   }
-  check(ok, "80 quartiers, prison posée n'importe où : boutons et sorties accessibles, voitures garées");
+  check(ok, "80 quartiers, prison posée n'importe où : on peut y entrer de partout, voitures garées");
   check(houses >= 70, `Des maisons à traverser (${houses}/80 quartiers)`);
   check(walls > 0.08, `Le quartier n'est pas vide (au moins ${Math.round(walls * 100)} % de murs)`);
   const t = Q.build(5);
-  check(t.prison === null && t.buttons.length === 0, "Au début, pas de prison : c'est un gardien qui la pose");
+  check(t.prison === null, "Au début, pas de prison : c'est un gardien qui la pose");
   const sp = Q.prisonSpot(99999, -50);
-  check(sp.c + Q.PW < Q.COLS && sp.r > 0, "La prison reste dans le quartier, même posée dans un coin");
+  check((sp.c + 7) < Q.COLS && sp.r > 6, "La prison reste dans le quartier, même posée dans un coin");
   Q.prisonAt(t, 40, 30);
   const P = t.prison;
-  const inside = t.jailSpots[0], out = t.buttons[0];
-  check(!t.walk[Math.floor(inside.y / Q.T) * Q.COLS + Math.floor(inside.x / Q.T)], "La prison n'est pas reliée au quartier");
-  check(t.buttons.length === 2 && t.buttons[0].x < P.x && t.buttons[1].x > P.x + P.w, "2 boutons, de chaque côté de la prison");
-  check(!Q.sees(t, inside, out), "On ne tire pas à travers les murs de la prison");
-  const f = Q.flow(t, t.buttons[1].x, t.buttons[1].y), p = Q.next(t, f, t.runSpots[0].x, t.runSpots[0].y);
-  check(p && p.left > 0, "Les bots trouvent un chemin jusqu'au bouton");
-  check(Q.near(t, P.x - 20, P.cy).every((o) => o.x + o.w <= P.x + 1 || o.x >= P.x - 1), "Une place dégagée autour de la prison");
-  check(copCount(3) === 1 && copCount(4) === 1 && copCount(5) === 1 && copCount(6) === 2 && copCount(8) === 2, "1 flic jusqu'à 5 joueurs, puis 2");
+  const hero = H.newHero(P.cx, P.cy), env = { circle: { x: P.cx, y: P.cy, r: Q.JAIL_R } };
+  for (let i = 0; i < 90; i++) H.simulate(hero, K.RIGHT, null, { ...env, speedMul: 1.8, noDash: true }, []);
+  check(Math.hypot(hero.x - P.cx, hero.y - P.cy) <= Q.JAIL_R, "Un prisonnier ne peut pas sortir du cercle");
+  const free = H.newHero(P.cx, P.cy);
+  for (let i = 0; i < 90; i++) H.simulate(free, K.RIGHT, null, { speedMul: 1.8, noDash: true, rects: Q.near(t, free.x, free.y) }, []);
+  check(Math.hypot(free.x - P.cx, free.y - P.cy) > Q.JAIL_R, "Un joueur libre en sort sans problème");
+  check(t.rects.every((o) => o.x > P.cx + Q.JAIL_R || o.x + o.w < P.cx - Q.JAIL_R || o.y > P.cy + Q.JAIL_R || o.y + o.h < P.cy - Q.JAIL_R || Math.hypot(Math.max(o.x, Math.min(P.cx, o.x + o.w)) - P.cx, Math.max(o.y, Math.min(P.cy, o.y + o.h)) - P.cy) > Q.JAIL_R), "Rien ne bloque dans le cercle");
+  check(FREE_R >= H.R * 2, "Se toucher suffit à libérer");
+  const f = Q.flow(t, P.cx, P.cy), p = Q.next(t, f, t.runSpots[0].x, t.runSpots[0].y);
+  check(p && p.left > 0, "Les bots trouvent un chemin jusqu'à la prison");
+  check(copCount(3) === 1 && copCount(4) === 1 && copCount(5) === 2 && copCount(6) === 2 && copCount(8) === 3, "1 flic à 3-4 joueurs, 2 à 5-6, 3 à 7-8");
   check(ROUND_MS === 120000 && RANGE > 200, "Manche de 2 min");
+}
+
+console.log("— Règles —");
+{
+  const list = ["a", "b", "c", "d"].map((id) => ({ id, pseudo: id, bot: false, connected: true }));
+  const game = createGame({ players: () => list, isHost: () => true, update: () => {}, finish: () => {}, saveSettings: () => {}, savedSettings: { rounds: 3 }, playlist: null });
+  game.onAction("a", "start", {});
+  const g = game._g;
+  game.destroy();
+  g.phase = "play"; g.playAt = Date.now() - 6000;
+  const cop = Object.entries(g.heroes).find(([, h]) => h.role === "cop"), run = Object.entries(g.heroes).filter(([, h]) => h.role === "runner");
+  const [rid, r] = run[0], [fid, fr] = run[1];
+  // Le gardien pose la prison.
+  let seq = 1;
+  const send = (id, k, a = null, d) => { g.heroes[id].budget = 6; game.onAction(id, "in", { s: (g.heroes[id].seq || 0) + 1, k, a, d }); };
+  send(cop[0], K.DASH);
+  check(!!g.prison && g.map.prison, "Le gardien pose la prison d'un appui");
+  const P = g.map.prison;
+  // Un prisonnier reste dans le cercle.
+  r.jailed = true; r.h.x = P.cx; r.h.y = P.cy;
+  for (let i = 0; i < 60; i++) send(rid, K.RIGHT);
+  check(Math.hypot(r.h.x - P.cx, r.h.y - P.cy) <= Q.JAIL_R, "En partie : le prisonnier reste dans le cercle");
+  // Un flic y entre comme il veut.
+  const c = cop[1]; c.h.x = P.cx - Q.JAIL_R - 60; c.h.y = P.cy;
+  for (let i = 0; i < 16; i++) send(cop[0], K.RIGHT);
+  check(c.h.x > P.cx - Q.JAIL_R, "Un flic entre dans le cercle sans problème");
+  c.h.x = P.cx - 100; c.h.y = P.cy - 150;
+  // Fumigène : à ses pieds, puis lancé en visant.
+  fr.h.x = P.cx; fr.h.y = P.cy + 40; fr.h.vx = fr.h.vy = 0; fr.stunUntil = 0;
+  r.h.x = P.cx + 150; r.h.y = P.cy - 100;
+  fr.gadget = "fumi"; fr.prevK = 0;
+  send(fid, K.FIRE);
+  check(g.smokes.length === 1 && Math.hypot(g.smokes[0].x - fr.h.x, g.smokes[0].y - fr.h.y) < 20, "Fumigène sans viser : à mes pieds");
+  fr.gadget = "fumi"; fr.prevK = 0;
+  send(fid, AIM, 0, 200);
+  send(fid, AIM | K.FIRE, 0, 200);
+  check(g.smokes.length === 2 && Math.abs(g.smokes[1].x - fr.h.x - 200) < 20, "Fumigène en visant : il part là où je vise");
+  check(THROW_MAX >= 300, `Il porte à ${THROW_MAX} px`);
+  // Toucher un prisonnier le libère.
+  r.h.x = fr.h.x + 30; r.h.y = fr.h.y;
+  r.jailed = true;
+  const before = fr.frees;
+  r.safeUntil = 0;
+  g.lastTickAt = Date.now();
+  game.onAction(fid, "tick-test", {});
+  g.__world?.(0.03, Date.now());
+  check(typeof g.__world === "function" && !r.jailed && fr.frees === before + 1, "Toucher un prisonnier le libère");
+  void seq;
 }
 
 const socket = io(URL, { transports: ["websocket"], forceNew: true });
@@ -119,7 +170,7 @@ async function run() {
   check(game.phase === "roundOver" && lr && ["cops", "runners"].includes(lr.win), `Fin de manche : ${lr?.win === "cops" ? "les flics gagnent" : "les runners gagnent"}`);
   const winners = lr.order.filter((id) => (lr.win === "cops") === (lr.role[id] === "cop"));
   check(winners.every((id) => lr.gains[id] >= 2), "L'équipe gagnante marque au moins 2 points");
-  check(lr.order.every((id) => lr.gains[id] === lr.arrests[id] * 2 + lr.frees[id] * 3 + (lr.role[id] === "runner" && !lr.jailed[id] ? 3 : 0) + (winners.includes(id) ? 2 : 0)), "Les points suivent les règles");
+  check(lr.order.every((id) => lr.gains[id] === lr.arrests[id] * 2 + lr.frees[id] * 2 + (lr.role[id] === "runner" && !lr.jailed[id] ? 3 : 0) + (winners.includes(id) ? 2 : 0)), "Les points suivent les règles");
   await act("next");
   await wait(300);
   check(game.phase === "countdown" && game.round === 2 && game.heroes.find((h) => h.role === "cop").id !== round1Cop, "Manche 2 : nouveau flic, nouveau quartier");

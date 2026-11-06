@@ -89,6 +89,16 @@
       if (h.x > env.w - R) { h.x = env.w - R; h.vx = Math.min(0, h.vx); }
       if (h.y > env.h - R) { h.y = env.h - R; h.vy = Math.min(0, h.vy); }
     }
+    // Enfermé dans un cercle (env.circle = { x, y, r }).
+    if (env.circle) {
+      const dx = h.x - env.circle.x, dy = h.y - env.circle.y, d = Math.hypot(dx, dy), max = env.circle.r - R;
+      if (d > max) {
+        const nx = dx / d, ny = dy / d;
+        h.x = env.circle.x + nx * max; h.y = env.circle.y + ny * max;
+        const vn = h.vx * nx + h.vy * ny;
+        if (vn > 0) { h.vx -= vn * nx; h.vy -= vn * ny; }
+      }
+    }
     for (const o of env.rects || []) {
       const qx = Math.max(o.x, Math.min(h.x, o.x + o.w)), qy = Math.max(o.y, Math.min(h.y, o.y + o.h));
       let dx = h.x - qx, dy = h.y - qy, d = Math.hypot(dx, dy);
