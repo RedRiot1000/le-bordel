@@ -402,6 +402,22 @@
       points: ["<b>1 point par joueur éliminé avant toi</b>, et <b>+1 par élimination</b>."],
       example: "Des échos de pas à gauche. Tu passes en pas de loup, tu t'approches, tu pings : un point rouge derrière le mur ! Tu le contournes et tu tires avant qu'il ne bouge.",
     },
+    puck: {
+      goal: "Marquer plus de buts que l'autre équipe.",
+      steps: [
+        "Deux équipes, tirées au hasard. Si vous êtes en nombre impair, un <b>robot</b> complète.",
+        "Passe sur le <b>palet</b> pour le prendre : il reste au bout de ta crosse, là où tu vises.",
+        "<b>Clic gauche</b> : tape pour une passe, maintiens pour un tir fort. Le palet part là où tu vises.",
+        "Sans le palet, <kbd>Espace</kbd> : une <b>charge</b>. Le porteur bousculé lâche le palet.",
+        "Le palet rebondit sur les bandes : les tirs en angle passent souvent.",
+      ],
+      controls: [
+        "<kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> / flèches : patiner",
+        "🖱️ Souris : viser · clic gauche : passe ou tir · <kbd>Espace</kbd> : charge",
+      ],
+      points: ["<b>+2</b> par but.", "<b>+3</b> pour chaque joueur de l'équipe gagnante, <b>+1</b> chacun en cas d'égalité."],
+      example: "Bob a le palet et fonce. Tu le charges : il le lâche. Tu le récupères, tu remontes la bande et tu tires en angle : il rebondit et entre. BUT, +2 !",
+    },
     ricochet: {
       goal: "Être le dernier debout (ou la dernière équipe) : une touche suffit.",
       steps: [

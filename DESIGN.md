@@ -874,3 +874,14 @@ Premier des 5 nouveaux jeux demandés par Scotty (des jeux de skill, stylés, «
 - **Mort subite** : après 60 s, un grand balayage révèle tout le monde toutes les 8 s. Au plus 2 min.
 - **Points** : 1 par joueur éliminé avant soi, +1 par élimination. 6 manches.
 - **Bots** : ils écoutent les pas et les pings, pingent de temps en temps, avancent à pas de loup près d'un bruit, tirent surtout sur ce qu'un ping leur a montré. Manches d'environ 20 s entre bots.
+
+## 7 octovicies. Puck 🏒 — fait sans validation (exception demandée par Scotty)
+
+4e jeu de la série. Style patinoire néon : glace sombre, lignes lumineuses, buts qui s'illuminent, tableau des scores façon retransmission.
+- **Équipes** : tout le monde, réparti au hasard à chaque match. Nombre impair : un robot (pas un joueur, ne marque pas de points) complète l'équipe 2. Un joueur qui part est remplacé par un bot.
+- **Patinoire** (`public/games/puck/rink.js`, globalThis.Rink) : bandes aux coins arrondis, buts de 190 px. Le palet perd 55 % de sa vitesse par seconde et rebondit sur les bandes (×0,85).
+- **Palet** : on le prend en passant dessus (34 px), il reste au bout de la crosse (là où on vise). Clic : tapé = passe (520 px/s), maintenu 0,8 s = tir (1500 px/s). On ne reprend pas son propre tir pendant 0,35 s.
+- **Charge** : Espace sans le palet (la poussée du moteur à pied) ; le porteur bousculé lâche le palet.
+- **Match** : 2 min (ou 3), 3 matchs par défaut. Après un but, mise au jeu au centre (2 s, tout le monde figé).
+- **Points** : +2 par but, +3 pour l'équipe gagnante, +1 chacun en cas de nul.
+- **Bots** : le plus proche du palet va le chercher, un autre défend devant son but, les autres se démarquent ; avec le palet, ils montent et tirent dans un coin du but, passent parfois s'ils sont pressés. Environ 6 buts par match entre bots.
