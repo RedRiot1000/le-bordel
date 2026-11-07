@@ -27,7 +27,6 @@ import * as course from "./course/server.js";
 import * as tour from "./tour/server.js";
 import * as cavale from "./cavale/server.js";
 import * as ricochet from "./ricochet/server.js";
-import * as golf from "./golf/server.js";
 import * as puck from "./puck/server.js";
 import * as foule from "./foule/server.js";
 
@@ -56,7 +55,6 @@ export const GAMES = {
   [tour.meta.id]: tour,
   [cavale.meta.id]: cavale,
   [ricochet.meta.id]: ricochet,
-  [golf.meta.id]: golf,
   [puck.meta.id]: puck,
   [foule.meta.id]: foule,
 };

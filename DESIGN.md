@@ -890,7 +890,7 @@ Premier des 5 nouveaux jeux demandés par Scotty (des jeux de skill, stylés, «
 - **Match** : 2 min (ou 3), 3 matchs, le suivant se lance tout seul. **Points** : +2 par but, +3 pour l'équipe gagnante, +1 chacun en cas de nul.
 - **Bots** : le plus proche du palet se place derrière lui (côté de son but) puis fonce dedans vers le but adverse ; contre une bande, il le frappe directement ; les autres défendent entre le palet et leur but.
 
-## 7 novovicies. Golf de combat ⛳ — fait sans validation (exception demandée par Scotty)
+## 7 novovicies. Golf de combat ⛳ — RETIRÉ (Scotty : « c'est nul », supprimé le 2026-11-07)
 
 5e et dernier jeu de la série. Style maquette en papier, plein jour : fond crème, gazon rayé, bordures en bois, ombres franches, eau qui ondule, drapeau qui flotte.
 - **Trou** (`public/games/golf/course.js`, globalThis.Golf) : de 1 à 7 couloirs (longueur tirée d'abord, du trou très court au très long) de 125 à 240 px, des barrières fines, des tapis qui poussent la balle qui roule, et d'autant plus d'obstacles que le trou est grand ;
