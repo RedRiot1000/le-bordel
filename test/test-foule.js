@@ -36,6 +36,27 @@ console.log("— Règles —");
   const modes = new Set();
   for (let i = 0; i < 400; i++) for (const x of g.ents.slice(0, 20)) { x.ai.until = 0; g.__brain?.(x, t + i * 50); modes.add(x.ai.mode); }
   check(typeof g.__brain === "function" && ["marche", "trotte", "groupe", "banc", "pause"].every((m) => modes.has(m)), `Les passants marchent, trottinent, discutent, s'assoient, s'arrêtent (${[...modes].join(", ")})`);
+  // Les missions : chaque caché en a une ; la faire rapporte, et en donne une autre.
+  const h2 = Object.values(g.byPlayer).find((x) => x.alive);
+  check(!!h2.mission?.label && h2.missions === 0, `Chaque caché a une mission (« ${h2.mission?.label} »)`);
+  const kinds = new Set();
+  for (let i = 0; i < 60; i++) { g.__newMission(h2); kinds.add(h2.mission.kind); }
+  check(["lieu", "banc", "groupe", "pause"].every((k) => kinds.has(k)), `Missions variées (${[...kinds].join(", ")})`);
+  h2.mission = { kind: "pause", label: "test", hold: 4000, still: true, prog: 0 };
+  h2.h.vx = 200; h2.h.vy = 0;
+  for (let i = 0; i < 150; i++) g.__stepMission(h2, 1 / 30);
+  check(h2.missions === 0, "Une mission « sans bouger » ne compte pas si on bouge");
+  const first = h2.mission;
+  h2.h.vx = 0;
+  for (let i = 0; i < 130; i++) g.__stepMission(h2, 1 / 30);
+  check(h2.missions === 1 && h2.mission !== first, "Mission réussie : +1, et une nouvelle mission arrive");
+  const lieu = { kind: "lieu", label: "test", x: 100, y: 100, w: 40, h: 40, m: 45, hold: 2500, prog: 0 };
+  h2.mission = lieu; h2.h.x = 600; h2.h.y = 600;
+  for (let i = 0; i < 100; i++) g.__stepMission(h2, 1 / 30);
+  check(h2.missions === 1, "Loin du lieu : la mission n'avance pas");
+  h2.h.x = 150; h2.h.y = 170; h2.h.vx = 100;
+  for (let i = 0; i < 80; i++) g.__stepMission(h2, 1 / 30);
+  check(h2.missions === 2, "Passer près du lieu : mission réussie (même en marchant)");
 }
 
 const socket = io(URL, { transports: ["websocket"], forceNew: true });
@@ -59,6 +80,7 @@ async function run() {
   await waitFor(() => game.phase === "play" && mine, 7000);
   check(!!mine && (mine.role === "sniper") === (game.sniper === me), `Je reçois mon rôle en privé (${mine?.role})`);
   if (mine.role === "hider") {
+    check(!!mine.mission?.label && !JSON.stringify(game).includes(mine.mission.label), `Ma mission arrive en privé (« ${mine.mission?.label} »)`);
     const start = { x: mine.x, y: mine.y };
     let seq = 0;
     for (let i = 0; i < 40; i++) { socket.emit("gameAction", { type: "in", data: { s: ++seq, k: i < 20 ? K.RIGHT : K.DOWN | K.DASH, a: 0 } }); await wait(33); }

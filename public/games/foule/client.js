@@ -28,7 +28,7 @@
   const mouse = { x: W / 2, y: HGT / 2, down: false };
   let particles = [], shots = [];
   const seenFx = new Set();
-  let rain = [], prevPhase = null, playSeenAt = 0, lastSnapRecv = 0;
+  let rain = [], prevPhase = null, playSeenAt = 0, lastSnapRecv = 0, doneToast = 0, lastMissions = 0;
   const shownOff = {}, lastShown = {};
 
   const $ = (id) => document.getElementById(id);
@@ -56,7 +56,8 @@
             <li>🕴️ Les autres sont <b>cachés parmi les passants</b>. Imite-les : marche, arrête-toi, rejoins un groupe, assieds-toi près d'un banc, trottine (<kbd>Espace</kbd>).</li>
             <li>🖱️ Caché : à l'arrêt, ton perso regarde vers ta souris (comme un passant qui regarde autour).</li>
             <li>🔫 Sniper : vise à la souris, clic pour tirer. Peu de balles : un passant tué, c'est une balle perdue.</li>
-            <li>🏆 Sniper : +3 par joueur touché. Caché : +1 toutes les 15 s en vie, +3 si tu survis.</li>
+            <li>📋 Caché : tu as des <b>missions</b> (toi seul les vois) : passer près de la fontaine, t'asseoir sur un banc, rejoindre un groupe… Fais-les sans te faire remarquer !</li>
+            <li>🏆 Sniper : +3 par joueur touché. Caché : +2 par mission, +1 toutes les 30 s en vie, +2 si tu survis.</li>
           </ul>
         </div>
       </div>
@@ -121,6 +122,8 @@
     },
     message(type, payload) {
       if (type !== "me") return;
+      if (payload.role === "hider" && mineMsg?.round === payload.round && payload.missions > lastMissions) doneToast = performance.now();
+      lastMissions = payload.role === "hider" ? payload.missions || 0 : 0;
       mineMsg = payload;
       reconcile();
     },
@@ -270,7 +273,7 @@
     ov.dataset.key = key;
     const banner = `🔫 ${esc(pseudoOf(lr.sniper))} a touché ${lr.kills} joueur${lr.kills > 1 ? "s" : ""}`;
     const rows = lr.order.filter((id) => playerOf(id)).map((id) => `<li>${api.avatar(playerOf(id))}<b>${esc(pseudoOf(id))}</b>
-      <span class="muted">${id === lr.sniper ? "🔫 sniper" : lr.alive[id] ? "🕴️ jamais repéré" : "💀 repéré"}</span><span class="gain">+${lr.gains[id] || 0}</span></li>`).join("");
+      <span class="muted">${id === lr.sniper ? "🔫 sniper" : (lr.alive[id] ? "🕴️ jamais repéré" : "💀 repéré") + ` · 📋 ${lr.missions?.[id] || 0} mission${lr.missions?.[id] > 1 ? "s" : ""}`}</span><span class="gain">+${lr.gains[id] || 0}</span></li>`).join("");
     const total = st.phase === "over" ? `<h3 class="ch-total">🏆 Classement</h3><ol class="s10-rank">${[...st.players].sort((a, b) => b.score - a.score)
       .map((p, i) => `<li><span class="s10-medal">${["🥇", "🥈", "🥉"][i] || i + 1 + "."}</span>${api.avatar(p)}<b>${esc(p.pseudo)}</b><span class="gain">${p.score} pts</span></li>`).join("")}</ol>` : "";
     let buttons;
@@ -367,8 +370,9 @@
       if (b.player) { c.strokeStyle = "rgba(255,70,90,0.8)"; c.lineWidth = 2; c.beginPath(); c.arc(b.x, b.y, 26, 0, Math.PI * 2); c.stroke(); }
     }
     const m = myEnt();
+    if (m && m.alive && m.mission && st.phase === "play") drawMissionSpot(c, m.mission, ts);
     for (const x of st.ents || []) {
-      if (m && x.e === m.e && pred) { const o = ownView(); person(c, { ...x, ...o, x: o.x + off.x, y: o.y + off.y, sit: false }, ts, true); continue; }
+      if (m && x.e === m.e && pred) { const o = ownView(); person(c, { ...x, ...o, x: o.x + off.x, y: o.y + off.y, sit: !!m.sit && !moveBits(keyMask()) }, ts, true); continue; }
       person(c, shown(x), ts, m && x.e === m.e);
     }
     shots = shots.filter((s) => (s.life -= dt) > 0);
@@ -394,7 +398,30 @@
       }
     }
     if (m && m.alive && pred) { const o = ownView(); window.VehicleArt.markMe(c, o.x + off.x, o.y + off.y, ts, "#ffffff", window.VehicleArt.markAlpha(st.phase === "countdown" ? "countdown" : st.phase, playSeenAt), 1); }
+    if (m && m.alive && m.mission && st.phase === "play") drawMissionCard(c, m, ts);
     drawHud(c);
+  }
+  // L'endroit de ma mission (moi seul le vois) : un contour discret qui se remplit.
+  function drawMissionSpot(c, mi, ts) {
+    if (mi.w === undefined || mi.w === null) return;
+    const a = 0.35 + Math.sin(ts / 300) * 0.12;
+    c.save(); c.strokeStyle = `rgba(120,220,255,${a})`; c.lineWidth = 2; c.setLineDash([6, 6]); c.lineDashOffset = -ts / 60;
+    c.beginPath(); c.roundRect(mi.x - mi.m, mi.y - mi.m, mi.w + mi.m * 2, mi.h + mi.m * 2, mi.m); c.stroke(); c.setLineDash([]);
+    if (mi.prog > 0) { c.fillStyle = "rgba(120,220,255,0.12)"; c.beginPath(); c.roundRect(mi.x - mi.m, mi.y - mi.m, mi.w + mi.m * 2, mi.h + mi.m * 2, mi.m); c.fill(); }
+    c.restore();
+  }
+  // Ma mission, en bas à gauche : ce qu'il faut faire et où j'en suis.
+  function drawMissionCard(c, m, ts) {
+    const mi = m.mission, x = 14, y = HGT - 80, w = 400;
+    c.fillStyle = "rgba(0,0,0,0.65)"; c.beginPath(); c.roundRect(x, y, w, 66, 10); c.fill();
+    c.textAlign = "left"; c.textBaseline = "middle";
+    c.font = "bold 13px Segoe UI, sans-serif"; c.fillStyle = "#78dcff"; c.fillText(`📋 MISSION ${(m.missions || 0) + 1}  ·  ${m.missions || 0} réussie${m.missions > 1 ? "s" : ""} (+${(m.missions || 0) * 2})`, x + 12, y + 15);
+    c.font = "bold 17px Georgia, serif"; c.fillStyle = "#e8e0d0"; c.fillText(mi.label + (mi.still && mi.kind !== "pause" ? " (sans bouger)" : ""), x + 12, y + 37);
+    c.fillStyle = "rgba(255,255,255,0.15)"; c.fillRect(x + 12, y + 52, w - 24, 6);
+    c.fillStyle = "#78dcff"; c.fillRect(x + 12, y + 52, (w - 24) * Math.min(1, mi.prog), 6);
+    const age = (performance.now() - doneToast) / 1000;
+    if (age < 1.8) { c.globalAlpha = Math.min(1, 1.8 - age); c.font = "900 22px Georgia, serif"; c.fillStyle = "#8dffb0"; c.fillText("✅ Mission réussie +2", x + 12, y - 18); c.globalAlpha = 1; }
+    c.textAlign = "center";
   }
   function drawHud(c) {
     c.textAlign = "center"; c.textBaseline = "middle";
@@ -413,7 +440,7 @@
       c.font = "900 34px Georgia, serif"; c.fillStyle = amSniper() ? "#ff6b6b" : "#e8e0d0";
       c.fillText(amSniper() ? `🔫 Tu es le sniper · ${n > 0 ? n : "…"}` : `🕴️ ${esc(pseudoOf(st.sniper))} est le sniper · ${n > 0 ? n : "…"}`, W / 2, 104);
       c.font = "18px Georgia, serif"; c.fillStyle = "#e8e0d0";
-      c.fillText(amSniper() ? "Observe : les vrais joueurs ne bougent pas tout à fait comme les passants." : "Ton perso a un anneau pointillé (toi seul le vois). Imite les passants !", W / 2, 140);
+      c.fillText(amSniper() ? "Observe : les vrais joueurs ne bougent pas tout à fait comme les passants." : "Ton perso a un anneau pointillé (toi seul le vois). Imite les passants et fais tes missions !", W / 2, 140);
     }
   }
 })();

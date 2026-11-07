@@ -372,6 +372,7 @@
         "À chaque manche, <b>un joueur est le sniper</b> (chacun son tour). Les autres sont cachés parmi les <b>passants</b> (des bots).",
         "Caché : <b>imite les passants</b>. Ils marchent, s'arrêtent, trottinent, se regroupent pour discuter, s'assoient près des bancs, regardent autour d'eux.",
         "Ton perso a un anneau pointillé, et toi seul le vois. À l'arrêt, il regarde vers ta souris.",
+        "Caché : tu as des <b>missions</b>, que toi seul vois (en bas à gauche) : passer près de la fontaine, t'asseoir sur un banc, rejoindre un groupe, t'arrêter… Fais-les sans foncer tout droit, sinon le sniper te repère !",
         "Sniper : son <b>laser</b> rouge est visible par tout le monde. Il vise à la souris et tire d'un clic. Il a peu de balles : un passant tué, c'est une balle perdue.",
         "La manche finit quand tous les cachés sont touchés, quand le sniper n'a plus de balles, ou au bout de 90 s.",
       ],
@@ -379,7 +380,7 @@
         "Caché : <kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> pour marcher, <kbd>Espace</kbd> / <kbd>Shift</kbd> pour trottiner",
         "Sniper : 🖱️ viser, clic pour tirer",
       ],
-      points: ["Sniper : <b>+3</b> par joueur touché, <b>+2</b> s'il les a tous.", "Caché : <b>+1</b> toutes les 15 s en vie, <b>+3</b> si tu survis jusqu'au bout."],
+      points: ["Sniper : <b>+3</b> par joueur touché, <b>+2</b> s'il les a tous.", "Caché : <b>+2</b> par mission réussie, <b>+1</b> toutes les 30 s en vie, <b>+2</b> si tu survis jusqu'au bout."],
       example: "Le laser rouge balaie la place. Tu rejoins un groupe de passants près de la fontaine et tu ne bouges plus… Le laser passe sur toi, hésite, et tire sur ton voisin : un passant. Le sniper perd une balle !",
     },
     puck: {

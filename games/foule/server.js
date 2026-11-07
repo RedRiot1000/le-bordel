@@ -30,7 +30,9 @@ export const WALK = 0.42, JOG = 0.66;   // vitesses (× la normale) des joueurs 
 export const HIT_R = 20;                // le tir touche ce qui est sous le viseur
 export const RELOAD = 1600;
 export const ROUND_MS = 90000;
-export const SURVIVE_EVERY = 15000;     // +1 point toutes les 15 s en vie
+export const SURVIVE_EVERY = 30000;     // +1 point toutes les 30 s en vie (peu : il faut faire ses missions)
+export const MISSION_PTS = 2;           // +2 par mission réussie
+const STILL = 20;                       // « immobile » : moins de 20 px/s
 export const NEST = { x: W / 2, y: -60 }; // d'où part le laser (le toit, en haut)
 const COUNTDOWN_MS = 4000, END_DELAY = 1800, ROUND_OVER_MS = 7000, FINISH_DELAY = 15000, BODY_MS = 9000;
 export const COATS = ["#6b6f7a", "#8a6f5a", "#5f6f5f", "#7a5f6f", "#a39a88", "#4f5a6e"];
@@ -115,7 +117,9 @@ export function createGame(ctx) {
       if (p.id === g.sniper) { ctx.sendTo(p.id, "me", { role: "sniper", round: g.round }); continue; }
       const x = g.byPlayer[p.id];
       if (!x) continue;
-      ctx.sendTo(p.id, "me", { role: "hider", e: x.e, round: g.round, seq: x.seq, alive: x.alive, speed: x.speed, ...H.copy(x.h) });
+      const m = x.mission;
+      ctx.sendTo(p.id, "me", { role: "hider", e: x.e, round: g.round, seq: x.seq, alive: x.alive, speed: x.speed, sit: x.sit, missions: x.missions || 0,
+        mission: m && { kind: m.kind, label: m.label, x: m.x, y: m.y, w: m.w, h: m.h, m: m.m, still: !!m.still, prog: Math.round((m.prog / m.hold) * 100) / 100 }, ...H.copy(x.h) });
     }
   }
 
@@ -139,6 +143,56 @@ export function createGame(ctx) {
     }
     return { x: 60, y: 80 };
   }
+  // =================================================================
+  //  LES MISSIONS des joueurs cachés (chacun les siennes, en privé).
+  //  (« Pause » : il faut avoir marché un peu avant, sinon rester immobile suffirait.)
+  //  Ce sont des choses que les passants font aussi : bien jouer, c'est
+  //  y aller « naturellement », sans foncer tout droit.
+  // =================================================================
+  const toRect = (h, r) => Math.hypot(Math.max(r.x - h.x, 0, h.x - (r.x + r.w)), Math.max(r.y - h.y, 0, h.y - (r.y + r.h)));
+  const benchNear = (h) => g.plaza.rects.find((r) => r.kind === "banc" && toRect(h, r) < 30);
+  const NAMES = { fontaine: "la fontaine", kiosque: "le kiosque", arbre: "un arbre" };
+  function newMission(x) {
+    const prev = x.mission?.kind, h = x.h;
+    const far = (p) => Math.hypot(p.x - h.x, p.y - h.y) > 280;
+    const center = (r) => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 });
+    const opts = [];
+    const lieux = g.plaza.rects.filter((r) => r.kind !== "banc" && far(center(r)));
+    if (lieux.length) { const r = pick(lieux); opts.push({ kind: "lieu", label: `Fais un passage près de ${NAMES[r.kind]}`, x: r.x, y: r.y, w: r.w, h: r.h, m: 45, hold: 2500 }); }
+    const lamps = g.plaza.lamps.filter(far);
+    if (lamps.length) { const l = pick(lamps); opts.push({ kind: "lieu", label: "Attarde-toi sous un lampadaire", x: l.x, y: l.y, w: 0, h: 0, m: 50, hold: 3000 }); }
+    const benches = g.plaza.rects.filter((r) => r.kind === "banc" && far(center(r)));
+    if (benches.length) { const r = pick(benches); opts.push({ kind: "banc", label: "Assieds-toi sur ce banc", x: r.x, y: r.y, w: r.w, h: r.h, m: 30, hold: 3500, still: true }); }
+    const spots = g.spots.filter(far);
+    if (spots.length) { const s = pick(spots); opts.push({ kind: "groupe", label: "Rejoins le groupe qui discute", x: s.x, y: s.y, w: 0, h: 0, m: 60, hold: 3500, still: true }); }
+    opts.push({ kind: "pause", label: "Marche un peu, puis arrête-toi et regarde autour", hold: 4000, still: true });
+    const fresh = opts.filter((o) => o.kind !== prev);
+    x.mission = { ...pick(fresh.length ? fresh : opts), prog: 0, from: { x: Math.round(h.x), y: Math.round(h.y) } };
+    for (const k of ["x", "y", "w", "h"]) if (k in x.mission) x.mission[k] = Math.round(x.mission[k]);
+  }
+  function stepMission(x, dt) {
+    const m = x.mission;
+    if (!m) return;
+    const still = Math.hypot(x.h.vx, x.h.vy) < STILL;
+    if (m.kind === "pause" && m.from && Math.hypot(x.h.x - m.from.x, x.h.y - m.from.y) > 160) m.from = null;   // (« pause » : il faut d'abord avoir bougé)
+    const ok = (m.w === undefined || toRect(x.h, m) <= m.m) && (!m.still || still) && !(m.kind === "pause" && m.from);
+    m.prog = ok ? m.prog + dt * 1000 : Math.max(0, m.prog - dt * 500);   // (on perd un peu si on s'en va)
+    if (m.prog >= m.hold) { x.missions = (x.missions || 0) + 1; newMission(x); }
+  }
+  // Un bot caché fait aussi ses missions, à la manière d'un passant.
+  function botMission(x, t) {
+    const ai = x.ai, m = x.mission;
+    if (!m || t < ai.until || Math.random() < 0.4) return;
+    ai.sitting = false; ai.jog = false; ai.look = null; ai.arrived = 0; ai.giveUp = t + 16000; ai.stay = m.hold + 800;
+    const c = m.w === undefined ? null : { x: m.x + m.w / 2, y: m.y + m.h / 2 };
+    if (m.kind === "pause") { ai.mode = "marche"; ai.goal = freeSpot(); ai.center = null; ai.until = t + 24000; return; }   // (il marche, puis reste planté sur place)
+    ai.until = t + 24000;
+    if (m.kind === "banc") { ai.mode = "banc"; ai.center = c; ai.goal = m.w > m.h ? { x: c.x, y: m.y - 22 } : { x: m.x - 22, y: c.y }; }
+    else if (m.kind === "groupe") { ai.mode = "groupe"; ai.center = c; const a = rand(0, Math.PI * 2); ai.goal = { x: c.x + Math.cos(a) * 34, y: c.y + Math.sin(a) * 34 }; }
+    else { ai.mode = "marche"; const a = rand(0, Math.PI * 2), rr = Math.max(m.w, m.h) / 2 + 30; ai.goal = { x: c.x + Math.cos(a) * rr, y: c.y + Math.sin(a) * rr }; ai.center = null; }
+  }
+  g.__stepMission = stepMission; g.__newMission = newMission;
+
   function startRound() {
     const list = players().filter((p) => p.connected);
     for (const p of list) if (!g.turn.includes(p.id)) g.turn.push(p.id);
@@ -160,7 +214,7 @@ export function createGame(ctx) {
       return x;
     };
     for (let i = 0; i < npcs; i++) make(null, true);
-    for (const p of hidersList) { g.byPlayer[p.id] = make(p.id, !!p.bot); g.scores[p.id] = g.scores[p.id] || 0; }
+    for (const p of hidersList) { const x = (g.byPlayer[p.id] = make(p.id, !!p.bot)); x.missions = 0; newMission(x); g.scores[p.id] = g.scores[p.id] || 0; }
     g.ents = shuffle(g.ents);
     g.aim = { x: W / 2, y: HGT / 2 }; g.ammo = hidersList.length + 3; g.reloadAt = 0; g.kills = 0; g.prevFire = false;
     g.sniperAi = {};
@@ -177,11 +231,12 @@ export function createGame(ctx) {
       if (p.id === g.sniper) { gains[p.id] = g.kills * 3 + (left.length === 0 && g.kills > 0 ? 2 : 0); continue; }
       const x = g.byPlayer[p.id];
       if (!x) continue;
-      gains[p.id] = Math.floor(x.aliveMs / SURVIVE_EVERY) + (x.alive ? 3 : 0);
+      gains[p.id] = (x.missions || 0) * MISSION_PTS + Math.floor(x.aliveMs / SURVIVE_EVERY) + (x.alive ? 2 : 0);
     }
+    const missions = Object.fromEntries(Object.entries(g.byPlayer).map(([id, x]) => [id, x.missions || 0]));
     for (const [id, n] of Object.entries(gains)) g.scores[id] = (g.scores[id] || 0) + n;
     const order = Object.keys(gains).sort((a, b) => gains[b] - gains[a]);
-    g.lastRound = { gains, order, sniper: g.sniper, kills: g.kills, alive: Object.fromEntries(Object.entries(g.byPlayer).map(([id, x]) => [id, x.alive])) };
+    g.lastRound = { gains, order, sniper: g.sniper, kills: g.kills, missions, alive:Object.fromEntries(Object.entries(g.byPlayer).map(([id, x]) => [id, x.alive])) };
     const last = g.round >= g.rounds;
     g.phase = last ? "over" : "roundOver";
     if (last && ctx.playlist) {
@@ -212,6 +267,7 @@ export function createGame(ctx) {
       H.collideWalls(x.h, env);
       for (const o of g.ents) if (o !== x && o.alive) H.collideHeroes(x.h, o.h);
     }
+    if (x.player && !x.bot) x.ai.sitting = !!benchNear(x.h);   // (un joueur s'assoit tout seul quand il s'arrête contre un banc)
     x.sit = !bits && !!x.ai.sitting;
   }
 
@@ -293,9 +349,10 @@ export function createGame(ctx) {
     } else if (g.phase === "play") {
       for (const x of g.ents) {
         if (!x.alive) continue;
+        if (x.player && x.bot) botMission(x, t);
         if (!x.player || x.bot) { const b = npcBrain(x, t); move(x, b.k, b.aim, b.jog); }
         else if (t - x.lastInputAt > 200) move(x, 0, x.aim, false);
-        if (x.player) x.aliveMs += dt * 1000;
+        if (x.player) { x.aliveMs += dt * 1000; stepMission(x, dt); }
       }
       if (players().find((p) => p.id === g.sniper)?.bot) sniperBot(t);
       g.bodies = g.bodies.filter((b) => t < b.until);
