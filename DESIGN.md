@@ -885,3 +885,14 @@ Premier des 5 nouveaux jeux demandés par Scotty (des jeux de skill, stylés, «
 - **Match** : 2 min (ou 3), 3 matchs par défaut. Après un but, mise au jeu au centre (2 s, tout le monde figé).
 - **Points** : +2 par but, +3 pour l'équipe gagnante, +1 chacun en cas de nul.
 - **Bots** : le plus proche du palet va le chercher, un autre défend devant son but, les autres se démarquent ; avec le palet, ils montent et tirent dans un coin du but, passent parfois s'ils sont pressés. Environ 6 buts par match entre bots.
+
+## 7 novovicies. Golf de combat ⛳ — fait sans validation (exception demandée par Scotty)
+
+5e et dernier jeu de la série. Style maquette en papier, plein jour : fond crème, gazon rayé, bordures en bois, ombres franches, eau qui ondule, drapeau qui flotte.
+- **Trou** (`public/games/golf/course.js`, globalThis.Golf) : 3 à 5 couloirs de 150 à 220 px mis bout à bout avec des virages (chacun part du carré de virage du précédent), des blocs, des bumpers (renvoi ×1,25), de l'eau, du sable (freine ×3,2). Le par dépend de la longueur (2 à 5).
+- **Balle** : le gazon freine de 75 % par seconde, rebond sur les bordures ×0,72. Les balles se cognent (même masse), une balle arrêtée peut être poussée. Dans le trou si elle passe dessus à moins de 560 px/s.
+- **Coup** : viseur relatif à la balle ; clic maintenu = la force monte jusqu'à 1300 px/s en 1,1 s, lâché = on tape. Seulement balle arrêtée. 10 coups au plus.
+- **Eau** : +1 coup, on rejoue d'où on avait tiré.
+- **Fin du trou** : tout le monde dedans, 30 s après le premier, ou 90 s. Ceux qui n'y sont pas : +2 coups.
+- **Points** : selon les coups, 10, 7, 5, 3, 2, 1 (égalité = même place). 6 trous par défaut.
+- **Bots** : ils visent le trou s'il est en vue, sinon le point le plus avancé du parcours qu'ils voient, et dosent la force d'après le freinage du gazon, avec un peu d'erreur. Environ 18 s par trou entre bots.

@@ -418,6 +418,19 @@
       points: ["<b>+2</b> par but.", "<b>+3</b> pour chaque joueur de l'équipe gagnante, <b>+1</b> chacun en cas d'égalité."],
       example: "Bob a le palet et fonce. Tu le charges : il le lâche. Tu le récupères, tu remontes la bande et tu tires en angle : il rebondit et entre. BUT, +2 !",
     },
+    golf: {
+      goal: "Mettre ta balle dans le trou en le moins de coups possible.",
+      steps: [
+        "Tout le monde joue <b>le même trou, en même temps</b>.",
+        "Vise à la souris. <b>Maintiens le clic</b> : la force monte. Lâche : tu tapes. Seulement quand ta balle est arrêtée.",
+        "Les balles <b>se cognent</b> : tu peux pousser celle d'un autre vers l'eau.",
+        "Dans l'<b>eau</b> : +1 coup, et tu rejoues d'où tu avais tiré. Le <b>sable</b> freine. Les <b>bumpers</b> rouges renvoient fort.",
+        "30 s après le premier dans le trou, c'est fini : ceux qui n'y sont pas prennent +2 coups.",
+      ],
+      controls: ["🖱️ Souris : viser · <b>clic maintenu</b> : doser la force · <b>lâché</b> : taper"],
+      points: ["À chaque trou, selon les coups : <b>10, 7, 5, 3, 2, 1</b> points (égalité = même place)."],
+      example: "Ta balle est juste devant le trou. Bob tape fort, sa balle percute la tienne… et l'envoie dans l'eau ! Tu rejoues depuis ta place, +1 coup.",
+    },
     ricochet: {
       goal: "Être le dernier debout (ou la dernière équipe) : une touche suffit.",
       steps: [
