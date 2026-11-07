@@ -862,3 +862,15 @@ Premier des 5 nouveaux jeux demandés par Scotty (des jeux de skill, stylés, «
 - **Coup** : Espace / E / clic, le plus proche à 46 px tombe. Recharge 1,5 s. Un passant frappé : on est révélé 3 s (anneau rouge « SUSPECT »). Tout le monde voit le geste.
 - **Fin** : il reste un joueur, ou 2 min. **Points** : +3 par joueur démasqué, +1 toutes les 20 s en vie, +3 au dernier debout.
 - **Bots** : comme des passants ; de temps en temps ils soupçonnent quelqu'un (un révélé à 80 %, un vrai joueur à 22 %, sinon n'importe qui) et vont le frapper. Manches de 45 à 63 s entre bots.
+
+## 7 septvicies. Sonar 📡 — fait sans validation (exception demandée par Scotty)
+
+3e jeu de la série. Style écran radar : noir, vert phosphore, lignes de balayage, police Consolas.
+- **Secret** : l'état public ne contient que les bruits (échos de pas, pings, coups de feu, fléchettes, morts), jamais les positions des joueurs. Chacun reçoit en privé sa position (`me`) et ce que ses pings révèlent (`reveal`).
+- **Arène** (`public/games/sonar/map.js`, globalThis.SonarMap) : murs droits symétriques, départs en cercle.
+- **Bouger** : 0,9 × la vitesse normale, un écho de pas toutes les 0,32 s ; Espace (ou Shift) : pas de loup à 0,42, sans bruit.
+- **Ping** : clic droit / E, rayon 430 px, recharge 3,5 s. Il révèle en privé les joueurs (points rouges 1,6 s) et éclaire les murs au passage de la vague ; tout le monde voit d'où il part.
+- **Tir** : clic gauche, fléchette à 1000 px/s, recharge 1,4 s, une touche = mort ; l'éclair du coup de feu se voit.
+- **Mort subite** : après 60 s, un grand balayage révèle tout le monde toutes les 8 s. Au plus 2 min.
+- **Points** : 1 par joueur éliminé avant soi, +1 par élimination. 6 manches.
+- **Bots** : ils écoutent les pas et les pings, pingent de temps en temps, avancent à pas de loup près d'un bruit, tirent surtout sur ce qu'un ping leur a montré. Manches d'environ 20 s entre bots.

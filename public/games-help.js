@@ -386,6 +386,22 @@
       ],
       example: "Un passant s'arrête net, repart en diagonale, s'arrête encore… trop régulier. Tu t'approches en marchant tranquillement et tu frappes : c'était Bob, +3 !",
     },
+    sonar: {
+      goal: "Être le dernier en vie, dans le noir total.",
+      steps: [
+        "Tu ne vois <b>personne</b>. Tu vois seulement les murs tout près de toi, et les <b>échos de pas</b> de tout le monde.",
+        "<b>Clic droit</b> (ou <kbd>E</kbd>) : un <b>ping</b> révèle un instant les murs et les joueurs autour de toi. Mais tout le monde voit d'où il part !",
+        "<kbd>Espace</kbd> maintenu : <b>pas de loup</b>, plus lent mais sans bruit.",
+        "<b>Clic gauche</b> : tirer. Une touche = mort. Le coup de feu fait un éclair que tout le monde voit.",
+        "Après 60 s, un <b>grand balayage</b> révèle tout le monde toutes les 8 s.",
+      ],
+      controls: [
+        "<kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> / flèches : bouger · <kbd>Espace</kbd> : pas de loup",
+        "🖱️ Souris : viser · clic gauche : tirer · clic droit : ping",
+      ],
+      points: ["<b>1 point par joueur éliminé avant toi</b>, et <b>+1 par élimination</b>."],
+      example: "Des échos de pas à gauche. Tu passes en pas de loup, tu t'approches, tu pings : un point rouge derrière le mur ! Tu le contournes et tu tires avant qu'il ne bouge.",
+    },
     ricochet: {
       goal: "Être le dernier debout (ou la dernière équipe) : une touche suffit.",
       steps: [
