@@ -26,6 +26,7 @@ import * as parkour from "./parkour/server.js";
 import * as course from "./course/server.js";
 import * as tour from "./tour/server.js";
 import * as cavale from "./cavale/server.js";
+import * as ricochet from "./ricochet/server.js";
 
 // Les jeux jouables.
 export const GAMES = {
@@ -51,6 +52,7 @@ export const GAMES = {
   [course.meta.id]: course,
   [tour.meta.id]: tour,
   [cavale.meta.id]: cavale,
+  [ricochet.meta.id]: ricochet,
 };
 
 // Les jeux prévus (affichés grisés "bientôt" dans le menu).

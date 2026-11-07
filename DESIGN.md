@@ -840,3 +840,16 @@ Inspiré du mode Cops and Runners de Garry's Mod. Jeu à pied, vue de dessus, 3 
 - **Bots** : chemin par carte des distances. Le flic ne poursuit que ceux qu'il voit (520 px), sinon il va où il les a perdus ou fait sa ronde. Le runner fuit, ramasse des gadgets et va toucher les prisonniers si aucun flic ne garde le cercle.
 - **Écran** : caméra qui suit, chrono en haut, mini-carte en bas à droite pour les runners seulement (prison, coéquipiers). Les flics n'en ont pas, à la demande de Scotty : ils ont juste leurs barres de taser et de gadget.
 
+## 7 quinvicies. Ricochet 🎯 — validé (« Go »)
+
+Premier des 5 nouveaux jeux demandés par Scotty (des jeux de skill, stylés, « on n'est pas des enfants »), dans l'ordre : Ricochet, Foule, Sonar, Puck, Golf de combat. Un style par jeu.
+- **Style** : néon synthwave (fond violet sombre, grille lumineuse, murs qui brillent, traînées de balles à la couleur du joueur).
+- **Arène** (`public/games/ricochet/arena.js`, globalThis.Ricochet) : 1280 × 800, tirée d'une seed, symétrique par rapport au centre. Piliers ronds, murs droits, murs en biais (tous des segments épais). Le moteur à pied accepte maintenant `env.segs` (murs en segments).
+- **Balle** : une seule par joueur, 720 px/s, rebondit 3 fois puis disparaît au mur suivant (6 s au plus). Une touche = mort, sa propre balle comprise (après 0,25 s de vol).
+- **Bouclier** : clic droit (ou Espace), 0,3 s, renvoie la balle là où on vise (elle change de propriétaire, 3 rebonds), recharge 4 s.
+- **Ligne de visée** : jusqu'au premier rebond seulement.
+- **Mort subite** : après 30 s, le bord rétrécit en 15 s jusqu'à ne laisser qu'un tiers environ ; il élimine. Au plus 60 s.
+- **Modes** : Alterné (chacun pour soi, puis équipes dès 4 joueurs en nombre pair), solo, équipes. 8 manches par défaut.
+- **Points** : comme Boules de neige (1 par joueur éliminé avant soi, ou 3 pour l'équipe gagnante, + 1 par élimination).
+- **Bots** : ils cherchent un tir direct ou à un rebond, lèvent le bouclier ou esquivent quand une balle arrive. Manches de 17 à 21 s entre bots.
+

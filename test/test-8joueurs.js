@@ -63,6 +63,7 @@ const GAMES = {
   course: () => game.cars?.length === 8 && game.phase === "pick",
   tour: () => game.runners?.length === 8,
   cavale: () => game.heroes?.length === 8,
+  ricochet: () => game.heroes?.length === 8,
   casse: () => game.heroes?.length === 8 && !!game.van,
 };
 

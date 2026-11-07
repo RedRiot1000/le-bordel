@@ -99,6 +99,19 @@
         if (vn > 0) { h.vx -= vn * nx; h.vy -= vn * ny; }
       }
     }
+    // Des murs en segments épais (env.segs = [{ x1, y1, x2, y2, t }]), droits ou en biais.
+    for (const s of env.segs || []) {
+      const dx = s.x2 - s.x1, dy = s.y2 - s.y1, L2 = dx * dx + dy * dy || 1;
+      const f = Math.max(0, Math.min(1, ((h.x - s.x1) * dx + (h.y - s.y1) * dy) / L2));
+      const qx = s.x1 + dx * f, qy = s.y1 + dy * f, min = R + s.t / 2;
+      let nx = h.x - qx, ny = h.y - qy, d = Math.hypot(nx, ny);
+      if (d >= min) continue;
+      if (d < 1e-6) { nx = 0; ny = -1; d = 1; }
+      nx /= d; ny /= d;
+      h.x = qx + nx * min; h.y = qy + ny * min;
+      const vn = h.vx * nx + h.vy * ny;
+      if (vn < 0) { h.vx -= vn * nx; h.vy -= vn * ny; }
+    }
     for (const o of env.rects || []) {
       const qx = Math.max(o.x, Math.min(h.x, o.x + o.w)), qy = Math.max(o.y, Math.min(h.y, o.y + o.h));
       let dx = h.x - qx, dy = h.y - qy, d = Math.hypot(dx, dy);

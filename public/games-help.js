@@ -366,6 +366,27 @@
       ],
       example: "La zone va sauter près du pilier : tu cours avant les autres, tu es seul dedans, 1, 2, 3 s… Bob arrive, contesté ! Tu vises et PAF, coup de batte : il glisse hors de la zone. Tu reprends le compte jusqu'au prochain saut.",
     },
+    ricochet: {
+      goal: "Être le dernier debout (ou la dernière équipe) : une touche suffit.",
+      steps: [
+        "Tu as <b>une seule balle</b>. Elle rebondit <b>3 fois</b> sur les murs, puis elle disparaît et tu peux retirer.",
+        "<b>Une touche = mort</b>. Ta propre balle aussi, quand elle revient vers toi.",
+        "La ligne pointillée montre le trajet jusqu'au <b>premier rebond</b>. Les suivants, c'est à toi de les calculer.",
+        "<b>Clic droit</b> : un bouclier très court qui <b>renvoie</b> une balle là où tu vises. Il se recharge en 4 s.",
+        "Après 30 s, l'arène <b>rétrécit</b> : le bord rouge élimine.",
+        "Une manche chacun pour soi, une manche en équipes (dès 4 joueurs en nombre pair).",
+      ],
+      controls: [
+        "<kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> / flèches : bouger",
+        "🖱️ Souris : viser · <b>clic gauche</b> : tirer · <b>clic droit</b> ou <kbd>Espace</kbd> : bouclier",
+      ],
+      points: [
+        "Chacun pour soi : <b>1 point par joueur éliminé avant toi</b>.",
+        "Équipes : <b>3 points</b> pour chaque membre de l'équipe gagnante.",
+        "Dans les deux cas : <b>+1 par élimination</b> que tu fais.",
+      ],
+      example: "Bob est caché derrière un pilier. Tu tires sur le mur en biais : la balle rebondit et le touche par le côté. Alice te tire dessus : clic droit au bon moment, sa balle repart vers elle !",
+    },
     cavale: {
       goal: "Flics : mettre tous les runners en prison. Runners : tenir 2 min et libérer les autres.",
       steps: [
