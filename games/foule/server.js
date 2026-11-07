@@ -34,7 +34,8 @@ export const SURVIVE_EVERY = 30000;     // +1 point toutes les 30 s en vie (peu 
 export const MISSION_PTS = 2;           // +2 par mission réussie
 const STILL = 20;                       // « immobile » : moins de 20 px/s
 export const NEST = { x: W / 2, y: -60 }; // d'où part le laser (le toit, en haut)
-const COUNTDOWN_MS = 4000, END_DELAY = 1800, ROUND_OVER_MS = 7000, FINISH_DELAY = 15000, BODY_MS = 9000;
+const COUNTDOWN_MS = 4000, END_DELAY = 1800, ROUND_OVER_MS = 10000, FINISH_DELAY = 15000, BODY_MS = 9000;
+export const REVEAL_MS = 3500;   // en fin de manche : on montre à tous où étaient les cachés, avant le tableau des points
 export const COATS = ["#6b6f7a", "#8a6f5a", "#5f6f5f", "#7a5f6f", "#a39a88", "#4f5a6e"];
 export const HATS = [null, "#1d1d22", "#3a2f28", "#5a5560"];
 
@@ -102,7 +103,7 @@ export function createGame(ctx) {
       })),
       bodies: g.bodies.map((b) => ({ x: b.x, y: b.y, coat: b.coat, hat: b.hat, face: b.face, player: b.player })),
       left: hiders().length,
-      timeLeft: g.phase === "play" ? Math.max(0, ROUND_MS - (t - g.playAt)) : ROUND_MS,
+      timeLeft: g.phase === "play" ? Math.max(0, ROUND_MS - (t - g.playAt)) : g.phase === "countdown" ? ROUND_MS : 0,
       phaseLeft: Math.max(0, g.phaseEnd - t),
       feed: g.feed.slice(-4),
       lastRound: g.lastRound,
@@ -234,9 +235,11 @@ export function createGame(ctx) {
       gains[p.id] = (x.missions || 0) * MISSION_PTS + Math.floor(x.aliveMs / SURVIVE_EVERY) + (x.alive ? 2 : 0);
     }
     const missions = Object.fromEntries(Object.entries(g.byPlayer).map(([id, x]) => [id, x.missions || 0]));
+    // La révélation : où sont (ou sont tombés) les joueurs cachés. Tout le monde la voit, sniper compris.
+    const reveal = Object.entries(g.byPlayer).map(([id, x]) => ({ id, alive: x.alive, ...(x.alive ? { x: Math.round(x.h.x), y: Math.round(x.h.y) } : x.diedAt) }));
     for (const [id, n] of Object.entries(gains)) g.scores[id] = (g.scores[id] || 0) + n;
     const order = Object.keys(gains).sort((a, b) => gains[b] - gains[a]);
-    g.lastRound = { gains, order, sniper: g.sniper, kills: g.kills, missions, alive:Object.fromEntries(Object.entries(g.byPlayer).map(([id, x]) => [id, x.alive])) };
+    g.lastRound = { gains, order, sniper: g.sniper, kills: g.kills, missions, reveal, alive:Object.fromEntries(Object.entries(g.byPlayer).map(([id, x]) => [id, x.alive])) };
     const last = g.round >= g.rounds;
     g.phase = last ? "over" : "roundOver";
     if (last && ctx.playlist) {
@@ -319,7 +322,7 @@ export function createGame(ctx) {
     for (const o of g.ents) { if (!o.alive) continue; const d = dist(o.h, g.aim); if (d < bd) { bd = d; best = o; } }
     addFx({ kind: "tir", x: Math.round(g.aim.x), y: Math.round(g.aim.y), hit: !!best });
     if (best) {
-      best.alive = false;
+      best.alive = false; best.diedAt = { x: Math.round(best.h.x), y: Math.round(best.h.y) };
       g.bodies.push({ x: Math.round(best.h.x), y: Math.round(best.h.y), coat: best.coat, hat: best.hat, face: best.h.face, until: t + BODY_MS, player: !!best.player });
       if (best.player) { g.kills++; say(`🎯 ${pseudo(g.sniper)} a eu ${pseudo(best.player)} !`); }
       else say("😱 Un passant innocent… une balle de perdue");

@@ -1,4 +1,4 @@
-// Test automatique : « Puck » (air hockey, 1 humain + 3 bots).
+// Test automatique : « Air Hockey » (id puck, 1 humain + 3 bots).
 // Lance le serveur AVANT (node server.js), puis : node test/test-puck.js
 import { io } from "socket.io-client";
 import "../public/games/puck/rink.js";
@@ -52,7 +52,7 @@ async function run() {
   await wait(150);
   const picked = await emit("pickGame", { gameId: "puck" });
   await wait(200);
-  check(picked.ok && game?.phase === "setup", "« Puck » se lance");
+  check(picked.ok && game?.phase === "setup", "« Air Hockey » se lance");
   await act("settings", { settings: { rounds: 3, minutes: 2 } });
   await act("start");
   await wait(300);

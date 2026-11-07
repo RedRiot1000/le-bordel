@@ -12,7 +12,7 @@ import "../../public/games/puck/rink.js";
 const R = globalThis.Rink;
 export const meta = {
   id: "puck",
-  name: "Puck",
+  name: "Air Hockey",
   emoji: "🏒",
   family: "Action",
   minPlayers: 2,
@@ -23,7 +23,8 @@ export const meta = {
 const TICK_MS = 1000 / 30;
 export const MALLET_R = 28;              // le maillet
 export const MALLET_V = 1700;            // sa vitesse maximale (il suit la souris)
-export const PUCK_MAX = 2100;            // le palet ne va jamais plus vite
+export const PUCK_MAX = 1300;            // le palet ne va jamais plus vite (2100 avant : beaucoup trop rapide)
+export const BOT_V = 900;                 // les bots déplacent leur maillet moins vite qu'un humain
 export const HIT = 0.95;                 // un choc renvoie presque toute la vitesse
 export const FACEOFF_MS = 1300;
 const COUNTDOWN_MS = 3000, ROUND_OVER_MS = 7000, FINISH_DELAY = 15000;
@@ -158,7 +159,7 @@ export function createGame(ctx) {
     const frozen = now() < g.faceoffUntil;
     for (const m of Object.values(g.mallets)) {
       const target = clampMallet(m.team, { x: m.tx, y: m.ty });
-      const dx = target.x - m.x, dy = target.y - m.y, d = Math.hypot(dx, dy), maxStep = MALLET_V * dt;
+      const dx = target.x - m.x, dy = target.y - m.y, d = Math.hypot(dx, dy), maxStep = (m.bot ? BOT_V : MALLET_V) * dt;
       const k = frozen ? 0 : d > maxStep ? maxStep / d : 1;
       const nx = m.x + dx * k, ny = m.y + dy * k;
       m.vx = (nx - m.x) / dt; m.vy = (ny - m.y) / dt;
@@ -233,9 +234,10 @@ export function createGame(ctx) {
           if (!stuck && ready && dist(m, p) > R.PUCK_R + MALLET_R + 30 && Math.hypot(m.vx, m.vy) < 40) { m.tx = behind.x; m.ty = behind.y; }
           if (Math.random() < 0.01) ai.err = (Math.random() - 0.5) * 80;
         } else {
-          // Défendre : entre le palet et son but, à une distance qui dépend du rang.
+          // Défendre : entre le palet et son but, à une distance qui dépend du rang (avec un temps de réaction : il suit le palet en retard).
+          ai.py = (ai.py ?? p.y) + (p.y - (ai.py ?? p.y)) * 0.07;
           const dx = ownX + side * (110 + i * 90), f = (dx - ownX) / ((p.x - ownX) || 1);
-          m.tx = dx; m.ty = R.CY + (p.y - R.CY) * Math.max(0.3, Math.min(1, f + 0.4)) + (i % 2 ? 60 : -60) * (ms.length > 2 ? 1 : 0);
+          m.tx = dx; m.ty = R.CY + (ai.py - R.CY) * Math.max(0.3, Math.min(1, f + 0.4)) + (i % 2 ? 60 : -60) * (ms.length > 2 ? 1 : 0);
         }
       });
     }

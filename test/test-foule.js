@@ -93,6 +93,8 @@ async function run() {
   }
   await waitFor(() => game.phase === "roundOver", 100000);
   check(game.phase === "roundOver" && game.lastRound, "Fin de manche");
+  { const rv = game.lastRound?.reveal || [], hid = game.players.filter((p) => p.id !== game.lastRound?.sniper).length;
+    check(rv.length === hid && rv.every((r) => isFinite(r.x) && isFinite(r.y)), `Révélation : tout le monde voit où étaient les ${hid} cachés`); }
   const s1 = game.sniper;
   await waitFor(() => game.phase === "countdown" && game.round === 2, 12000);
   check(game.round === 2 && game.sniper !== s1, "La manche suivante se lance toute seule, avec un autre sniper");

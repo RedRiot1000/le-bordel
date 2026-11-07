@@ -865,6 +865,7 @@ Premier des 5 nouveaux jeux demandés par Scotty (des jeux de skill, stylés, «
 - **Sniper** : il ne bouge pas, vise à la souris (souris libre), clic pour tirer. Son laser part du haut de l'écran et tout le monde le voit. Balles : nombre de cachés + 3, recharge 1,6 s. Le tir touche ce qui est à moins de 20 px du viseur ; un passant tué = une balle perdue.
 - **Fin** : tous les cachés touchés, plus de balles, ou 90 s. La manche suivante se lance toute seule (7 s).
 - **Missions des cachés** (ajout demandé par Scotty, pour rendre la vie plus dure aux cachés et un peu plus simple au sniper) : chaque caché a sa mission, que lui seul voit (message privé « me », carte en bas à gauche + contour de l'endroit). Types : passer près de la fontaine / du kiosque / d'un arbre (2,5 s dans la zone, même en marchant), s'attarder sous un lampadaire (3 s), s'asseoir sur un banc (3,5 s immobile contre le banc ; un joueur s'assoit tout seul quand il s'arrête contre un banc), rejoindre un groupe qui discute (3,5 s immobile), marcher un peu puis s'arrêter et regarder autour (4 s immobile, après au moins 160 px de marche : sinon ne rien faire suffirait). La progression baisse doucement si on sort. Chaque nouvelle mission est à plus de 280 px et d'un autre type. Le sniper ne voit PAS les missions. Les bots cachés font leurs missions 60 % du temps, comme une activité de passant.
+- **Révélation** (demande de Scotty) : en fin de manche, pendant 3,5 s, tout le monde (sniper compris) voit sur la place où étaient les joueurs cachés : anneau jaune + pseudo pour ceux jamais repérés, rouge là où sont tombés les autres. Ensuite vient le tableau des points (la pause entre manches passe à 10 s).
 - **Points** : sniper +3 par joueur touché, +2 s'il les a tous ; caché +2 par mission, +1 toutes les 30 s en vie, +2 s'il survit (avant les missions : +1 toutes les 15 s, +3).
 - **Bots** : cachés = exactement comme les passants ; sniper = il choisit un suspect (un vrai joueur 3 fois sur 10), amène son laser dessus doucement, et tire.
 
@@ -880,13 +881,15 @@ Premier des 5 nouveaux jeux demandés par Scotty (des jeux de skill, stylés, «
 - **Points** : 1 par joueur éliminé avant soi, +1 par élimination. 6 manches.
 - **Bots** : ils écoutent les pas et les pings, pingent de temps en temps, avancent à pas de loup près d'un bruit, tirent surtout sur ce qu'un ping leur a montré. Manches d'environ 20 s entre bots.
 
-## 7 octovicies. Puck 🏒 — refait en air hockey (demande de Scotty)
+## 7 octovicies. Air Hockey 🏒 (ex-« Puck », id interne `puck`) — refait en air hockey (demande de Scotty)
+
+Renommé « Air Hockey » (nom plus clair). Vitesses baissées à la demande de Scotty : palet 1300 px/s au plus (2100 avant), maillets des bots 900 px/s (les humains gardent 1700), et les défenseurs bots suivent le palet avec un temps de réaction (sinon plus aucun but entre bots).
 
 1re version : patineurs au clavier avec crosse, tirs et charges. Scotty voulait plutôt un hockey à la souris où l'on ne fait que percuter le palet, sans passer la ligne du milieu.
 - **Style** : patinoire néon, moitiés teintées de la couleur de chaque équipe, ligne du milieu en barrière rouge lumineuse, tableau des scores façon retransmission.
 - **Équipes** : tout le monde, réparti au hasard à chaque match ; nombre impair : un robot complète l'équipe 2.
 - **Maillets** : rayon 28 px, ils vont vers la souris (souris libre, pas de capture) à 1700 px/s au plus, chacun dans sa moitié (jamais au-delà de la ligne du milieu). Le client dessine son maillet tout de suite et envoie la position de la souris 30 fois par seconde.
-- **Palet** : rayon 15 px, il perd 18 % de sa vitesse par seconde, rebondit sur les bandes (×0,9), 2100 px/s au plus. Un choc avec un maillet le renvoie (restitution 0,95 + la vitesse du maillet).
+- **Palet** : rayon 15 px, il perd 18 % de sa vitesse par seconde, rebondit sur les bandes (×0,9), 1300 px/s au plus. Un choc avec un maillet le renvoie (restitution 0,95 + la vitesse du maillet).
 - **Engagement** : le palet commence dans un camp tiré au hasard, puis dans le camp de l'équipe qui vient d'encaisser. S'il reste immobile 3 s, il est remis en jeu.
 - **Match** : 2 min (ou 3), 3 matchs, le suivant se lance tout seul. **Points** : +2 par but, +3 pour l'équipe gagnante, +1 chacun en cas de nul.
 - **Bots** : le plus proche du palet se place derrière lui (côté de son but) puis fonce dedans vers le but adverse ; contre une bande, il le frappe directement ; les autres défendent entre le palet et leur but.

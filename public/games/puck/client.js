@@ -41,7 +41,7 @@
     <div id="pu-setup" class="hidden">
       <div class="logo imp-logo">
         <span class="logo-icon">🏒</span>
-        <h1>PUCK</h1>
+        <h1>AIR HOCKEY</h1>
         <p class="tagline">Air hockey néon. Percute le palet, défends ton but.</p>
       </div>
       <div class="pt-setup-grid">
@@ -205,7 +205,7 @@
     $("pu-next") && ($("pu-next").onclick = () => api.action("next"));
     $("pu-again") && ($("pu-again").onclick = () => api.action("start").then((r) => { if (r.error) $("pu-over-error").textContent = r.error; }));
     $("pu-to-setup") && ($("pu-to-setup").onclick = () => api.action("setup"));
-    $("pu-finish") && ($("pu-finish").onclick = () => { if (st.playlist?.final || confirm("Terminer Puck ? Le classement actuel donne les points de soirée.")) api.action("finish"); });
+    $("pu-finish") && ($("pu-finish").onclick = () => { if (st.playlist?.final || confirm("Terminer Air Hockey ? Le classement actuel donne les points de soirée.")) api.action("finish"); });
   }
 
   // ===================================================================

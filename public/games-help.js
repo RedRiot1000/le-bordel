@@ -374,7 +374,7 @@
         "Ton perso a un anneau pointillé, et toi seul le vois. À l'arrêt, il regarde vers ta souris.",
         "Caché : tu as des <b>missions</b>, que toi seul vois (en bas à gauche) : passer près de la fontaine, t'asseoir sur un banc, rejoindre un groupe, t'arrêter… Fais-les sans foncer tout droit, sinon le sniper te repère !",
         "Sniper : son <b>laser</b> rouge est visible par tout le monde. Il vise à la souris et tire d'un clic. Il a peu de balles : un passant tué, c'est une balle perdue.",
-        "La manche finit quand tous les cachés sont touchés, quand le sniper n'a plus de balles, ou au bout de 90 s.",
+        "La manche finit quand tous les cachés sont touchés, quand le sniper n'a plus de balles, ou au bout de 90 s. Puis on <b>révèle à tous</b> où se cachaient les joueurs.",
       ],
       controls: [
         "Caché : <kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> pour marcher, <kbd>Espace</kbd> / <kbd>Shift</kbd> pour trottiner",

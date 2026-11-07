@@ -11,7 +11,7 @@
 (() => {
   const H = window.Pieton;
   const K = H.K;
-  const W = 1280, HGT = 800, WALK = 0.42, JOG = 0.66, RELOAD = 1600;   // (les mêmes que games/foule/server.js)
+  const W = 1280, HGT = 800, WALK = 0.42, JOG = 0.66, RELOAD = 1600, REVEAL_MS = 3500;   // (les mêmes que games/foule/server.js)
 
   let api = null, root = null;
   let st = null, mineMsg = null;
@@ -28,7 +28,7 @@
   const mouse = { x: W / 2, y: HGT / 2, down: false };
   let particles = [], shots = [];
   const seenFx = new Set();
-  let rain = [], prevPhase = null, playSeenAt = 0, lastSnapRecv = 0, doneToast = 0, lastMissions = 0;
+  let rain = [], prevPhase = null, playSeenAt = 0, lastSnapRecv = 0, doneToast = 0, lastMissions = 0, overSeenAt = 0;
   const shownOff = {}, lastShown = {};
 
   const $ = (id) => document.getElementById(id);
@@ -109,6 +109,7 @@
       st = state;
       if (st.phase === "play" && prevPhase !== "play") playSeenAt = performance.now();
       if (st.phase === "countdown" && prevPhase !== "countdown") { pending = []; pred = prevPred = null; history.clear(); }
+      if ((st.phase === "roundOver" || st.phase === "over") && prevPhase !== st.phase) overSeenAt = performance.now();
       prevPhase = st.phase;
       phaseEndLocal = Date.now() + (st.phaseLeft || 0);
       if (st.phase === "setup") { $("fo-play").classList.add("hidden"); $("fo-setup").classList.remove("hidden"); renderSettings(); return; }
@@ -264,7 +265,8 @@
   }
   function renderOver() {
     const ov = $("fo-overlay");
-    const show = (st.phase === "roundOver" || st.phase === "over") && st.lastRound;
+    // (d'abord la révélation sur la place, puis le tableau des points)
+    const show = (st.phase === "roundOver" || st.phase === "over") && st.lastRound && !revealing();
     ov.parentElement.classList.toggle("over", !!show);
     if (!show) { ov.classList.add("hidden"); ov.dataset.key = ""; return; }
     const host = api.isHost(), lr = st.lastRound;
@@ -303,6 +305,7 @@
     lastTs = ts;
     for (const [id, end] of [["fo-fin-sec", finishEndLocal], ["fo-next-sec", phaseEndLocal]]) { const el = $(id); if (el) el.textContent = Math.max(0, Math.ceil((end - Date.now()) / 1000)); }
     if (!st || st.phase === "setup" || !st.plaza) return;
+    if (st.lastRound && $("fo-overlay").classList.contains("hidden") && !revealing()) renderOver();
     if (!pred && myEnt()?.alive && driving()) pred = H.copy(myEnt());
     drive(dt);
     const decay = Math.pow(0.8, dt * 60);
@@ -399,6 +402,7 @@
     }
     if (m && m.alive && pred) { const o = ownView(); window.VehicleArt.markMe(c, o.x + off.x, o.y + off.y, ts, "#ffffff", window.VehicleArt.markAlpha(st.phase === "countdown" ? "countdown" : st.phase, playSeenAt), 1); }
     if (m && m.alive && m.mission && st.phase === "play") drawMissionCard(c, m, ts);
+    drawReveal(c, ts);
     drawHud(c);
   }
   // L'endroit de ma mission (moi seul le vois) : un contour discret qui se remplit.
@@ -422,6 +426,29 @@
     const age = (performance.now() - doneToast) / 1000;
     if (age < 1.8) { c.globalAlpha = Math.min(1, 1.8 - age); c.font = "900 22px Georgia, serif"; c.fillStyle = "#8dffb0"; c.fillText("✅ Mission réussie +2", x + 12, y - 18); c.globalAlpha = 1; }
     c.textAlign = "center";
+  }
+  const revealing = () => (st?.phase === "roundOver" || st?.phase === "over") && performance.now() - overSeenAt < REVEAL_MS;
+  // Fin de manche : tout le monde (sniper compris) voit où étaient les joueurs cachés.
+  function drawReveal(c, ts) {
+    const lr = st.lastRound;
+    if (!lr?.reveal || !(st.phase === "roundOver" || st.phase === "over")) return;
+    const pulse = 1 + Math.sin(ts / 160) * 0.12;
+    c.textAlign = "center"; c.textBaseline = "middle";
+    for (const r of lr.reveal) {
+      if (r.x === undefined) continue;
+      const col = r.alive ? "255,214,90" : "255,70,90";
+      c.fillStyle = `rgba(${col},0.18)`; c.beginPath(); c.arc(r.x, r.y, 34 * pulse, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = `rgba(${col},0.95)`; c.lineWidth = 3; c.beginPath(); c.arc(r.x, r.y, 26 * pulse, 0, Math.PI * 2); c.stroke();
+      const label = `${r.alive ? "🕴️" : "💀"} ${pseudoOf(r.id)}`;
+      c.font = "bold 16px Segoe UI, sans-serif";
+      const w = c.measureText(label).width + 16;
+      c.fillStyle = "rgba(0,0,0,0.75)"; c.beginPath(); c.roundRect(r.x - w / 2, r.y - 64, w, 24, 6); c.fill();
+      c.fillStyle = `rgb(${col})`; c.fillText(label, r.x, r.y - 52);
+    }
+    if (revealing()) {
+      c.fillStyle = "rgba(0,0,0,0.75)"; c.beginPath(); c.roundRect(W / 2 - 260, 70, 520, 44, 12); c.fill();
+      c.font = "900 24px Georgia, serif"; c.fillStyle = "#e8e0d0"; c.fillText("🔎 Voici où se cachaient les joueurs", W / 2, 92);
+    }
   }
   function drawHud(c) {
     c.textAlign = "center"; c.textBaseline = "middle";
