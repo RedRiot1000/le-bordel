@@ -64,6 +64,7 @@ const GAMES = {
   tour: () => game.runners?.length === 8,
   cavale: () => game.heroes?.length === 8,
   ricochet: () => game.heroes?.length === 8,
+  foule: () => game.ents?.length >= 40,
   casse: () => game.heroes?.length === 8 && !!game.van,
 };
 

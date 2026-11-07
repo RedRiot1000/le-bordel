@@ -366,6 +366,26 @@
       ],
       example: "La zone va sauter près du pilier : tu cours avant les autres, tu es seul dedans, 1, 2, 3 s… Bob arrive, contesté ! Tu vises et PAF, coup de batte : il glisse hors de la zone. Tu reprends le compte jusqu'au prochain saut.",
     },
+    foule: {
+      goal: "Démasquer les autres joueurs cachés dans la foule, sans te faire démasquer.",
+      steps: [
+        "Tout le monde ressemble aux <b>passants</b> (des bots). Ton perso a un anneau pointillé, et toi seul le vois.",
+        "Observe : un joueur ne bouge pas tout à fait comme un passant.",
+        "Approche-toi et <b>frappe</b> (<kbd>Espace</kbd> ou clic) : le plus proche tombe.",
+        "Si tu frappes un <b>passant</b>, tu es <b>révélé</b> à tout le monde pendant 3 s.",
+        "La manche finit quand il ne reste qu'un joueur, ou au bout de 2 min.",
+      ],
+      controls: [
+        "<kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> / flèches : marcher",
+        "<kbd>Espace</kbd>, <kbd>E</kbd> ou clic : frapper",
+      ],
+      points: [
+        "<b>+3</b> par joueur démasqué.",
+        "<b>+1</b> toutes les 20 s en vie.",
+        "<b>+3</b> au dernier joueur debout.",
+      ],
+      example: "Un passant s'arrête net, repart en diagonale, s'arrête encore… trop régulier. Tu t'approches en marchant tranquillement et tu frappes : c'était Bob, +3 !",
+    },
     ricochet: {
       goal: "Être le dernier debout (ou la dernière équipe) : une touche suffit.",
       steps: [

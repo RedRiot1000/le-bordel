@@ -853,3 +853,12 @@ Premier des 5 nouveaux jeux demandés par Scotty (des jeux de skill, stylés, «
 - **Points** : comme Boules de neige (1 par joueur éliminé avant soi, ou 3 pour l'équipe gagnante, + 1 par élimination).
 - **Bots** : ils cherchent un tir direct ou à un rebond, lèvent le bouclier ou esquivent quand une balle arrive. Manches de 17 à 21 s entre bots.
 
+## 7 sexvicies. Foule 🕴️ — fait sans validation (exception demandée par Scotty)
+
+2e jeu de la série. Scotty a demandé de faire Foule, Sonar, Puck et Golf de combat sans lui demander, il regardera après. Choix déjà validés : élimination au contact, toucher un passant te révèle, on marque aussi en restant caché.
+- **Style** : film noir. Place la nuit, pavés mouillés, lampadaires, pluie, vignettage, police Georgia.
+- **Secret** : l'état public ne distingue jamais un joueur d'un passant (ids mélangés, mêmes manteaux et chapeaux tirés au hasard). Chaque joueur reçoit en privé (`ctx.sendTo` → `message("me")`) son personnage et sa position exacte (pour la prédiction). Seul lui voit son anneau pointillé.
+- **Foule** : 22 passants + 3 par joueur. Les passants marchent vers un point, s'arrêtent 0,4 à 3,2 s, repartent (8 directions, comme les joueurs), à 0,36 à 0,46 × la vitesse normale. Les joueurs marchent à 0,44.
+- **Coup** : Espace / E / clic, le plus proche à 46 px tombe. Recharge 1,5 s. Un passant frappé : on est révélé 3 s (anneau rouge « SUSPECT »). Tout le monde voit le geste.
+- **Fin** : il reste un joueur, ou 2 min. **Points** : +3 par joueur démasqué, +1 toutes les 20 s en vie, +3 au dernier debout.
+- **Bots** : comme des passants ; de temps en temps ils soupçonnent quelqu'un (un révélé à 80 %, un vrai joueur à 22 %, sinon n'importe qui) et vont le frapper. Manches de 45 à 63 s entre bots.

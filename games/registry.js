@@ -27,6 +27,7 @@ import * as course from "./course/server.js";
 import * as tour from "./tour/server.js";
 import * as cavale from "./cavale/server.js";
 import * as ricochet from "./ricochet/server.js";
+import * as foule from "./foule/server.js";
 
 // Les jeux jouables.
 export const GAMES = {
@@ -53,6 +54,7 @@ export const GAMES = {
   [tour.meta.id]: tour,
   [cavale.meta.id]: cavale,
   [ricochet.meta.id]: ricochet,
+  [foule.meta.id]: foule,
 };
 
 // Les jeux prévus (affichés grisés "bientôt" dans le menu).
