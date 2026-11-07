@@ -1,7 +1,8 @@
 // ===================================================================
 //  GOLF DE COMBAT — Le trou et les balles (partagés serveur + navigateur)
 //  Un trou tiré d'une seed : un parcours en couloirs (des rectangles mis
-//  bout à bout, avec des virages), des blocs, des bumpers, de l'eau, du sable.
+//  bout à bout, avec des virages), des blocs, des barrières, des bumpers,
+//  de l'eau, du sable, des tapis qui poussent la balle. Du trou très court au très long.
 //  Les balles roulent, rebondissent sur les bords et se cognent entre elles.
 //    globalThis.Golf
 // ===================================================================
@@ -17,6 +18,7 @@
   G.BUMP = 1.25;            // un bumper renvoie la balle plus fort
   G.SINK_V = 560;           // au-delà de cette vitesse, la balle saute par-dessus le trou
   G.REST = 8;               // en dessous, la balle est arrêtée
+  G.PUSH = 700;             // la poussée d'un tapis (px/s²)
 
   function seeded(seed) {
     let s = seed >>> 0;
@@ -26,20 +28,21 @@
 
   // Le trou : 3 à 5 couloirs, chacun part du bout du précédent en tournant.
   G.build = function (seed) {
-    for (let tries = 0; tries < 200; tries++) {
-      const h = attempt(seeded(seed + tries * 7919));
+    // La longueur du trou est tirée une fois (de 1 à 7 couloirs) ; si ça ne rentre pas, on raccourcit peu à peu.
+    const want = 1 + Math.floor(seeded(seed ^ 0x601f)() * 7);
+    for (let tries = 0; tries < 400; tries++) {
+      const h = attempt(seeded(seed + tries * 7919), Math.max(1, want - Math.floor(tries / 80)));
       if (h) return { seed, ...h };
     }
     throw new Error("trou introuvable");
   };
-  function attempt(rnd) {
+  function attempt(rnd, n) {
     const M = 40, segs = [];
-    const n = 3 + Math.floor(rnd() * 3);
-    const width = 150 + Math.floor(rnd() * 70);
+    const width = 125 + Math.floor(rnd() * 115);
     // (x, y) = le centre du carré de départ du couloir : chaque couloir part du carré de virage du précédent.
     let x = M + 20 + rnd() * 120 + width / 2, y = M + 80 + rnd() * 500, dir = 0;    // on part vers la droite
     for (let i = 0; i < n; i++) {
-      const L = 260 + rnd() * 340;
+      const L = (n === 1 ? 700 : n <= 2 ? 380 : 220) + rnd() * (n <= 2 ? 420 : 380);
       let r;
       if (dir === 0) r = { x: x - width / 2, y: y - width / 2, w: L, h: width };
       else if (dir === 1) r = { x: x - width / 2, y: y - width / 2, w: width, h: L };
@@ -66,23 +69,36 @@
     }
     void ld;
     // Les obstacles : dans les couloirs, jamais sur le départ ni sur le trou.
-    const blocks = [], bumpers = [], water = [], sand = [];
+    const blocks = [], bumpers = [], water = [], sand = [], boosts = [];
     const inside = (x2, y2, m) => segs.some((s) => inRect(s, x2, y2, m));
     const farFrom = (x2, y2, d) => Math.hypot(x2 - tee.x, y2 - tee.y) > d && Math.hypot(x2 - cup.x, y2 - cup.y) > d;
-    const clear = (o) => [...blocks, ...water, ...sand].every((p) => o.x > p.x + p.w + 40 || o.x + o.w < p.x - 40 || o.y > p.y + p.h + 40 || o.y + o.h < p.y - 40) && bumpers.every((b) => Math.hypot(b.x - (o.x + o.w / 2), b.y - (o.y + o.h / 2)) > 90);
-    const want = 3 + Math.floor(rnd() * 4);
-    for (let k = 0; k < 80 && blocks.length + bumpers.length + water.length + sand.length < want; k++) {
+    const clear = (o) => [...blocks, ...water, ...sand, ...boosts].every((p) => o.x > p.x + p.w + 40 || o.x + o.w < p.x - 40 || o.y > p.y + p.h + 40 || o.y + o.h < p.y - 40) && bumpers.every((b) => Math.hypot(b.x - (o.x + o.w / 2), b.y - (o.y + o.h / 2)) > 90);
+    // Plus le trou est long, plus il y a d'obstacles.
+    const area = segs.reduce((a, s) => a + s.w * s.h, 0);
+    const want = Math.round(area / 42000) + 2 + Math.floor(rnd() * 4);
+    for (let k = 0; k < 220 && blocks.length + bumpers.length + water.length + sand.length + boosts.length < want; k++) {
       const s = segs[Math.floor(rnd() * segs.length)], u = rnd();
       const cx = s.x + 30 + rnd() * (s.w - 60), cy = s.y + 30 + rnd() * (s.h - 60);
       if (!farFrom(cx, cy, 130)) continue;
-      if (u < 0.28) { const o = { x: cx - 18, y: cy - 18, w: 36, h: 36 }; if (inside(cx, cy, 50) && clear(o)) blocks.push(o); }
-      else if (u < 0.55) { const o = { x: cx - 22, y: cy - 22, w: 44, h: 44 }; if (inside(cx, cy, 45) && clear(o)) bumpers.push({ x: cx, y: cy, r: 22 }); }
-      else if (u < 0.78) { const w = 70 + rnd() * 60, hh = 50 + rnd() * 40, o = { x: cx - w / 2, y: cy - hh / 2, w, h: hh }; if (inside(o.x, o.y, 0) && inside(o.x + o.w, o.y + o.h, 0) && clear(o)) water.push(o); }
+      if (u < 0.18) { const o = { x: cx - 18, y: cy - 18, w: 36, h: 36 }; if (inside(cx, cy, 50) && clear(o)) blocks.push(o); }
+      else if (u < 0.32) {
+        // Une barrière : un mur fin en travers d'une partie du couloir (jamais tout le couloir).
+        const across = s.w > s.h, L = Math.min(across ? s.h : s.w, 200) * (0.35 + rnd() * 0.25);
+        const o = across ? { x: cx - 7, y: (rnd() < 0.5 ? s.y : s.y + s.h - L), w: 14, h: L } : { x: (rnd() < 0.5 ? s.x : s.x + s.w - L), y: cy - 7, w: L, h: 14 };
+        if (clear(o) && farFrom(o.x + o.w / 2, o.y + o.h / 2, 120)) blocks.push(o);
+      } else if (u < 0.42) {
+        // Un tapis qui pousse la balle (dans le sens du couloir, ou à rebours).
+        const along = s.w > s.h, w = along ? 90 + rnd() * 80 : s.w - 20, hh = along ? s.h - 20 : 90 + rnd() * 80;
+        const o = { x: along ? cx - w / 2 : s.x + 10, y: along ? s.y + 10 : cy - hh / 2, w, h: hh };
+        const sign = rnd() < 0.7 ? 1 : -1, dirx = along ? sign : 0, diry = along ? 0 : sign;
+        if (clear(o)) boosts.push({ ...o, dx: dirx, dy: diry });
+      } else if (u < 0.6) { const o = { x: cx - 22, y: cy - 22, w: 44, h: 44 }; if (inside(cx, cy, 45) && clear(o)) bumpers.push({ x: cx, y: cy, r: 22 }); }
+      else if (u < 0.8) { const w = 70 + rnd() * 60, hh = 50 + rnd() * 40, o = { x: cx - w / 2, y: cy - hh / 2, w, h: hh }; if (inside(o.x, o.y, 0) && inside(o.x + o.w, o.y + o.h, 0) && clear(o)) water.push(o); }
       else { const w = 80 + rnd() * 70, hh = 60 + rnd() * 50, o = { x: cx - w / 2, y: cy - hh / 2, w, h: hh }; if (inside(o.x, o.y, 0) && inside(o.x + o.w, o.y + o.h, 0) && clear(o)) sand.push(o); }
     }
     // Le par : selon la longueur du chemin.
     const len = segs.reduce((a, s) => a + Math.max(s.w, s.h), 0);
-    return { segs, tee, cup, blocks, bumpers, water, sand, par: Math.max(2, Math.min(5, Math.round(len / 420) + 1)) };
+    return { segs, tee, cup, blocks, bumpers, water, sand, boosts, par: Math.max(2, Math.min(7, Math.round(len / 420) + 1 + (n >= 5 ? 1 : 0))) };
   }
 
   // Est-on sur le gazon (dans un couloir, hors d'un bloc) ?
@@ -95,7 +111,9 @@
     for (let k = 0; k < SUB; k++) {
       const f = Math.pow(1 - (h.sand.some((s) => inRect(s, b.x, b.y)) ? Math.min(0.97, G.ROLL * G.SAND) : G.ROLL), d);
       b.vx *= f; b.vy *= f;
-      if (Math.hypot(b.vx, b.vy) < G.REST) { b.vx = 0; b.vy = 0; break; }
+      // Un tapis pousse la balle qui roule dessus (une balle arrêtée y reste, on peut la rejouer).
+      for (const t of h.boosts || []) if (inRect(t, b.x, b.y)) { b.vx += t.dx * G.PUSH * d; b.vy += t.dy * G.PUSH * d; }
+      if (Math.hypot(b.vx, b.vy) < G.REST * ((h.boosts || []).some((t) => inRect(t, b.x, b.y)) ? 4 : 1)) { b.vx = 0; b.vy = 0; break; }
       // On avance sur chaque axe : si on sort du gazon, on rebondit sur ce bord.
       const nx = b.x + b.vx * d;
       if (G.onCourse(h, nx, b.y)) b.x = nx; else { b.vx = -b.vx * G.WALL_BOUNCE; b.hitWall = true; }

@@ -1,19 +1,15 @@
 // ===================================================================
 //  PUCK — Moteur du jeu (module du hub Le Bordel)
-//  Hockey néon en 2 équipes (tout le monde joue ; un robot complète si le
-//  nombre est impair). On récupère le palet en passant dessus, on le garde
-//  au bout de la crosse, on tire (clic maintenu = plus fort) ou on passe.
-//  Sans le palet : une charge (Espace) bouscule et fait lâcher le palet.
-//  Le SERVEUR fait foi (30 calculs/s, même moteur que le navigateur).
+//  Air hockey néon en 2 équipes (tout le monde joue ; un robot complète si
+//  le nombre est impair). Chacun dirige un maillet à la souris, dans SA
+//  moitié de patinoire : on ne passe jamais la ligne du milieu. On ne touche
+//  le palet qu'en le percutant ; il faut l'envoyer dans le but adverse.
+//  Le SERVEUR fait foi (30 calculs/s).
 // ===================================================================
 
-import "../../public/games/pieton/engine.js";
 import "../../public/games/puck/rink.js";
 
-const H = globalThis.Pieton;
 const R = globalThis.Rink;
-const K = H.K;
-
 export const meta = {
   id: "puck",
   name: "Puck",
@@ -21,17 +17,15 @@ export const meta = {
   family: "Action",
   minPlayers: 2,
   maxPlayers: 8,
-  description: "Hockey néon en équipes : passes, tirs en rebond sur les bandes, charges. Marque plus de buts !",
+  description: "Air hockey néon en équipes, à la souris : percute le palet et envoie-le dans le but adverse !",
 };
 
 const TICK_MS = 1000 / 30;
-export const SPEED = 1.15;
-export const CARRY_SLOW = 0.9;           // avec le palet, on va un peu moins vite
-export const GRAB_R = 34;                // on récupère le palet à cette distance
-export const STICK = 28;                 // le palet est tenu à cette distance devant soi
-export const SHOT_MIN = 520, SHOT_MAX = 1500, CHARGE_S = 0.8;
-export const LOCKOUT = 0.35;             // après un tir, on ne peut pas reprendre son propre palet tout de suite
-export const MATCH_MS = 120000, FACEOFF_MS = 2000;
+export const MALLET_R = 28;              // le maillet
+export const MALLET_V = 1700;            // sa vitesse maximale (il suit la souris)
+export const PUCK_MAX = 2100;            // le palet ne va jamais plus vite
+export const HIT = 0.95;                 // un choc renvoie presque toute la vitesse
+export const FACEOFF_MS = 1300;
 const COUNTDOWN_MS = 3000, ROUND_OVER_MS = 7000, FINISH_DELAY = 15000;
 const TEAMS = { 1: { name: "Cyans", emoji: "🔷", color: "#21e6ff" }, 2: { name: "Oranges", emoji: "🔶", color: "#ff8a1f" } };
 
@@ -43,18 +37,28 @@ export const playlist = {
   ],
   settingsFor(c) { return { rounds: [1, 3, 5].includes(Number(c.rounds)) ? Number(c.rounds) : 3, minutes: [2, 3].includes(Number(c.minutes)) ? Number(c.minutes) : 2 }; },
 };
-
 const shuffle = (arr) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
+// Un maillet reste dans sa moitié, et dans la patinoire.
+export function clampMallet(team, p) {
+  const r = MALLET_R;
+  p.x = team === 1 ? Math.max(R.X0 + r, Math.min(R.CX - r, p.x)) : Math.max(R.CX + r, Math.min(R.X1 - r, p.x));
+  p.y = Math.max(R.Y0 + r, Math.min(R.Y1 - r, p.y));
+  const o = { x: p.x, y: p.y, vx: 0, vy: 0 };
+  R.keepIn(o, r);
+  p.x = o.x; p.y = o.y;
+  return p;
+}
+
 export function createGame(ctx) {
   const g = {
-    phase: "setup",       // setup | countdown | play | roundOver | over
+    phase: "setup",
     settings: ctx.savedSettings ? { ...defaultSettings(), ...ctx.savedSettings } : defaultSettings(),
     scores: {}, round: 0,
-    teamOf: {},           // id -> 1 / 2
-    heroes: {},           // id -> { h, team, bot, robot, seq, lastInputAt, prevK, aim, charging, goals, ai, lockUntil }
-    puck: { x: R.CX, y: R.CY, vx: 0, vy: 0 }, carrier: null, lastTouch: null, lastShooter: null,
+    teamOf: {},
+    mallets: {},          // id -> { x, y, vx, vy, tx, ty, team, bot, robot, goals, ai, lastInputAt }
+    puck: { x: R.CX, y: R.CY, vx: 0, vy: 0 }, lastHit: null,
     goals: { 1: 0, 2: 0 }, faceoffUntil: 0,
     playAt: 0, endAt: 0, phaseEnd: 0, lastTickAt: 0,
     lastRound: null, loop: null,
@@ -63,10 +67,9 @@ export function createGame(ctx) {
   };
   const now = () => Date.now();
   const players = () => ctx.players();
-  const pseudo = (id) => (g.heroes[id]?.robot ? "Robot" : players().find((p) => p.id === id)?.pseudo || "?");
+  const pseudo = (id) => (g.mallets[id]?.robot ? "Robot" : players().find((p) => p.id === id)?.pseudo || "?");
   const say = (text) => { g.feed.push({ id: ++g.fxId, text }); if (g.feed.length > 10) g.feed.shift(); };
   const addFx = (o) => { g.fx.push({ id: ++g.fxId, t: now(), ...o }); if (g.fx.length > 40) g.fx.shift(); };
-  const envOf = (s) => ({ walls: true, w: R.W, h: R.H, push: true, speedMul: SPEED * (g.carrier === s.id ? CARRY_SLOW : 1), rects: R.heroRects });
 
   function publicState() {
     const t = now();
@@ -74,12 +77,8 @@ export function createGame(ctx) {
       t, phase: g.phase, settings: g.settings, round: g.round,
       players: players().map((p) => ({ ...p, score: g.scores[p.id] || 0 })),
       teams: TEAMS, teamOf: g.teamOf, goals: g.goals,
-      heroes: Object.entries(g.heroes).map(([id, s]) => ({
-        id, seq: s.seq, team: s.team, robot: !!s.robot, charge: s.charging ? Math.min(1, (t - s.charging) / (CHARGE_S * 1000)) : 0,
-        x: s.h.x, y: s.h.y, vx: s.h.vx, vy: s.h.vy, face: s.h.face, walk: s.h.walk, stun: s.h.stun, dash: s.h.dash, dashT: 0, pushT: s.h.pushT, heavy: 0,
-      })),
+      mallets: Object.entries(g.mallets).map(([id, m]) => ({ id, team: m.team, robot: !!m.robot, x: Math.round(m.x * 10) / 10, y: Math.round(m.y * 10) / 10, vx: Math.round(m.vx), vy: Math.round(m.vy) })),
       puck: { x: Math.round(g.puck.x * 10) / 10, y: Math.round(g.puck.y * 10) / 10, vx: Math.round(g.puck.vx), vy: Math.round(g.puck.vy) },
-      carrier: g.carrier,
       faceoff: Math.max(0, g.faceoffUntil - t),
       timeLeft: g.phase === "play" ? Math.max(0, g.settings.minutes * 60000 - (t - g.playAt)) : g.settings.minutes * 60000,
       phaseLeft: Math.max(0, g.phaseEnd - t),
@@ -91,39 +90,35 @@ export function createGame(ctx) {
     };
   }
 
-  // =================================================================
-  //  DÉROULÉ
-  // =================================================================
   function startGame() {
     g.scores = {}; g.round = 0;
     for (const p of players().filter((p) => p.connected)) g.scores[p.id] = 0;
     startRound();
   }
-  // L'engagement : tout le monde dans son camp, le palet au centre.
-  function faceoff(t) {
+  // L'engagement : chacun dans son camp ; le palet dans le camp de l'équipe qui a encaissé (au début : au centre).
+  function faceoff(t, toTeam = 0) {
     const byTeam = { 1: [], 2: [] };
-    for (const [id, s] of Object.entries(g.heroes)) byTeam[s.team].push(id);
+    for (const [id, m] of Object.entries(g.mallets)) byTeam[m.team].push(id);
     for (const tm of [1, 2]) byTeam[tm].forEach((id, i) => {
-      const s = g.heroes[id], n = byTeam[tm].length;
-      const x = tm === 1 ? R.CX - 120 - (i % 2) * 180 : R.CX + 120 + (i % 2) * 180, y = R.CY + (i - (n - 1) / 2) * 130;
-      s.h = H.newHero(x, y, tm === 1 ? 0 : Math.PI); s.charging = 0; s.lockUntil = 0;
+      const m = g.mallets[id], n = byTeam[tm].length;
+      const x = tm === 1 ? R.X0 + 120 + (i % 2) * 170 : R.X1 - 120 - (i % 2) * 170, y = R.CY + (i - (n - 1) / 2) * 140;
+      Object.assign(m, clampMallet(tm, { x, y }), { vx: 0, vy: 0 }); m.tx = m.x; m.ty = m.y;
     });
-    g.puck = { x: R.CX, y: R.CY, vx: 0, vy: 0 }; g.carrier = null;
+    g.puck = { x: toTeam === 1 ? R.CX - 150 : toTeam === 2 ? R.CX + 150 : R.CX, y: R.CY, vx: 0, vy: 0 };
     g.faceoffUntil = t + FACEOFF_MS;
   }
   function startRound() {
     const list = shuffle(players().filter((p) => p.connected));
     g.round++;
-    g.teamOf = {}; g.heroes = {};
+    g.teamOf = {}; g.mallets = {};
     list.forEach((p, i) => { g.teamOf[p.id] = (i % 2) + 1; });
-    for (const p of list) g.heroes[p.id] = { id: p.id, h: H.newHero(0, 0), team: g.teamOf[p.id], bot: !!p.bot, seq: 0, lastInputAt: 0, prevK: 0, aim: 0, charging: 0, goals: 0, ai: {}, lockUntil: 0 };
-    // Nombre impair : un robot complète l'équipe la moins nombreuse.
-    if (list.length % 2) g.heroes.robot = { id: "robot", h: H.newHero(0, 0), team: 2, bot: true, robot: true, seq: 0, prevK: 0, aim: 0, charging: 0, goals: 0, ai: {}, lockUntil: 0 };
+    for (const p of list) g.mallets[p.id] = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, team: g.teamOf[p.id], bot: !!p.bot, goals: 0, ai: {}, lastInputAt: 0 };
+    if (list.length % 2) g.mallets.robot = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, team: 2, bot: true, robot: true, goals: 0, ai: {} };
     g.goals = { 1: 0, 2: 0 };
-    g.endAt = 0; g.lastRound = null; g.feed = []; g.fx = [];
+    g.endAt = 0; g.lastRound = null; g.feed = []; g.fx = []; g.lastHit = null;
     g.phase = "countdown";
     g.phaseEnd = now() + COUNTDOWN_MS;
-    faceoff(now() + COUNTDOWN_MS);
+    faceoff(now() + COUNTDOWN_MS, Math.random() < 0.5 ? 1 : 2);   // (le palet commence dans un camp tiré au hasard)
     g.lastTickAt = now();
     startLoop();
   }
@@ -131,20 +126,20 @@ export function createGame(ctx) {
     stopLoop();
     const win = g.goals[1] > g.goals[2] ? 1 : g.goals[2] > g.goals[1] ? 2 : 0;
     const gains = {};
-    for (const [id, s] of Object.entries(g.heroes)) {
-      if (s.robot) continue;
-      const n = s.goals * 2 + (win === 0 ? 1 : s.team === win ? 3 : 0);
+    for (const [id, m] of Object.entries(g.mallets)) {
+      if (m.robot) continue;
+      const n = m.goals * 2 + (win === 0 ? 1 : m.team === win ? 3 : 0);
       gains[id] = n;
       g.scores[id] = (g.scores[id] || 0) + n;
     }
-    g.lastRound = { win, goals: { ...g.goals }, gains, order: Object.keys(gains).sort((a, b) => gains[b] - gains[a]), scorers: Object.fromEntries(Object.keys(gains).map((id) => [id, g.heroes[id].goals])), teamOf: { ...g.teamOf } };
+    g.lastRound = { win, goals: { ...g.goals }, gains, order: Object.keys(gains).sort((a, b) => gains[b] - gains[a]), scorers: Object.fromEntries(Object.keys(gains).map((id) => [id, g.mallets[id].goals])), teamOf: { ...g.teamOf } };
     const last = g.round >= g.settings.rounds;
     g.phase = last ? "over" : "roundOver";
     if (last && ctx.playlist) {
       g.final = true;
       g.finishAt = now() + FINISH_DELAY;
       g.finishTimer = setTimeout(() => ctx.finish(ranking()), FINISH_DELAY);
-    } else if (!last && ctx.playlist) {
+    } else if (!last) {          // (le match suivant se lance tout seul)
       g.phaseEnd = now() + ROUND_OVER_MS;
       g.finishTimer = setTimeout(() => { if (g.phase === "roundOver") startRound(); }, ROUND_OVER_MS);
     }
@@ -157,137 +152,108 @@ export function createGame(ctx) {
   }
 
   // =================================================================
-  //  UN JOUEUR AGIT : patiner, tirer, charger
+  //  LA PHYSIQUE : les maillets suivent leur cible ; le palet glisse et rebondit
   // =================================================================
-  function act(id, k, aim) {
-    const s = g.heroes[id];
-    if (!s) return;
-    const t = now();
-    if (typeof aim === "number") s.aim = aim;
-    const frozen = t < g.faceoffUntil;
-    const env = envOf(s), dt = H.TICK / H.SUB;
-    for (let sub = 0; sub < H.SUB; sub++) {
-      H.drive(s.h, frozen ? 0 : k & (K.UP | K.DOWN | K.LEFT | K.RIGHT | (g.carrier === id ? 0 : K.DASH)), s.aim, dt, env);
-      H.collideWalls(s.h, env);
-      R.keepIn(s.h, H.R);
-      for (const [oid, o] of Object.entries(g.heroes)) if (oid !== id) H.collideHeroes(s.h, o.h);
+  function moveMallets(dt) {
+    const frozen = now() < g.faceoffUntil;
+    for (const m of Object.values(g.mallets)) {
+      const target = clampMallet(m.team, { x: m.tx, y: m.ty });
+      const dx = target.x - m.x, dy = target.y - m.y, d = Math.hypot(dx, dy), maxStep = MALLET_V * dt;
+      const k = frozen ? 0 : d > maxStep ? maxStep / d : 1;
+      const nx = m.x + dx * k, ny = m.y + dy * k;
+      m.vx = (nx - m.x) / dt; m.vy = (ny - m.y) / dt;
+      m.x = nx; m.y = ny;
     }
-    // La charge : ceux qui sont juste devant sont bousculés, et lâchent le palet.
-    if (s.h.pushed) {
-      s.h.pushed = false;
-      const hit = H.applyPush(s.h, Object.values(g.heroes).filter((o) => o !== s).map((o) => o.h));
-      for (const hh of hit) {
-        const o = Object.values(g.heroes).find((x) => x.h === hh);
-        if (o && g.carrier === o.id) { g.carrier = null; g.puck.vx = hh.vx * 1.1; g.puck.vy = hh.vy * 1.1; o.lockUntil = t + 600; addFx({ kind: "vol", x: Math.round(hh.x), y: Math.round(hh.y) }); }
-      }
+    // Deux maillets de la même équipe ne se chevauchent pas.
+    const list = Object.values(g.mallets);
+    for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+      const a = list[i], b = list[j];
+      if (a.team !== b.team) continue;
+      const d = dist(a, b), min = MALLET_R * 2;
+      if (d >= min || d === 0) continue;
+      const nx = (b.x - a.x) / d, ny = (b.y - a.y) / d, over = (min - d) / 2;
+      a.x -= nx * over; a.y -= ny * over; b.x += nx * over; b.y += ny * over;
+      clampMallet(a.team, a); clampMallet(b.team, b);
     }
-    if (g.phase === "play" && !frozen && g.carrier === id) {
-      // Tirer : clic maintenu = plus fort ; relâché = le palet part là où on vise.
-      const fire = k & K.FIRE;
-      if (fire && !s.charging) s.charging = t;
-      if (!fire && s.charging) {
-        const c = Math.min(1, (t - s.charging) / (CHARGE_S * 1000));
-        s.charging = 0;
-        const sp = SHOT_MIN + (SHOT_MAX - SHOT_MIN) * c;
-        g.carrier = null; g.lastShooter = id; s.lockUntil = t + LOCKOUT * 1000;
-        g.puck.vx = Math.cos(s.aim) * sp + s.h.vx * 0.3; g.puck.vy = Math.sin(s.aim) * sp + s.h.vy * 0.3;
-        addFx({ kind: c > 0.6 ? "tir" : "passe", x: Math.round(g.puck.x), y: Math.round(g.puck.y) });
-      }
-    } else s.charging = 0;
-    s.prevK = k;
   }
-
-  // Le palet : tenu au bout de la crosse, ou libre (il glisse et rebondit).
   function stepPuck(dt) {
-    const t = now();
-    if (g.carrier) {
-      const s = g.heroes[g.carrier];
-      if (!s) { g.carrier = null; return; }
-      const a = s.aim;
-      g.puck.x = s.h.x + Math.cos(a) * STICK; g.puck.y = s.h.y + Math.sin(a) * STICK;
-      g.puck.vx = s.h.vx; g.puck.vy = s.h.vy;
-      // (tenu contre la bande : on le garde dans la patinoire)
-      g.puck.x = Math.max(R.X0 + R.PUCK_R, Math.min(R.X1 - R.PUCK_R, g.puck.x)); g.puck.y = Math.max(R.Y0 + R.PUCK_R, Math.min(R.Y1 - R.PUCK_R, g.puck.y));
-      return;
+    const t = now(), SUB = 4, d = dt / SUB, p = g.puck, rr = R.PUCK_R + MALLET_R;
+    for (let s = 0; s < SUB; s++) {
+      // Les chocs avec les maillets.
+      for (const [id, m] of Object.entries(g.mallets)) {
+        const dx = p.x - m.x, dy = p.y - m.y, dd = Math.hypot(dx, dy);
+        if (dd >= rr || dd === 0) continue;
+        const nx = dx / dd, ny = dy / dd;
+        p.x = m.x + nx * (rr + 0.5); p.y = m.y + ny * (rr + 0.5);
+        const rv = (p.vx - m.vx) * nx + (p.vy - m.vy) * ny;
+        if (rv < 0) { p.vx -= (1 + HIT) * rv * nx; p.vy -= (1 + HIT) * rv * ny; }
+        const sp = Math.hypot(p.vx, p.vy);
+        if (sp > PUCK_MAX) { p.vx *= PUCK_MAX / sp; p.vy *= PUCK_MAX / sp; }
+        if (g.lastHit !== id || t - (g.lastHitAt || 0) > 200) addFx({ kind: "choc", x: Math.round(p.x), y: Math.round(p.y), team: m.team });
+        g.lastHit = id; g.lastHitAt = t;
+      }
+      const goal = R.movePuck(p, d);
+      if (goal) return scored(goal === 1 ? 2 : 1, t);
     }
-    const goal = R.movePuck(g.puck, dt);
-    if (goal) return scored(goal === 1 ? 2 : 1, t);
-    // Ramasser : le plus proche, à portée.
-    let best = null, bd = GRAB_R;
-    for (const [id, s] of Object.entries(g.heroes)) { if (t < s.lockUntil || t < g.faceoffUntil) continue; const d = dist(s.h, g.puck); if (d < bd) { bd = d; best = id; } }
-    if (best) { g.carrier = best; g.lastTouch = best; }
   }
   function scored(team, t) {
     g.goals[team]++;
-    const by = g.lastShooter && g.heroes[g.lastShooter]?.team === team ? g.lastShooter : null;
-    if (by) g.heroes[by].goals++;
+    const by = g.lastHit && g.mallets[g.lastHit]?.team === team ? g.lastHit : null;
+    if (by) g.mallets[by].goals++;
     addFx({ kind: "but", team, x: Math.round(g.puck.x), y: Math.round(g.puck.y) });
     say(`🚨 BUT des ${TEAMS[team].emoji} ${TEAMS[team].name}${by ? ` (${pseudo(by)})` : ""} ! ${g.goals[1]} – ${g.goals[2]}`);
-    g.lastShooter = null;
-    faceoff(t + 1200);
-  }
-
-  g.__stepPuck = stepPuck;   // (pour les tests)
-
-  // =================================================================
-  //  BOTS : le plus proche du palet va le chercher, un autre défend, les autres se démarquent
-  // =================================================================
-  const KEYS = [K.RIGHT, K.RIGHT | K.DOWN, K.DOWN, K.DOWN | K.LEFT, K.LEFT, K.LEFT | K.UP, K.UP, K.UP | K.RIGHT];
-  const keyTo = (h, p) => (dist(h, p) < 14 ? 0 : KEYS[Math.round(((Math.atan2(p.y - h.y, p.x - h.x) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8]);
-  function botInput(id, s) {
-    const t = now(), h = s.h, ai = s.ai;
-    const goalX = s.team === 1 ? R.X1 : R.X0, ownX = s.team === 1 ? R.X0 : R.X1;
-    const mates = Object.values(g.heroes).filter((o) => o.team === s.team);
-    const foes = Object.values(g.heroes).filter((o) => o.team !== s.team);
-    let k = 0, aim = s.aim;
-    if (g.carrier === id) {
-      // Avec le palet : vers le but adverse ; tirer quand on est assez près, en visant un coin du but.
-      const tgt = { x: goalX, y: R.CY + (ai.corner = ai.corner ?? (Math.random() < 0.5 ? -1 : 1)) * (R.GOAL / 2 - 26) };
-      const d = dist(h, tgt);
-      aim = Math.atan2(tgt.y - h.y, tgt.x - h.x) + (Math.random() - 0.5) * 0.08;
-      const pressed = foes.some((o) => dist(o.h, h) < 90);
-      if (d < 430 || (pressed && d < 650)) {
-        if (!s.charging) { ai.shotHold = t + 300 + Math.random() * 400; ai.corner = null; }
-        if (t < ai.shotHold) k |= K.FIRE;
-      } else if (pressed && Math.random() < 0.04) {
-        // Une passe au coéquipier le plus avancé.
-        const m = mates.filter((o) => o !== s).sort((a, b) => Math.abs(goalX - a.h.x) - Math.abs(goalX - b.h.x))[0];
-        if (m) { aim = Math.atan2(m.h.y - h.y, m.h.x - h.x); k |= s.charging ? 0 : K.FIRE; ai.passing = true; }
-      }
-      return { k: k | keyTo(h, { x: goalX - (s.team === 1 ? 140 : -140), y: R.CY + Math.sin(t / 700 + h.y) * 120 }), aim };
-    }
-    // Sans le palet.
-    const P = g.puck, chaser = mates.slice().sort((a, b) => dist(a.h, P) - dist(b.h, P))[0];
-    const carrierTeam = g.carrier ? g.heroes[g.carrier]?.team : 0;
-    let goal;
-    if (chaser === s) goal = { x: P.x + P.vx * 0.2, y: P.y + P.vy * 0.2 };
-    else if (mates.length > 1 && mates.slice().sort((a, b) => Math.abs(ownX - a.h.x) - Math.abs(ownX - b.h.x))[0] === s) goal = { x: ownX + (s.team === 1 ? 160 : -160), y: (P.y + R.CY) / 2 };
-    else goal = { x: (P.x + goalX) / 2, y: R.CY + (h.y < R.CY ? -170 : 170) };
-    k |= keyTo(h, goal);
-    aim = Math.atan2(P.y - h.y, P.x - h.x);
-    // Charger le porteur adverse quand il est tout près, devant.
-    if (carrierTeam && carrierTeam !== s.team) {
-      const c = g.heroes[g.carrier].h;
-      if (dist(c, h) < H.R * 2 + H.PUSH_REACH - 4 && h.dash <= 0 && Math.random() < 0.3) { aim = Math.atan2(c.y - h.y, c.x - h.x); k |= K.DASH; }
-    }
-    return { k, aim };
+    g.lastHit = null;
+    faceoff(t + 900, team === 1 ? 2 : 1);
   }
 
   // =================================================================
-  //  BOUCLE (30 fois par seconde)
+  //  BOTS : le plus proche du palet attaque (il vise derrière le palet pour le renvoyer vers le but), les autres défendent
   // =================================================================
+  function botTargets() {
+    const p = g.puck;
+    for (const tm of [1, 2]) {
+      const ms = Object.values(g.mallets).filter((m) => m.team === tm && m.bot);
+      if (!ms.length) continue;
+      const ownX = tm === 1 ? R.X0 : R.X1, goalX = tm === 1 ? R.X1 : R.X0, side = tm === 1 ? 1 : -1;
+      const inMine = tm === 1 ? p.x < R.CX + 30 : p.x > R.CX - 30;     // (jusqu'à la ligne du milieu : il peut encore le toucher)
+      const striker = ms.slice().sort((a, b) => dist(a, p) - dist(b, p))[0];
+      ms.forEach((m, i) => {
+        const ai = m.ai;
+        ai.err = ai.err ?? (Math.random() - 0.5) * 40;
+        if (m === striker && inMine) {
+          // Se placer derrière le palet (côté de son but), puis foncer dedans vers le but adverse.
+          const ax = goalX - p.x, ay = R.CY + ai.err - p.y, al = Math.hypot(ax, ay) || 1;
+          const behind = { x: p.x - (ax / al) * 46, y: p.y - (ay / al) * 46 };
+          // (si le palet est collé à une bande, on ne peut pas passer derrière : on le frappe directement)
+          const reach = clampMallet(tm, { ...behind }), stuck = dist(reach, behind) > 8;
+          const ready = dist(m, behind) < 26;
+          if (stuck) { m.tx = p.x + (ax / al) * 15; m.ty = p.y + (ay / al) * 15; }
+          else { m.tx = ready ? p.x + (ax / al) * 60 : behind.x; m.ty = ready ? p.y + (ay / al) * 60 : behind.y; }
+          // (arrêté à côté du palet sans l'avoir touché : on recommence par derrière)
+          if (!stuck && ready && dist(m, p) > R.PUCK_R + MALLET_R + 30 && Math.hypot(m.vx, m.vy) < 40) { m.tx = behind.x; m.ty = behind.y; }
+          if (Math.random() < 0.01) ai.err = (Math.random() - 0.5) * 80;
+        } else {
+          // Défendre : entre le palet et son but, à une distance qui dépend du rang.
+          const dx = ownX + side * (110 + i * 90), f = (dx - ownX) / ((p.x - ownX) || 1);
+          m.tx = dx; m.ty = R.CY + (p.y - R.CY) * Math.max(0.3, Math.min(1, f + 0.4)) + (i % 2 ? 60 : -60) * (ms.length > 2 ? 1 : 0);
+        }
+      });
+    }
+  }
+
   function tick() {
     const t = now();
-    const dt = Math.min(0.1, (t - g.lastTickAt) / 1000);
+    const dt = Math.min(0.1, (t - g.lastTickAt) / 1000) || TICK_MS / 1000;
     g.lastTickAt = t;
     if (g.phase === "countdown") {
       if (t >= g.phaseEnd) { g.phase = "play"; g.playAt = t; }
     } else if (g.phase === "play") {
-      for (const [id, s] of Object.entries(g.heroes)) {
-        if (s.bot) { const b = botInput(id, s); act(id, b.k, b.aim); }
-        else if (t - s.lastInputAt > 200) act(id, 0, s.aim);
-      }
+      botTargets();
+      moveMallets(dt);
       stepPuck(dt);
+      // Le palet est resté immobile 3 s (coincé, ou personne n'y touche) : on le remet en jeu.
+      if (Math.hypot(g.puck.vx, g.puck.vy) > 40 || t < g.faceoffUntil) g.stillSince = t;
+      else if (t - (g.stillSince || t) > 3000) { g.stillSince = t; say("🔄 Palet bloqué : remise en jeu"); faceoff(t, g.puck.x < R.CX ? 1 : 2); }
       if (!g.endAt && t - g.playAt >= g.settings.minutes * 60000 && t >= g.faceoffUntil) g.endAt = t + 800;
       if (g.endAt && t >= g.endAt) return endRound();
     }
@@ -295,7 +261,6 @@ export function createGame(ctx) {
   }
   function startLoop() { stopLoop(); g.loop = setInterval(tick, TICK_MS); }
   function stopLoop() { clearInterval(g.loop); g.loop = null; }
-  function leave(id) { const s = g.heroes[id]; if (s) { s.bot = true; } }   // un joueur parti : un bot prend sa place
 
   const actions = {
     settings(pid, { settings }) {
@@ -319,20 +284,11 @@ export function createGame(ctx) {
       startRound();
       ctx.update();
     },
-    in(pid, { s, k, a }) {
-      const st = g.heroes[pid];
-      if (!st || st.bot || typeof s !== "number" || s <= st.seq) return;
-      const t = now();
-      st.seq = s;
-      st.lastInputAt = t;
-      const aim = typeof a === "number" && isFinite(a) ? a : null;
-      if (aim !== null) st.aim = aim;
-      if (g.phase !== "play") return;
-      st.budget = Math.min(6, (st.budget ?? 6) + (t - (st.budgetAt || t)) * 0.036);
-      st.budgetAt = t;
-      if (st.budget < 1) return;
-      st.budget -= 1;
-      act(pid, k & 63, aim);
+    // { p: { x, y } } : où est la souris (le maillet va vers ce point, dans sa moitié).
+    in(pid, { p }) {
+      const m = g.mallets[pid];
+      if (!m || m.bot || !p || !isFinite(p.x) || !isFinite(p.y)) return;
+      m.tx = p.x; m.ty = p.y; m.lastInputAt = now();
     },
     setup(pid) {
       if (!ctx.isHost(pid) || g.phase !== "over" || ctx.playlist) return;
@@ -345,6 +301,7 @@ export function createGame(ctx) {
       ctx.finish(ranking());
     },
   };
+  g.__stepPuck = stepPuck; g.__moveMallets = moveMallets;    // (pour les tests)
 
   return {
     publicState,
@@ -354,8 +311,8 @@ export function createGame(ctx) {
       if (!fn) return { error: "Action inconnue." };
       return fn(pid, data || {}) || { ok: true };
     },
-    onReconnect(id) { const s = g.heroes[id]; if (s && !s.robot && players().find((p) => p.id === id && !p.bot)) s.bot = false; ctx.update(); },
-    onDisconnect(id) { leave(id); ctx.update(); },
+    onReconnect(id) { const m = g.mallets[id]; if (m && !m.robot) m.bot = false; ctx.update(); },
+    onDisconnect(id) { const m = g.mallets[id]; if (m) m.bot = true; ctx.update(); },
     canJoin: () => ["setup", "over", "roundOver"].includes(g.phase),
     autoStart() {
       if (players().filter((p) => p.connected).length < meta.minPlayers) { ctx.finish([]); return; }

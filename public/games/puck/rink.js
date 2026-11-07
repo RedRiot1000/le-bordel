@@ -12,8 +12,8 @@
   R.CORNER = 110;                                  // rayon des coins
   R.GOAL = 190;                                    // largeur de l'ouverture du but
   R.DEPTH = 44;                                    // profondeur du but
-  R.PUCK_R = 11;
-  R.FRICTION = 0.55;                               // le palet perd 55 % de sa vitesse par seconde
+  R.PUCK_R = 15;
+  R.FRICTION = 0.18;                               // le palet perd 18 % de sa vitesse par seconde (il glisse sur coussin d air)
   R.CX = (R.X0 + R.X1) / 2; R.CY = (R.Y0 + R.Y1) / 2;
   const gy0 = R.CY - R.GOAL / 2, gy1 = R.CY + R.GOAL / 2;
   R.inMouth = (y) => y > gy0 && y < gy1;
@@ -51,11 +51,11 @@
       if (p.x < R.X0 + r && mouth) { if (p.x < R.X0 - r) return 1; }
       else if (p.x > R.X1 - r && mouth) { if (p.x > R.X1 + r) return 2; }
       else {
-        if (p.x < R.X0 + r) { p.x = R.X0 + r; p.vx = Math.abs(p.vx) * 0.85; }
-        if (p.x > R.X1 - r) { p.x = R.X1 - r; p.vx = -Math.abs(p.vx) * 0.85; }
+        if (p.x < R.X0 + r) { p.x = R.X0 + r; p.vx = Math.abs(p.vx) * 0.9; }
+        if (p.x > R.X1 - r) { p.x = R.X1 - r; p.vx = -Math.abs(p.vx) * 0.9; }
       }
-      if (p.y < R.Y0 + r) { p.y = R.Y0 + r; p.vy = Math.abs(p.vy) * 0.85; }
-      if (p.y > R.Y1 - r) { p.y = R.Y1 - r; p.vy = -Math.abs(p.vy) * 0.85; }
+      if (p.y < R.Y0 + r) { p.y = R.Y0 + r; p.vy = Math.abs(p.vy) * 0.9; }
+      if (p.y > R.Y1 - r) { p.y = R.Y1 - r; p.vy = -Math.abs(p.vy) * 0.9; }
       p.bounce = 0.85;
       R.keepIn(p, r);
     }

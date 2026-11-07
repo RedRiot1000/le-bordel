@@ -331,7 +331,7 @@
     const runners = st.heroes.filter((h) => h.role === "runner"), inJail = runners.filter((h) => h.jailed).length;
     $("cv-jail").textContent = `🔒 ${inJail}/${runners.length} en prison`;
     const feed = (st.feed || []).map((f) => `<li>${esc(f.text)}</li>`).join("");
-    if ($("cv-feed").innerHTML !== feed) $("cv-feed").innerHTML = feed;
+    { const fe = $("cv-feed"); if (fe.dataset.k !== feed) { fe.dataset.k = feed; fe.innerHTML = feed; } }   // (comparé à notre propre texte : sinon il clignote)
   }
 
   function renderOver() {

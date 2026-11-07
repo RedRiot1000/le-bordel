@@ -45,7 +45,7 @@
       for (const o of segs) for (const [px, py] of [[s.x1, s.y1], [s.x2, s.y2], [(s.x1 + s.x2) / 2, (s.y1 + s.y2) / 2]]) { const q = closest(o, px, py); if (Math.hypot(q.x - px, q.y - py) < 70 + (o.t + s.t) / 2) return false; }
       return true;
     };
-    const want = 4 + Math.floor(rnd() * 3);
+    const want = 6 + Math.floor(rnd() * 3);        // assez de murs pour se mettre à l'abri
     for (let tries = 0; tries < 400 && kinds.length < want * 2; tries++) {
       const u = rnd(), x = 160 + rnd() * (W / 2 - 160), y = 100 + rnd() * (H - 200);
       let s, kind;
@@ -101,6 +101,35 @@
       }
     }
     return null;
+  };
+
+  // Une ligne entre deux points est-elle coupée par un mur ? (pour placer les joueurs à l'abri les uns des autres)
+  A.blocked = function (arena, a, b) {
+    const n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 16);
+    for (let i = 1; i < n; i++) {
+      const x = a.x + ((b.x - a.x) * i) / n, y = a.y + ((b.y - a.y) * i) / n;
+      for (const w of arena.walls) { const q = closest(w, x, y); if (Math.hypot(q.x - x, q.y - y) < w.t / 2 + 4) return true; }
+    }
+    return false;
+  };
+  // Des départs pour n joueurs : bien éloignés, et le plus possible cachés les uns des autres par des murs.
+  A.spawns = function (arena, n, rnd = Math.random) {
+    const free = (p) => p.x > 60 && p.y > 60 && p.x < A.W - 60 && p.y < A.H - 60 && arena.walls.every((w) => { const q = closest(w, p.x, p.y); return Math.hypot(q.x - p.x, q.y - p.y) > w.t / 2 + 45; });
+    const cand = [];
+    for (let i = 0; i < 400 && cand.length < 140; i++) { const p = { x: 70 + rnd() * (A.W - 140), y: 70 + rnd() * (A.H - 140) }; if (free(p)) cand.push(p); }
+    const out = [cand[Math.floor(rnd() * cand.length)]];
+    while (out.length < n) {
+      let best = null, bs = -1e9;
+      for (const p of cand) {
+        if (out.includes(p)) continue;
+        let minD = 1e9, seen = 0;
+        for (const q of out) { minD = Math.min(minD, Math.hypot(p.x - q.x, p.y - q.y)); if (!A.blocked(arena, p, q)) seen++; }
+        const score = Math.min(minD, 500) - seen * 260;
+        if (score > bs) { bs = score; best = p; }
+      }
+      out.push(best || cand[0]);
+    }
+    return out;
   };
 
   // Les murs pour le moteur à pied (les bonshommes ne traversent pas les murs).

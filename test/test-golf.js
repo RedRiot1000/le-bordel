@@ -21,6 +21,13 @@ console.log("— Trou et balles —");
     for (let i = 0; i + 1 < h.segs.length; i++) { const p = h.segs[i], q = h.segs[i + 1]; if (Math.min(p.x + p.w, q.x + q.w) - Math.max(p.x, q.x) < 100 || Math.min(p.y + p.h, q.y + q.h) - Math.max(p.y, q.y) < 100) joins++; }
   }
   check(bad === 0 && joins === 0, "200 trous : départ et trou sur le gazon, couloirs bien raccordés");
+  {
+    const lens = new Set(), obs = [];
+    let boosts = 0, thin = 0;
+    for (let s = 0; s < 120; s++) { const h = G.build(s * 104729); lens.add(h.segs.length); obs.push(h.blocks.length + h.bumpers.length + h.water.length + h.sand.length + h.boosts.length); boosts += h.boosts.length; thin += h.blocks.filter((b) => Math.min(b.w, b.h) < 20).length; }
+    check(lens.has(1) && lens.has(2) && Math.max(...lens) >= 5, `Des trous très courts et très longs (${[...lens].sort().join(", ")} couloirs)`);
+    check(Math.max(...obs) >= 10 && boosts > 10 && thin > 10, `Plus d'obstacles, des tapis et des barrières (jusqu'à ${Math.max(...obs)} obstacles)`);
+  }
   // Une balle rebondit sur le bord et s'arrête.
   const flat = { segs: [{ x: 0, y: 0, w: 600, h: 300 }], blocks: [], bumpers: [], water: [], sand: [], cup: { x: 9999, y: 9999 } };
   const ball = { x: 300, y: 150, vx: 900, vy: 0 };

@@ -29,6 +29,7 @@ const TICK_MS = 1000 / 30;
 export const SPEED = 1.1;            // les bonshommes courent un peu plus vite que la normale
 export const SHIELD_MS = 300, SHIELD_CD = 4000;
 export const SAFE_OWN = 0.25;        // sa propre balle ne touche pas pendant 0,25 s (le temps qu'elle parte)
+export const PREP_MS = 2000;          // au début : 2 s pour se placer, personne ne peut tirer
 export const SUDDEN_AT = 30000;      // après 30 s : l'arène rétrécit
 export const SHRINK_MS = 15000;      // … en 15 s
 export const SHRINK_MAX = 0.36;      // jusqu'à ne laisser qu'un tiers de l'arène environ
@@ -96,6 +97,7 @@ export function createGame(ctx) {
       })),
       bullets: g.bullets.map((b) => ({ id: b.id, by: b.by, x: Math.round(b.x * 10) / 10, y: Math.round(b.y * 10) / 10, vx: Math.round(b.vx), vy: Math.round(b.vy), left: b.left, team: g.teamOf[b.by] || 0 })),
       shrink: shrinkAt(playMs()),
+      prep: g.phase === "play" ? Math.max(0, PREP_MS - playMs()) : PREP_MS,
       phaseLeft: Math.max(0, g.phaseEnd - t),
       feed: g.feed.slice(-4),
       lastRound: g.lastRound,
@@ -125,8 +127,8 @@ export function createGame(ctx) {
     g.arena = A.build(g.seed);
     g.heroes = {};
     const used = { 1: 0, 2: 0 };
-    // En chacun pour soi : des places réparties autour de l'arène, bien éloignées.
-    const ffa = g.arena.spawnsFFA.filter((_, i) => n <= 4 ? i % 2 === 0 : true);
+    // En chacun pour soi : des places éloignées et cachées les unes des autres par des murs.
+    const ffa = A.spawns(g.arena, n);
     list.forEach((p, i) => {
       let sp;
       if (g.teamsMode) { const tm = g.teamOf[p.id]; sp = g.arena.spawnsTeam[tm][used[tm]++ % 4]; }
@@ -174,7 +176,7 @@ export function createGame(ctx) {
       g.final = true;
       g.finishAt = now() + FINISH_DELAY;
       g.finishTimer = setTimeout(() => ctx.finish(ranking()), FINISH_DELAY);
-    } else if (!last && ctx.playlist) {
+    } else if (!last) {          // (la manche suivante se lance toute seule)
       g.phaseEnd = now() + ROUND_OVER_MS;
       g.finishTimer = setTimeout(() => { if (g.phase === "roundOver") startRound(); }, ROUND_OVER_MS);
     }
@@ -201,7 +203,7 @@ export function createGame(ctx) {
       H.collideWalls(s.h, env);
       for (const [oid, o] of Object.entries(g.heroes)) if (oid !== id && o.alive) H.collideHeroes(s.h, o.h);
     }
-    if (g.phase === "play") {
+    if (g.phase === "play" && playMs() >= PREP_MS) {
       if (k & K.FIRE && !(s.prevK & K.FIRE) && !g.bullets.some((b) => b.by === id)) {
         const a = s.aim, x = s.h.x + Math.cos(a) * (H.R + A.BULLET_R + 3), y = s.h.y + Math.sin(a) * (H.R + A.BULLET_R + 3);
         // (pas de tir à travers un mur collé contre soi)

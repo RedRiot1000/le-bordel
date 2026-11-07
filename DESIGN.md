@@ -848,22 +848,26 @@ Premier des 5 nouveaux jeux demandés par Scotty (des jeux de skill, stylés, «
 - **Balle** : une seule par joueur, 720 px/s, rebondit 3 fois puis disparaît au mur suivant (6 s au plus). Une touche = mort, sa propre balle comprise (après 0,25 s de vol).
 - **Bouclier** : clic droit (ou Espace), 0,3 s, renvoie la balle là où on vise (elle change de propriétaire, 3 rebonds), recharge 4 s.
 - **Ligne de visée** : jusqu'au premier rebond seulement.
+- **Départs** : 2 s au début pour se placer sans pouvoir tirer ; les départs sont choisis cachés les uns des autres par des murs (à 8 joueurs, environ 9 % des paires se voient, contre 31 % avant). Les manches s'enchaînent toutes seules, et la souris reste capturée entre deux manches.
 - **Mort subite** : après 30 s, le bord rétrécit en 15 s jusqu'à ne laisser qu'un tiers environ ; il élimine. Au plus 60 s.
 - **Modes** : Alterné (chacun pour soi, puis équipes dès 4 joueurs en nombre pair), solo, équipes. 8 manches par défaut.
 - **Points** : comme Boules de neige (1 par joueur éliminé avant soi, ou 3 pour l'équipe gagnante, + 1 par élimination).
 - **Bots** : ils cherchent un tir direct ou à un rebond, lèvent le bouclier ou esquivent quand une balle arrive. Manches de 17 à 21 s entre bots.
 
-## 7 sexvicies. Foule 🕴️ — fait sans validation (exception demandée par Scotty)
+## 7 sexvicies. Foule 🕴️ — refaite en mode sniper (demande de Scotty)
 
-2e jeu de la série. Scotty a demandé de faire Foule, Sonar, Puck et Golf de combat sans lui demander, il regardera après. Choix déjà validés : élimination au contact, toucher un passant te révèle, on marque aussi en restant caché.
+1re version : tout le monde se cachait et se frappait au contact. Scotty voulait plutôt un sniper contre des joueurs qui imitent des bots.
 - **Style** : film noir. Place la nuit, pavés mouillés, lampadaires, pluie, vignettage, police Georgia.
-- **Secret** : l'état public ne distingue jamais un joueur d'un passant (ids mélangés, mêmes manteaux et chapeaux tirés au hasard). Chaque joueur reçoit en privé (`ctx.sendTo` → `message("me")`) son personnage et sa position exacte (pour la prédiction). Seul lui voit son anneau pointillé.
-- **Foule** : 22 passants + 3 par joueur. Les passants marchent vers un point, s'arrêtent 0,4 à 3,2 s, repartent (8 directions, comme les joueurs), à 0,36 à 0,46 × la vitesse normale. Les joueurs marchent à 0,44.
-- **Coup** : Espace / E / clic, le plus proche à 46 px tombe. Recharge 1,5 s. Un passant frappé : on est révélé 3 s (anneau rouge « SUSPECT »). Tout le monde voit le geste.
-- **Fin** : il reste un joueur, ou 2 min. **Points** : +3 par joueur démasqué, +1 toutes les 20 s en vie, +3 au dernier debout.
-- **Bots** : comme des passants ; de temps en temps ils soupçonnent quelqu'un (un révélé à 80 %, un vrai joueur à 22 %, sinon n'importe qui) et vont le frapper. Manches de 45 à 63 s entre bots.
+- **Rôles** : à chaque manche, un joueur est le sniper (chacun son tour : autant de manches que de joueurs, ou 2 tours). Les autres sont cachés parmi 26 passants + 3 par caché.
+- **Secret** : l'état public ne distingue jamais un joueur d'un passant. Chacun reçoit en privé son rôle et son personnage (`message("me")`). Seul lui voit son anneau pointillé.
+- **Passants** : ils choisissent une activité — marcher (36 %), trottiner (10 %), rejoindre un des 4 points de rendez-vous pour discuter face au centre (20 %), s'asseoir près d'un banc (14 %), s'arrêter et regarder autour (20 %).
+- **Cachés** : ZQSD à 0,42, Espace / Shift pour trottiner à 0,66 ; à l'arrêt, le perso regarde vers la souris (comme un passant qui tourne la tête).
+- **Sniper** : il ne bouge pas, vise à la souris (souris libre), clic pour tirer. Son laser part du haut de l'écran et tout le monde le voit. Balles : nombre de cachés + 3, recharge 1,6 s. Le tir touche ce qui est à moins de 20 px du viseur ; un passant tué = une balle perdue.
+- **Fin** : tous les cachés touchés, plus de balles, ou 90 s. La manche suivante se lance toute seule (7 s).
+- **Points** : sniper +3 par joueur touché, +2 s'il les a tous ; caché +1 toutes les 15 s en vie, +3 s'il survit.
+- **Bots** : cachés = exactement comme les passants ; sniper = il choisit un suspect (un vrai joueur 3 fois sur 10), amène son laser dessus doucement, et tire.
 
-## 7 septvicies. Sonar 📡 — fait sans validation (exception demandée par Scotty)
+## 7 septvicies. Sonar 📡 — RETIRÉ (Scotty ne l'aimait pas ; le code reste dans l'historique Git)
 
 3e jeu de la série. Style écran radar : noir, vert phosphore, lignes de balayage, police Consolas.
 - **Secret** : l'état public ne contient que les bruits (échos de pas, pings, coups de feu, fléchettes, morts), jamais les positions des joueurs. Chacun reçoit en privé sa position (`me`) et ce que ses pings révèlent (`reveal`).
@@ -875,24 +879,25 @@ Premier des 5 nouveaux jeux demandés par Scotty (des jeux de skill, stylés, «
 - **Points** : 1 par joueur éliminé avant soi, +1 par élimination. 6 manches.
 - **Bots** : ils écoutent les pas et les pings, pingent de temps en temps, avancent à pas de loup près d'un bruit, tirent surtout sur ce qu'un ping leur a montré. Manches d'environ 20 s entre bots.
 
-## 7 octovicies. Puck 🏒 — fait sans validation (exception demandée par Scotty)
+## 7 octovicies. Puck 🏒 — refait en air hockey (demande de Scotty)
 
-4e jeu de la série. Style patinoire néon : glace sombre, lignes lumineuses, buts qui s'illuminent, tableau des scores façon retransmission.
-- **Équipes** : tout le monde, réparti au hasard à chaque match. Nombre impair : un robot (pas un joueur, ne marque pas de points) complète l'équipe 2. Un joueur qui part est remplacé par un bot.
-- **Patinoire** (`public/games/puck/rink.js`, globalThis.Rink) : bandes aux coins arrondis, buts de 190 px. Le palet perd 55 % de sa vitesse par seconde et rebondit sur les bandes (×0,85).
-- **Palet** : on le prend en passant dessus (34 px), il reste au bout de la crosse (là où on vise). Clic : tapé = passe (520 px/s), maintenu 0,8 s = tir (1500 px/s). On ne reprend pas son propre tir pendant 0,35 s.
-- **Charge** : Espace sans le palet (la poussée du moteur à pied) ; le porteur bousculé lâche le palet.
-- **Match** : 2 min (ou 3), 3 matchs par défaut. Après un but, mise au jeu au centre (2 s, tout le monde figé).
-- **Points** : +2 par but, +3 pour l'équipe gagnante, +1 chacun en cas de nul.
-- **Bots** : le plus proche du palet va le chercher, un autre défend devant son but, les autres se démarquent ; avec le palet, ils montent et tirent dans un coin du but, passent parfois s'ils sont pressés. Environ 6 buts par match entre bots.
+1re version : patineurs au clavier avec crosse, tirs et charges. Scotty voulait plutôt un hockey à la souris où l'on ne fait que percuter le palet, sans passer la ligne du milieu.
+- **Style** : patinoire néon, moitiés teintées de la couleur de chaque équipe, ligne du milieu en barrière rouge lumineuse, tableau des scores façon retransmission.
+- **Équipes** : tout le monde, réparti au hasard à chaque match ; nombre impair : un robot complète l'équipe 2.
+- **Maillets** : rayon 28 px, ils vont vers la souris (souris libre, pas de capture) à 1700 px/s au plus, chacun dans sa moitié (jamais au-delà de la ligne du milieu). Le client dessine son maillet tout de suite et envoie la position de la souris 30 fois par seconde.
+- **Palet** : rayon 15 px, il perd 18 % de sa vitesse par seconde, rebondit sur les bandes (×0,9), 2100 px/s au plus. Un choc avec un maillet le renvoie (restitution 0,95 + la vitesse du maillet).
+- **Engagement** : le palet commence dans un camp tiré au hasard, puis dans le camp de l'équipe qui vient d'encaisser. S'il reste immobile 3 s, il est remis en jeu.
+- **Match** : 2 min (ou 3), 3 matchs, le suivant se lance tout seul. **Points** : +2 par but, +3 pour l'équipe gagnante, +1 chacun en cas de nul.
+- **Bots** : le plus proche du palet se place derrière lui (côté de son but) puis fonce dedans vers le but adverse ; contre une bande, il le frappe directement ; les autres défendent entre le palet et leur but.
 
 ## 7 novovicies. Golf de combat ⛳ — fait sans validation (exception demandée par Scotty)
 
 5e et dernier jeu de la série. Style maquette en papier, plein jour : fond crème, gazon rayé, bordures en bois, ombres franches, eau qui ondule, drapeau qui flotte.
-- **Trou** (`public/games/golf/course.js`, globalThis.Golf) : 3 à 5 couloirs de 150 à 220 px mis bout à bout avec des virages (chacun part du carré de virage du précédent), des blocs, des bumpers (renvoi ×1,25), de l'eau, du sable (freine ×3,2). Le par dépend de la longueur (2 à 5).
+- **Trou** (`public/games/golf/course.js`, globalThis.Golf) : de 1 à 7 couloirs (longueur tirée d'abord, du trou très court au très long) de 125 à 240 px, des barrières fines, des tapis qui poussent la balle qui roule, et d'autant plus d'obstacles que le trou est grand ;
+  à l'origine : 3 à 5 couloirs de 150 à 220 px mis bout à bout avec des virages (chacun part du carré de virage du précédent), des blocs, des bumpers (renvoi ×1,25), de l'eau, du sable (freine ×3,2). Le par dépend de la longueur (2 à 5).
 - **Balle** : le gazon freine de 75 % par seconde, rebond sur les bordures ×0,72. Les balles se cognent (même masse), une balle arrêtée peut être poussée. Dans le trou si elle passe dessus à moins de 560 px/s.
 - **Coup** : viseur relatif à la balle ; clic maintenu = la force monte jusqu'à 1300 px/s en 1,1 s, lâché = on tape. Seulement balle arrêtée. 10 coups au plus.
 - **Eau** : +1 coup, on rejoue d'où on avait tiré.
-- **Fin du trou** : tout le monde dedans, 30 s après le premier, ou 90 s. Ceux qui n'y sont pas : +2 coups.
+- **Fin du trou** : tout le monde dedans, 30 s après le premier, ou 40 s + 12 s par couloir. Le trou suivant se lance tout seul. Le décompte du début est une petite étiquette en haut (le terrain reste visible). Ceux qui n'y sont pas : +2 coups.
 - **Points** : selon les coups, 10, 7, 5, 3, 2, 1 (égalité = même place). 6 trous par défaut.
-- **Bots** : ils visent le trou s'il est en vue, sinon le point le plus avancé du parcours qu'ils voient, et dosent la force d'après le freinage du gazon, avec un peu d'erreur. Environ 18 s par trou entre bots.
+- **Bots** : ils essaient 192 coups « dans leur tête » (32 angles × 6 forces, avec la vraie physique) et gardent un des 3 meilleurs selon la distance au trou en suivant le parcours ; un peu d'erreur à la frappe.

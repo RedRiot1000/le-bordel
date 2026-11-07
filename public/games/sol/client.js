@@ -278,7 +278,7 @@
     const txt = !mine ? "👀 Tu regardes" : !mine.alive ? `🕳️ Tombé ! (${alive} encore debout)` : `🧍 ${alive} encore debout`;
     if ($("so-alive").textContent !== txt) $("so-alive").textContent = txt;
     const feed = (st.feed || []).map((f) => `<li>${esc(f.text)}</li>`).join("");
-    if ($("so-feed").innerHTML !== feed) $("so-feed").innerHTML = feed;
+    { const fe = $("so-feed"); if (fe.dataset.k !== feed) { fe.dataset.k = feed; fe.innerHTML = feed; } }   // (comparé à notre propre texte : sinon il clignote)
     $("so-dash").classList.toggle("hidden", !mine || !mine.alive || st.phase !== "play");
   }
 

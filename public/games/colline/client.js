@@ -318,7 +318,7 @@
     else html = [...st.heroes].sort((a, b) => b.held - a.held).map((h) => `<span class="ch-tag ${h.id === me() ? "me" : ""}" style="border-color:${colorOf(h.id)}">${esc(pseudoOf(h.id))} : <b>${h.held} s</b></span>`).join("");
     if ($("kc-board").innerHTML !== html) $("kc-board").innerHTML = html;
     const feed = (st.feed || []).map((f) => `<li>${esc(f.text)}</li>`).join("");
-    if ($("kc-feed").innerHTML !== feed) $("kc-feed").innerHTML = feed;
+    { const fe = $("kc-feed"); if (fe.dataset.k !== feed) { fe.dataset.k = feed; fe.innerHTML = feed; } }   // (comparé à notre propre texte : sinon il clignote)
   }
 
   function renderOver() {

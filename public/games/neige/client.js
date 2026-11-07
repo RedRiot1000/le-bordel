@@ -322,7 +322,7 @@
     const ammo = mine?.alive ? `${"⚪".repeat(mine.balls)}${"◌".repeat(MAX_BALLS - mine.balls)}` : "";
     if ($("sn-ammo").textContent !== ammo) $("sn-ammo").textContent = ammo;
     const feed = (st.feed || []).map((f) => `<li>${esc(f.text)}</li>`).join("");
-    if ($("sn-feed").innerHTML !== feed) $("sn-feed").innerHTML = feed;
+    { const fe = $("sn-feed"); if (fe.dataset.k !== feed) { fe.dataset.k = feed; fe.innerHTML = feed; } }   // (comparé à notre propre texte : sinon il clignote)
   }
 
   function renderOver() {

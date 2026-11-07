@@ -95,7 +95,7 @@
       st = state;
       prevPhase = st.phase;
       phaseEndLocal = Date.now() + (st.phaseLeft || 0);
-      if (!["play", "countdown"].includes(st.phase) && document.pointerLockElement === canvas) document.exitPointerLock();
+      if (["setup", "over"].includes(st.phase) && document.pointerLockElement === canvas) document.exitPointerLock();   // (entre deux manches, la souris reste capturée)
       if (st.phase === "setup") { $("gf-play").classList.add("hidden"); $("gf-setup").classList.remove("hidden"); renderSettings(); return; }
       $("gf-setup").classList.add("hidden");
       $("gf-play").classList.remove("hidden");
@@ -130,7 +130,7 @@
   }
   function onDown(e) {
     if (e.button !== 0) return;
-    if (document.pointerLockElement !== canvas && ["play", "countdown"].includes(st?.phase) && canvas.requestPointerLock) { canvas.requestPointerLock(); onMouse(e); return; }
+    if (document.pointerLockElement !== canvas && ["play", "countdown"].includes(st?.phase) && canvas.requestPointerLock) { canvas.requestPointerLock(); onMouse(e); }   // (ce clic compte aussi)
     mouse.left = true; chargeStart = performance.now();
   }
   function onUp(e) { if (e.button === 0) mouse.left = false; }
@@ -177,7 +177,7 @@
     if ($("gf-me").textContent !== txt) $("gf-me").textContent = txt;
     $("gf-par").textContent = hole ? `Par ${hole.par}` : "";
     const feed = (st.feed || []).map((f) => `<li>${esc(f.text)}</li>`).join("");
-    if ($("gf-feed").innerHTML !== feed) $("gf-feed").innerHTML = feed;
+    { const fe = $("gf-feed"); if (fe.dataset.k !== feed) { fe.dataset.k = feed; fe.innerHTML = feed; } }   // (comparé à notre propre texte : sinon il clignote)
   }
   function renderOver() {
     const ov = $("gf-overlay");
@@ -197,8 +197,7 @@
       .map((p, i) => `<li><span class="s10-medal">${["🥇", "🥈", "🥉"][i] || i + 1 + "."}</span>${api.avatar(p)}<b>${esc(p.pseudo)}</b><span class="gain">${p.score} pts</span></li>`).join("")}</ol>` : "";
     let buttons;
     if (st.phase === "roundOver") {
-      buttons = st.playlist ? `<p class="muted">Trou suivant dans <b id="gf-next-sec"></b> s…</p>`
-        : host ? `<div class="go-actions"><button id="gf-next" class="btn btn-primary">Trou suivant ▶</button><button id="gf-finish" class="btn btn-secondary">🏁 Terminer le jeu</button></div>` : '<p class="muted">En attente de l\'hôte…</p>';
+      buttons = `<p class="muted">Trou suivant dans <b id="gf-next-sec"></b> s…</p>` + (st.playlist ? "" : host ? `<div class="go-actions"><button id="gf-next" class="btn btn-primary">Trou suivant ▶</button><button id="gf-finish" class="btn btn-secondary">🏁 Terminer le jeu</button></div>` : '<p class="muted">En attente de l\'hôte…</p>');
     } else if (st.playlist?.final) {
       finishEndLocal = Date.now() + st.finishLeft;
       buttons = `<p class="go-final">Classement dans <b id="gf-fin-sec">${Math.ceil(st.finishLeft / 1000)}</b> s</p>${host ? '<div class="go-actions"><button id="gf-finish" class="btn btn-primary">Voir le classement maintenant</button></div>' : ""}`;
@@ -247,7 +246,14 @@
     // Le sable, l'eau, les blocs.
     for (const s of hole.sand) { c.fillStyle = "#ead39a"; c.beginPath(); c.roundRect(s.x, s.y, s.w, s.h, 22); c.fill(); c.fillStyle = "rgba(160,120,60,0.25)"; for (let i = 0; i < 40; i++) c.fillRect(s.x + 8 + Math.random() * (s.w - 16), s.y + 8 + Math.random() * (s.h - 16), 2, 2); }
     for (const w of hole.water) { c.fillStyle = "#4aa8e0"; c.beginPath(); c.roundRect(w.x, w.y, w.w, w.h, 18); c.fill(); c.strokeStyle = "#2f86c0"; c.lineWidth = 3; c.stroke(); }
-    for (const b of hole.blocks) { c.fillStyle = "rgba(70,45,20,0.3)"; c.fillRect(b.x + 6, b.y + 8, b.w, b.h); c.fillStyle = "#9aa3ad"; c.fillRect(b.x, b.y, b.w, b.h); c.fillStyle = "#c3cad2"; c.fillRect(b.x, b.y, b.w, 6); }
+    for (const b of hole.blocks) {
+      const thin = Math.min(b.w, b.h) < 20;
+      c.fillStyle = "rgba(70,45,20,0.3)"; c.fillRect(b.x + 6, b.y + 8, b.w, b.h);
+      c.fillStyle = thin ? "#b9824f" : "#9aa3ad"; c.fillRect(b.x, b.y, b.w, b.h);
+      c.fillStyle = thin ? "#cf9a63" : "#c3cad2"; c.fillRect(b.x, b.y, b.w, Math.min(6, b.h));
+    }
+    // Les tapis : une bande avec des flèches (elles avancent à l'écran).
+    for (const t of hole.boosts || []) { c.fillStyle = "rgba(255,210,63,0.35)"; c.beginPath(); c.roundRect(t.x, t.y, t.w, t.h, 10); c.fill(); c.strokeStyle = "rgba(200,140,20,0.7)"; c.lineWidth = 2; c.stroke(); }
     // Le départ.
     c.fillStyle = "rgba(255,255,255,0.5)"; c.beginPath(); c.roundRect(hole.tee.x - 26, hole.tee.y - 60, 52, 120, 10); c.fill();
     return bg;
@@ -259,6 +265,16 @@
     for (const w of hole.water) { c.strokeStyle = "rgba(255,255,255,0.35)"; c.lineWidth = 2; for (let k = 0; k < 3; k++) { const y = w.y + w.h * (0.3 + k * 0.2); c.beginPath(); for (let x = w.x + 12; x < w.x + w.w - 12; x += 8) c.lineTo(x, y + Math.sin(x / 14 + ts / 300 + k) * 2); c.stroke(); } }
     ripples = ripples.filter((r) => (r.life -= dt) > 0);
     for (const r of ripples) { c.strokeStyle = `rgba(255,255,255,${r.life})`; c.lineWidth = 2; c.beginPath(); c.arc(r.x, r.y, (1 - r.life) * 40 + 6, 0, Math.PI * 2); c.stroke(); }
+    // Les flèches des tapis.
+    for (const t of hole.boosts || []) {
+      c.save(); c.beginPath(); c.rect(t.x, t.y, t.w, t.h); c.clip();
+      const a = Math.atan2(t.dy, t.dx), step = 34, shift = (ts / 18) % step;
+      c.translate(t.x + t.w / 2, t.y + t.h / 2); c.rotate(a);
+      const L = Math.abs(t.dx) ? t.w : t.h, Wd = Math.abs(t.dx) ? t.h : t.w;
+      c.strokeStyle = "rgba(160,100,10,0.8)"; c.lineWidth = 5; c.lineCap = "round";
+      for (let x = -L / 2 - step + shift; x < L / 2 + step; x += step) for (let y = -Wd / 2 + 18; y < Wd / 2 - 8; y += 34) { c.beginPath(); c.moveTo(x - 7, y - 8); c.lineTo(x + 3, y); c.lineTo(x - 7, y + 8); c.stroke(); }
+      c.restore();
+    }
     // Les bumpers.
     for (const p of hole.bumpers) {
       c.fillStyle = "rgba(70,45,20,0.3)"; c.beginPath(); c.arc(p.x + 5, p.y + 7, p.r, 0, Math.PI * 2); c.fill();
@@ -311,9 +327,9 @@
     if (st.phase === "play" && document.pointerLockElement !== canvas) { c.font = "bold 14px Segoe UI, sans-serif"; c.fillStyle = "rgba(43,29,16,0.8)"; c.fillText("🖱️ Clique sur le parcours : ton viseur suivra ta balle", W / 2, HGT - 58); }
     if (st.phase === "countdown") {
       const n = Math.ceil((phaseEndLocal - Date.now()) / 1000);
-      c.fillStyle = "rgba(243,231,211,0.85)"; c.fillRect(0, HGT / 2 - 70, W, 140);
-      c.font = "900 60px Segoe UI, sans-serif"; c.fillStyle = "#2b1d10"; c.fillText(n > 0 ? String(n) : "GO !", W / 2, HGT / 2 - 14);
-      c.font = "20px Segoe UI, sans-serif"; c.fillText(`Par ${hole.par} · tout le monde joue en même temps`, W / 2, HGT / 2 + 38);
+      // Une petite étiquette en haut (le terrain reste visible).
+      c.fillStyle = "rgba(43,29,16,0.82)"; c.beginPath(); c.roundRect(W / 2 - 170, 8, 340, 46, 12); c.fill();
+      c.font = "900 26px Segoe UI, sans-serif"; c.fillStyle = "#fff"; c.fillText(`${n > 0 ? n : "GO !"} · Par ${hole.par}`, W / 2, 31);
     }
   }
 })();

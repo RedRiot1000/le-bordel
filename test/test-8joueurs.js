@@ -65,8 +65,7 @@ const GAMES = {
   cavale: () => game.heroes?.length === 8,
   ricochet: () => game.heroes?.length === 8,
   golf: () => game.balls?.length === 8,
-  puck: () => game.heroes?.length === 8,
-  sonar: () => game.alive === 8,
+  puck: () => game.mallets?.length === 8,
   foule: () => game.ents?.length >= 40,
   casse: () => game.heroes?.length === 8 && !!game.van,
 };

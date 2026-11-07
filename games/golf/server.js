@@ -21,8 +21,8 @@ export const meta = {
 
 const TICK_MS = 1000 / 30;
 export const SHOT_MAX = 1300, CHARGE_S = 1.1;      // la force : jusqu'à 1300 px/s, pleine charge en 1,1 s
-export const HOLE_MS = 90000, AFTER_FIRST = 30000;  // un trou : 90 s au plus, et 30 s après le premier dans le trou
-export const MAX_STROKES = 10;
+export const HOLE_MS = 124000, AFTER_FIRST = 30000;  // un trou : de 52 s à 2 min selon sa longueur, et 30 s après le premier dans le trou
+export const MAX_STROKES = 12;
 const COUNTDOWN_MS = 3000, END_DELAY = 1500, ROUND_OVER_MS = 6000, FINISH_DELAY = 15000;
 export const POINTS = [10, 7, 5, 3, 2, 1];
 
@@ -50,6 +50,8 @@ export function createGame(ctx) {
   const say = (text) => { g.feed.push({ id: ++g.fxId, text }); if (g.feed.length > 10) g.feed.shift(); };
   const addFx = (o) => { g.fx.push({ id: ++g.fxId, t: now(), ...o }); if (g.fx.length > 40) g.fx.shift(); };
   const moving = (b) => b.vx !== 0 || b.vy !== 0;
+  // Le temps d'un trou dépend de sa longueur.
+  const holeMs = () => 40000 + 12000 * (g.hole?.segs.length || 3);
 
   function publicState() {
     const t = now();
@@ -58,7 +60,7 @@ export function createGame(ctx) {
       players: players().map((p) => ({ ...p, score: g.scores[p.id] || 0 })),
       total: g.total,
       balls: Object.entries(g.balls).map(([id, b]) => ({ id, x: Math.round(b.x * 10) / 10, y: Math.round(b.y * 10) / 10, vx: Math.round(b.vx), vy: Math.round(b.vy), strokes: b.strokes, done: b.done, charge: b.charging ? Math.min(1, (t - b.charging) / (CHARGE_S * 1000)) : 0, aim: Math.round(b.aim * 100) / 100 })),
-      timeLeft: g.phase === "play" ? Math.max(0, Math.min(HOLE_MS - (t - g.playAt), g.firstIn ? AFTER_FIRST - (t - g.firstIn) : 1e9)) : HOLE_MS,
+      timeLeft: g.phase === "play" ? Math.max(0, Math.min(holeMs() - (t - g.playAt), g.firstIn ? AFTER_FIRST - (t - g.firstIn) : 1e9)) : HOLE_MS,
       firstIn: !!g.firstIn,
       phaseLeft: Math.max(0, g.phaseEnd - t),
       feed: g.feed.slice(-4),
@@ -108,7 +110,7 @@ export function createGame(ctx) {
       g.final = true;
       g.finishAt = now() + FINISH_DELAY;
       g.finishTimer = setTimeout(() => ctx.finish(ranking()), FINISH_DELAY);
-    } else if (!last && ctx.playlist) {
+    } else if (!last) {          // (la manche suivante se lance toute seule)
       g.phaseEnd = now() + ROUND_OVER_MS;
       g.finishTimer = setTimeout(() => { if (g.phase === "roundOver") startRound(); }, ROUND_OVER_MS);
     }
@@ -170,32 +172,66 @@ export function createGame(ctx) {
   }
 
   // =================================================================
-  //  BOTS : ils visent le trou (ou un point du chemin s'il est caché), et dosent avec un peu d'erreur
+  //  BOTS : ils essaient des coups « dans leur tête » et gardent celui qui rapproche le plus du trou
+  //  (en suivant le parcours, pas à vol d'oiseau), avec un peu d'erreur au moment de taper.
   // =================================================================
-  const lineClear = (x0, y0, x1, y1) => { const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 10); for (let i = 1; i < n; i++) { const x = x0 + ((x1 - x0) * i) / n, y = y0 + ((y1 - y0) * i) / n; if (!G.onCourse(g.hole, x, y) || G.inWater(g.hole, x, y)) return false; } return true; };
-  // La force qu'il faut pour qu'une balle s'arrête après d (le gazon freine de façon exponentielle).
-  const powerFor = (d) => { const k = -Math.log(1 - G.ROLL); return Math.min(SHOT_MAX, d * k + 30); };
+  const CELL = 20;
+  let field = null, fieldSeed = null;
+  // La distance au trou en suivant le gazon, case par case.
+  function distField() {
+    if (fieldSeed === g.hole.seed) return field;
+    const cw = Math.ceil(G.W / CELL), ch = Math.ceil(G.H / CELL), f = new Float32Array(cw * ch).fill(1e9);
+    const ok = (c, r) => { const x = c * CELL + CELL / 2, y = r * CELL + CELL / 2; return G.onCourse(g.hole, x, y) && !G.inWater(g.hole, x, y); };
+    const start = Math.floor(g.hole.cup.y / CELL) * cw + Math.floor(g.hole.cup.x / CELL);
+    f[start] = 0;
+    let q = [start];
+    while (q.length) {
+      const nx = [];
+      for (const k of q) {
+        const c = k % cw, r = (k - c) / cw;
+        for (const [dx, dy, w] of [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.41], [1, -1, 1.41], [-1, 1, 1.41], [-1, -1, 1.41]]) {
+          const a = c + dx, b = r + dy;
+          if (a < 0 || b < 0 || a >= cw || b >= ch) continue;
+          const n = b * cw + a;
+          if (f[n] <= f[k] + w || !ok(a, b)) continue;
+          f[n] = f[k] + w; nx.push(n);
+        }
+      }
+      q = nx;
+    }
+    field = { f, cw }; fieldSeed = g.hole.seed;
+    return field;
+  }
+  const geo = (x, y) => { const F = distField(), c = Math.floor(x / CELL), r = Math.floor(y / CELL); const v = F.f[r * F.cw + c]; return v >= 1e9 ? 1e6 : v * CELL; };
+  // Où s'arrêterait la balle ? (« trou », « eau », ou la position)
+  function tryShot(b, a, v) {
+    const t = { x: b.x, y: b.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v };
+    for (let k = 0; k < 360 && (t.vx || t.vy); k++) {
+      const r = G.roll(g.hole, t, 1 / 30);
+      if (r) return { res: r, x: t.x, y: t.y };
+    }
+    return { res: null, x: t.x, y: t.y };
+  }
   function botInput(id, b) {
     const t = now(), ai = b.ai;
     if (moving(b) || b.done) { ai.plan = null; return { k: 0, aim: b.aim }; }
     if (!ai.plan) {
       if (t < (ai.thinkUntil || 0)) return { k: 0, aim: b.aim };
-      ai.thinkUntil = t + 500 + Math.random() * 900;
-      const h = g.hole;
-      // La cible : le trou s'il est visible, sinon le milieu du couloir le plus avancé qu'on voit.
-      let target = null;
-      if (lineClear(b.x, b.y, h.cup.x, h.cup.y)) target = { x: h.cup.x, y: h.cup.y, cup: true };
-      else {
-        const pts = [];
-        h.segs.forEach((s, i) => { for (let k = 0.2; k < 1; k += 0.2) pts.push({ x: s.x + s.w / 2 + (s.w > s.h ? (k - 0.5) * s.w : 0), y: s.y + s.h / 2 + (s.w > s.h ? 0 : (k - 0.5) * s.h), score: i + k }); });
-        for (const p of pts.sort((a, c) => c.score - a.score)) if (lineClear(b.x, b.y, p.x, p.y)) { target = p; break; }
-        if (!target) target = { x: h.cup.x, y: h.cup.y };
+      ai.thinkUntil = t + 600 + Math.random() * 1000;
+      const here = geo(b.x, b.y), cands = [];
+      for (let i = 0; i < 32; i++) {
+        const a = (i / 32) * Math.PI * 2 + Math.random() * 0.1;
+        for (const v of [220, 380, 560, 780, 1020, 1300]) {
+          const r = tryShot(b, a, v);
+          const score = r.res === "trou" ? -1 : r.res === "eau" ? 1e7 : geo(r.x, r.y);
+          cands.push({ a, v, score });
+        }
       }
-      const d = Math.hypot(target.x - b.x, target.y - b.y);
-      const err = 0.05 + Math.random() * 0.06;
-      const aim = Math.atan2(target.y - b.y, target.x - b.x) + (Math.random() - 0.5) * err;
-      const v = powerFor(target.cup ? d + 20 : d) * (0.88 + Math.random() * 0.24);
-      ai.plan = { aim, hold: (v / SHOT_MAX) * CHARGE_S * 1000, start: 0 };
+      cands.sort((x, y) => x.score - y.score);
+      // Pas toujours le meilleur : un des 3 meilleurs, et une petite erreur.
+      const pick = cands[Math.floor(Math.random() * Math.min(3, cands.length))];
+      const useful = pick.score < here - 20 || pick.score < 0 ? pick : cands[0];
+      ai.plan = { aim: useful.a + (Math.random() - 0.5) * 0.05, hold: (Math.min(SHOT_MAX, useful.v * (0.94 + Math.random() * 0.12)) / SHOT_MAX) * CHARGE_S * 1000, start: 0 };
     }
     const p = ai.plan;
     if (!p.start) p.start = t;
@@ -213,7 +249,7 @@ export function createGame(ctx) {
     } else if (g.phase === "play") {
       for (const [id, b] of Object.entries(g.balls)) if (b.bot) { const x = botInput(id, b); act(id, x.k, x.aim); }
       stepBalls(dt);
-      if (!g.endAt && (t - g.playAt >= HOLE_MS || (g.firstIn && t - g.firstIn >= AFTER_FIRST))) g.endAt = t;
+      if (!g.endAt && (t - g.playAt >= holeMs() || (g.firstIn && t - g.firstIn >= AFTER_FIRST))) g.endAt = t;
       if (g.endAt && t >= g.endAt) return endRound();
     }
     ctx.update();

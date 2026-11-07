@@ -117,7 +117,7 @@
       if (st.phase === "countdown" && prevPhase !== "countdown") { pending = []; pred = prevPred = null; history.clear(); for (const k in trails) delete trails[k]; }
       prevPhase = st.phase;
       phaseEndLocal = Date.now() + (st.phaseLeft || 0);
-      if (!["play", "countdown"].includes(st.phase) && document.pointerLockElement === canvas) document.exitPointerLock();
+      if (["setup", "over"].includes(st.phase) && document.pointerLockElement === canvas) document.exitPointerLock();   // (entre deux manches, la souris reste capturée)
       if (st.phase === "setup") {
         $("rc-play").classList.add("hidden");
         $("rc-setup").classList.remove("hidden");
@@ -175,7 +175,7 @@
   function onDown(e) {
     if (e.button === 0) {
       // Le 1er clic capture la souris (on ne tire pas avec ce clic-là).
-      if (document.pointerLockElement !== canvas && ["play", "countdown"].includes(st?.phase) && canvas.requestPointerLock) { canvas.requestPointerLock(); onMouse(e); return; }
+      if (document.pointerLockElement !== canvas && ["play", "countdown"].includes(st?.phase) && canvas.requestPointerLock) { canvas.requestPointerLock(); onMouse(e); }   // (ce clic compte aussi)
       mouse.left = true;
     }
     if (e.button === 2) mouse.right = true;
@@ -322,7 +322,7 @@
     if ($("rc-me").innerHTML !== txt) $("rc-me").innerHTML = txt;
     $("rc-alive").textContent = `${st.heroes.filter((h) => h.alive).length} en vie${st.teamsMode ? " · équipes" : ""}`;
     const feed = (st.feed || []).map((f) => `<li>${esc(f.text)}</li>`).join("");
-    if ($("rc-feed").innerHTML !== feed) $("rc-feed").innerHTML = feed;
+    { const fe = $("rc-feed"); if (fe.dataset.k !== feed) { fe.dataset.k = feed; fe.innerHTML = feed; } }   // (comparé à notre propre texte : sinon il clignote)
   }
 
   function renderOver() {
@@ -343,9 +343,8 @@
       .map((p, i) => `<li><span class="s10-medal">${["🥇", "🥈", "🥉"][i] || i + 1 + "."}</span>${api.avatar(p)}<b>${esc(p.pseudo)}</b><span class="gain">${p.score} pts</span></li>`).join("")}</ol>` : "";
     let buttons;
     if (st.phase === "roundOver") {
-      buttons = st.playlist ? `<p class="muted">Manche suivante dans <b id="rc-next-sec"></b> s…</p>`
-        : host ? `<div class="go-actions"><button id="rc-next" class="btn btn-primary">Manche suivante ▶</button>
-            <button id="rc-finish" class="btn btn-secondary">🏁 Terminer le jeu</button></div>` : '<p class="muted">En attente de l\'hôte…</p>';
+      buttons = `<p class="muted">Manche suivante dans <b id="rc-next-sec"></b> s…</p>` + (st.playlist ? "" : host ? `<div class="go-actions"><button id="rc-next" class="btn btn-primary">Manche suivante ▶</button>
+            <button id="rc-finish" class="btn btn-secondary">🏁 Terminer le jeu</button></div>` : '<p class="muted">En attente de l\'hôte…</p>');
     } else if (st.playlist?.final) {
       finishEndLocal = Date.now() + st.finishLeft;
       buttons = `<p class="go-final">Classement dans <b id="rc-fin-sec">${Math.ceil(st.finishLeft / 1000)}</b> s</p>
@@ -513,6 +512,8 @@
       c.fillStyle = f >= 1 ? "#21e6ff" : "#5b6fa0"; c.fillRect(x + 160, y + 11, 128 * f, 12);
       c.font = "bold 11px Segoe UI, sans-serif"; c.fillStyle = "#fff"; c.fillText(f >= 1 ? "🛡️ PRÊT" : "🛡️", x + 166, y + 17);
     }
+    // Au début : on se place, personne ne peut tirer.
+    if (st.phase === "play" && st.prep > 0) { c.font = "900 30px Segoe UI, sans-serif"; c.textAlign = "center"; c.fillStyle = "#21e6ff"; c.fillText(`Placez-vous… tir dans ${Math.ceil(st.prep / 1000)} s`, W / 2, 44); }
     // La mort subite arrive.
     if (st.phase === "play") {
       const left = SUDDEN_AT - (performance.now() - playAtLocal);

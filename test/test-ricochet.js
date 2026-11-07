@@ -41,6 +41,14 @@ console.log("— Arène et balles —");
   const diag = { walls: [{ x1: 500, y1: 300, x2: 700, y2: 500, t: 16 }] }, b2 = { x: 300, y: 400, vx: A.BULLET_V, vy: 0, left: 3, age: 0 };
   for (let i = 0; i < 20; i++) A.moveBullet(b2, diag, 1 / 30);
   check(Math.abs(b2.vy) > 600 && Math.abs(b2.vx) < 100, "Sur un mur en biais, la balle part sur le côté");
+  {
+    let seen = 0, pairs = 0;
+    for (let s = 0; s < 40; s++) {
+      const ar = A.build(s * 104729), sp = A.spawns(ar, 8);
+      for (let i = 0; i < 8; i++) for (let j = i + 1; j < 8; j++) { pairs++; if (!A.blocked(ar, sp[i], sp[j])) seen++; }
+    }
+    check(seen / pairs < 0.5, `À 8 joueurs, la plupart des départs sont cachés les uns des autres (${Math.round(100 * seen / pairs)} % se voient)`);
+  }
   check(shrinkAt(SUDDEN_AT - 1) === 0 && shrinkAt(SUDDEN_AT + 20000) > 0.3, "Après 30 s, l'arène rétrécit");
 }
 
@@ -51,7 +59,7 @@ console.log("— Règles —");
   game.onAction("a", "start", {});
   const g = game._g;
   game.destroy();
-  g.phase = "play"; g.playAt = Date.now(); g.arena = { ...g.arena, walls: [] };
+  g.phase = "play"; g.playAt = Date.now() - 3000; g.arena = { ...g.arena, walls: [] };
   const [A1, B1] = [g.heroes.a, g.heroes.b];
   A1.h.x = 300; A1.h.y = 400; B1.h.x = 700; B1.h.y = 400;
   const send = (id, k, a) => { g.heroes[id].budget = 6; game.onAction(id, "in", { s: g.heroes[id].seq + 1, k, a }); };
