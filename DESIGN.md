@@ -905,3 +905,29 @@ Renommé « Air Hockey » (nom plus clair). Vitesses baissées à la demande de 
 - **Fin du trou** : tout le monde dedans, 30 s après le premier, ou 40 s + 12 s par couloir. Le trou suivant se lance tout seul. Le décompte du début est une petite étiquette en haut (le terrain reste visible). Ceux qui n'y sont pas : +2 coups.
 - **Points** : selon les coups, 10, 7, 5, 3, 2, 1 (égalité = même place). 6 trous par défaut.
 - **Bots** : ils essaient 192 coups « dans leur tête » (32 angles × 6 forces, avec la vraie physique) et gardent un des 3 meilleurs selon la distance au trou en suivant le parcours ; un peu d'erreur à la frappe.
+
+## 7 tricies. Donjon 🐉 — validé (« Go », idée de Scotty)
+
+Maître du jeu contre slayers, en 2 phases. Fichiers : `games/donjon/server.js`, `public/games/donjon/dungeon.js` (globalThis.Donjon, partagé), `public/games/donjon/client.js`.
+- **Rôles** : chacun est maître du jeu une fois (réglage « Chacun maître 1 fois », ou 2 / 3 manches). Les autres sont les slayers. Le maître bot (ou parti) construit et joue tout seul.
+- **Choix (10 s)** : chaque slayer choisit sa classe (doublons permis ; sans choix : au hasard). Le maître peut déjà construire.
+- **Préparation (2 min)** : arène des hordes 1280 × 800 avec 6 piliers. Vagues depuis les bords (au plus 1 + 3,5 × slayers + 1 toutes les 25 s, max 40), PV des monstres +1 % toutes les 1,6 s. Les hordes tapent à 60 %.
+  - Expérience partagée entre slayers (× min(1 ; 1,3 / nombre de slayers)). Niveaux : 110, 290, 530, 840, 1240 XP (niveaux 2 à 6). Par niveau : +12 % de PV max (le gain s'ajoute, les PV perdus ne reviennent pas), +8 % de dégâts.
+  - **Les PV perdus restent perdus** (demande de Scotty). Mort : retour 5 s après, avec 30 % de PV, et la moitié de l'expérience du niveau en cours en moins. Potions : 10 % de chance par monstre, +15 % de PV, 12 s au sol.
+- **Classes** (vitesse × la normale) — clic = attaque de base, sorts aux niveaux 2 / 3 / 4 (A/E/R ou 1/2/3, clic droit = sort 1), passif au niveau 5. Espace = esquive (dash du moteur à pied, intouchable pendant 0,16 s).
+  - Mage (80 PV, ×1) : orbe 20 · boule de feu (explosion 85 px, 42) · nova de givre (140 px, 18 + ralentit 2,5 s) · téléport (240 px) · passif : recharges −25 %.
+  - Chevalier (160 PV, ×0,92) : épée (arc 70 px, 26) · bouclier (3 s, −70 % de dégâts) · charge (900 px/s pendant 0,28 s, 30 + recul) · défi (les ennemis à 320 px le visent 4 s) · passif : −20 % de dégâts.
+  - Archer (95 PV, ×1,08) : flèche 16 · tir perçant 38 · pluie de flèches (3 volées de 15 sur 100 px, à 230 px devant) · piège à loups (30 + immobilise 2,5 s) · passif : 25 % de critiques ×2.
+  - Homme d'armes (130 PV, ×1) : hache (arc 78 px, 34) · tourbillon (100 px, 40) · coup étourdissant (30 + 1,6 s) · rage (6 s : +50 % de dégâts, frappe 40 % plus vite) · passif : 15 % de vol de vie.
+- **Construction** : grille 5 × 4 salles de 400 × 300 (monde 2000 × 1200), portes de 100 px au milieu de chaque mur intérieur (toutes les salles sont reliées). Entrée fixe (colonne 0, ligne 1). 6 salles toutes faites : vide, piliers, croix, arène, dédale, passage étroit (aucune ne bouche une porte ; passages ≥ 68 px).
+  - Budget : 16 + 12 × slayers + slayers². Squelette 2, archer squelette 3, brute 5 ; pics 2, rune explosive 3. Boss obligatoire (Golem, Nécromancien, Dragon) ; sinon il est mis au fond, au hasard.
+  - Ce que construit le maître n'est envoyé qu'à lui (message privé « gm ») ; les pièges restent cachés aux slayers pendant tout le donjon.
+- **Donjon (3 min max)** : les ennemis dorment ; ils se réveillent (toute leur salle) quand un slayer approche à 380 px. PV des monstres × (0,85 + 0,1 × slayers). Les monstres trouvent leur chemin grâce à une carte des distances (cases de 20 px).
+  - Ennemis : squelette (64 PV, coup annoncé 0,35 s), archer squelette (48 PV, tire à distance), brute (220 PV, écrasement annoncé 0,8 s, 72 px). Les attaques s'annoncent par un cercle rouge qui se remplit.
+  - Boss (PV = (base + par slayer) × (1 + 0,08 × (slayers − 1))) : Golem (écrasement 92 px, rocher), Nécromancien (orbes, invoque 2 squelettes), Dragon (morsure, souffle de feu en éventail). Il reste dans sa salle et se réveille quand un slayer y entre (ou s'il est touché).
+  - Maître : énergie (4 au départ, +1 toutes les 2,5 s, max 12). Déclencher un piège : pics 1 (0,45 s avant de frapper, 22), rune 2 (0,9 s, 40, 90 px). Renforts : squelette 2, archer 3, brute 5, à plus de 260 px des slayers et pas dans la salle du boss. Touche B : piloter le boss (ZQSD, clic = attaque, clic droit = spéciale).
+  - Un slayer tombé est relevé si un allié reste 3 s à moins de 55 px (25 % de PV). Fin : boss tué, tous tombés, ou 3 min.
+  - Seul ou à deux, les slayers prennent moins de dégâts (×0,6 seul, ×0,85 à deux) : personne pour les relever.
+- **Points** : slayer = sa part des dégâts de l'équipe (5 en moyenne, jusqu'à 10) + survie (3 + 5 × PV gardés) + 5 si le boss tombe. Maître = jusqu'à 12 pour les dégâts (comparés aux PV max de l'équipe) + jusqu'à 12 selon la part de slayers tombés + 3 si tous tombent + 5 si le boss tient.
+- **Bots slayers** : ils visent l'ennemi visible le plus proche (pas à travers les murs ; lâchent un ennemi qu'ils n'arrivent pas à blesser en 4 s), gardent leurs distances (mage, archer), esquivent les attaques annoncées, utilisent leurs sorts, relèvent leurs alliés, et suivent la carte des distances vers le boss.
+- Sims (bots) : à 4 joueurs, les manches se partagent entre boss vaincu (30-90 s) et équipe décimée ; les slayers finissent les hordes niveau 4-5.

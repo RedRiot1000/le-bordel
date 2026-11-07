@@ -396,6 +396,28 @@
       points: ["<b>+2</b> par but.", "<b>+3</b> pour chaque joueur de l'équipe gagnante, <b>+1</b> chacun en cas d'égalité."],
       example: "Le palet arrive vite vers ton but : tu glisses ton maillet devant, il rebondit. Tu le reprends en diagonale, il frappe la bande et file dans le but adverse. BUT, +2 !",
     },
+    donjon: {
+      goal: "Slayer : tuer le boss en perdant le moins de PV possible. Maître du jeu : faire tomber les slayers.",
+      steps: [
+        "À chaque manche, un joueur est le <b>maître du jeu</b> (chacun son tour). Les autres sont les <b>slayers</b> et choisissent une classe : Mage, Chevalier, Archer ou Homme d'armes.",
+        "<b>Préparation (2 min)</b> : les slayers combattent des hordes de monstres pour <b>monter de niveau</b>. Chaque niveau débloque un sort (niveaux 2, 3, 4), puis un passif (niveau 5).",
+        "⚠️ <b>Les PV perdus pendant les hordes restent perdus</b> dans le donjon. Mourir pendant les hordes : retour 5 s plus tard avec 30 % de PV. Les potions (rares) rendent un peu de vie.",
+        "Pendant ce temps, le maître construit son donjon sur une grille : il choisit les salles, pose des ennemis et des pièges avec un budget, et place le boss.",
+        "<b>Le donjon (3 min max)</b> : les slayers partent de l'entrée et doivent tuer le boss. Les ennemis dorment jusqu'à ce qu'on approche.",
+        "Le maître voit tout : il <b>déclenche ses pièges</b> (cachés aux slayers) et lâche des <b>renforts</b> avec son énergie, et il peut <b>piloter le boss</b> lui-même.",
+        "Un slayer qui tombe dans le donjon peut être <b>relevé</b> : un allié reste 3 s près de lui.",
+        "Les attaques ennemies s'annoncent par un cercle rouge qui se remplit : esquive !",
+      ],
+      controls: [
+        "Slayer : <kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> bouger · 🖱️ viser · <b>clic</b> attaque · <kbd>A</kbd> <kbd>E</kbd> <kbd>R</kbd> (ou 1 2 3, clic droit = sort 1) sorts · <kbd>Espace</kbd> esquive",
+        "Maître : choisis un outil en haut et clique sur la carte · clic droit = enlever · <kbd>B</kbd> = piloter le boss (ZQSD + clic, clic droit = attaque spéciale)",
+      ],
+      points: [
+        "Slayer : sa part des dégâts de l'équipe (5 en moyenne, jusqu'à 10), jusqu'à <b>+8</b> s'il survit (selon les PV gardés), <b>+5</b> si le boss tombe.",
+        "Maître : jusqu'à <b>+12</b> pour les dégâts infligés, jusqu'à <b>+12</b> selon les slayers tombés, <b>+3</b> s'ils tombent tous, <b>+5</b> si le boss tient.",
+      ],
+      example: "Tu es Archer : en 2 min de hordes tu passes niveau 4, mais tu as perdu un tiers de ta vie. Dans le donjon, une rune explose sous tes pieds : tu esquives. Au boss, ton Tir perçant traverse les squelettes invoqués, et le Golem tombe !",
+    },
     ricochet: {
       goal: "Être le dernier debout (ou la dernière équipe) : une touche suffit.",
       steps: [
